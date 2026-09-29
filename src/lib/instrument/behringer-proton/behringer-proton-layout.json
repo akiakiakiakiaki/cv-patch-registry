@@ -1,0 +1,1119 @@
+{
+  "schemaVersion": 1,
+  "layoutVersion": 1,
+  "id": "behringer-proton",
+  "displayName": "Behringer Proton",
+  "viewBox": {
+    "width": 2048,
+    "height": 650.88
+  },
+  "knobStartAngle": 119,
+  "knobSweepAngle": 299,
+  "knobs": [
+    {
+      "id": "Tune 1",
+      "x": 114.98,
+      "y": 173.5
+    },
+    {
+      "id": "Tune 2",
+      "x": 327.13,
+      "y": 173.5
+    },
+    {
+      "id": "Shape 1",
+      "x": 115.98,
+      "y": 361.66
+    },
+    {
+      "id": "Shape 2",
+      "x": 328.1,
+      "y": 361.66
+    },
+    {
+      "id": "Width 1",
+      "x": 114.96,
+      "y": 451.16
+    },
+    {
+      "id": "Width 2",
+      "x": 328.1,
+      "y": 450.16
+    },
+    {
+      "id": "Sub mix 1",
+      "x": 115.98,
+      "y": 539.62
+    },
+    {
+      "id": "Osc mix",
+      "x": 221.52,
+      "y": 539.62
+    },
+    {
+      "id": "Sub mix 2",
+      "x": 328.1,
+      "y": 539.62
+    },
+    {
+      "id": "Freq 1",
+      "x": 472.26,
+      "y": 95.14
+    },
+    {
+      "id": "Reso 1",
+      "x": 625.54,
+      "y": 94.16
+    },
+    {
+      "id": "Freq 2",
+      "x": 472.26,
+      "y": 182.67
+    },
+    {
+      "id": "Reso 2",
+      "x": 625.54,
+      "y": 183.67
+    },
+    {
+      "id": "Mod depth 1",
+      "x": 766.62,
+      "y": 94.16
+    },
+    {
+      "id": "Mod depth 2",
+      "x": 766.62,
+      "y": 183.67
+    },
+    {
+      "id": "Env depth 1",
+      "x": 907.72,
+      "y": 94.16
+    },
+    {
+      "id": "Env depth 2",
+      "x": 907.72,
+      "y": 183.67
+    },
+    {
+      "id": "FLT mix",
+      "x": 1060.99,
+      "y": 94.16
+    },
+    {
+      "id": "Noise",
+      "x": 1060.99,
+      "y": 183.67
+    },
+    {
+      "id": "Sym",
+      "x": 472.26,
+      "y": 272.15
+    },
+    {
+      "id": "Folds",
+      "x": 472.26,
+      "y": 361.65
+    },
+    {
+      "id": "Attack 1",
+      "x": 624.54,
+      "y": 273.15
+    },
+    {
+      "id": "Attack 2",
+      "x": 625.54,
+      "y": 361.65
+    },
+    {
+      "id": "Decay 1",
+      "x": 766.62,
+      "y": 272.15
+    },
+    {
+      "id": "Decay 2",
+      "x": 766.62,
+      "y": 360.65
+    },
+    {
+      "id": "Sustain 1",
+      "x": 907.72,
+      "y": 272.15
+    },
+    {
+      "id": "Sustain 2",
+      "x": 907.72,
+      "y": 360.65
+    },
+    {
+      "id": "Release 1",
+      "x": 1060.99,
+      "y": 273.15
+    },
+    {
+      "id": "Release 2",
+      "x": 1060.99,
+      "y": 361.65
+    },
+    {
+      "id": "Rate 1",
+      "x": 472.26,
+      "y": 451.16
+    },
+    {
+      "id": "Depth 1",
+      "x": 471.26,
+      "y": 539.64
+    },
+    {
+      "id": "Rate 2",
+      "x": 1061,
+      "y": 450.16
+    },
+    {
+      "id": "Depth 2",
+      "x": 1060,
+      "y": 539.64
+    },
+    {
+      "id": "VCA 1 bias",
+      "x": 1168.56,
+      "y": 94.16
+    },
+    {
+      "id": "VCA 2 bias",
+      "x": 1168.56,
+      "y": 183.67
+    },
+    {
+      "id": "Main vol",
+      "x": 1276.2,
+      "y": 93.16
+    },
+    {
+      "id": "Ext level",
+      "x": 1276.2,
+      "y": 182.67
+    },
+    {
+      "id": "CV mix",
+      "x": 1382.77,
+      "y": 272.15
+    },
+    {
+      "id": "Porta",
+      "x": 1382.77,
+      "y": 360.63
+    },
+    {
+      "id": "Atten 1",
+      "x": 1383.77,
+      "y": 450.16
+    },
+    {
+      "id": "Atten 2",
+      "x": 1383.77,
+      "y": 538.62
+    },
+    {
+      "id": "Atk 1",
+      "x": 1168.56,
+      "y": 272.15
+    },
+    {
+      "id": "Rel 1",
+      "x": 1168.56,
+      "y": 361.65
+    },
+    {
+      "id": "Atk 2",
+      "x": 1276.2,
+      "y": 272.15
+    },
+    {
+      "id": "Rel 2",
+      "x": 1276.2,
+      "y": 360.65
+    }
+  ],
+  "switches": [
+    {
+      "id": "Range 1",
+      "x": 115.96,
+      "y": 273.17
+    },
+    {
+      "id": "Para",
+      "x": 187.01,
+      "y": 273.17
+    },
+    {
+      "id": "Sync",
+      "x": 257.05,
+      "y": 273.17
+    },
+    {
+      "id": "Range 2",
+      "x": 328.1,
+      "y": 273.17
+    },
+    {
+      "id": "Mode 1",
+      "x": 548.35,
+      "y": 94.14
+    },
+    {
+      "id": "Mode 2",
+      "x": 548.35,
+      "y": 184.64
+    },
+    {
+      "id": "Link",
+      "x": 696.56,
+      "y": 139.94
+    },
+    {
+      "id": "Soft",
+      "x": 836.61,
+      "y": 139.94
+    },
+    {
+      "id": "Key",
+      "x": 984.83,
+      "y": 139.94
+    },
+    {
+      "id": "Wave mode",
+      "x": 548.35,
+      "y": 317.92
+    },
+    {
+      "id": "F/S",
+      "x": 696.56,
+      "y": 317.92
+    },
+    {
+      "id": "Retrig env",
+      "x": 984.83,
+      "y": 318.92
+    },
+    {
+      "id": "1 shot",
+      "x": 549.35,
+      "y": 450.13
+    },
+    {
+      "id": "Sync LFO",
+      "x": 549.35,
+      "y": 537.66
+    },
+    {
+      "id": "Retrig LFO",
+      "x": 984.83,
+      "y": 451.13
+    },
+    {
+      "id": "Shift",
+      "x": 984.83,
+      "y": 539.66
+    },
+    {
+      "id": "Loop",
+      "x": 1153.32,
+      "y": 451.16
+    },
+    {
+      "id": "Bounce",
+      "x": 1223.37,
+      "y": 451.16
+    },
+    {
+      "id": "Sustain",
+      "x": 1294.41,
+      "y": 451.16
+    },
+    {
+      "id": "Invert",
+      "x": 1153.32,
+      "y": 539.66
+    },
+    {
+      "id": "Reverse",
+      "x": 1223.37,
+      "y": 539.66
+    },
+    {
+      "id": "Retrig ASR",
+      "x": 1294.41,
+      "y": 539.66
+    }
+  ],
+  "leds": [
+    {
+      "id": "OSC1 octave 8",
+      "x": 194.12,
+      "y": 136.87,
+      "color": "red"
+    },
+    {
+      "id": "OSC1 octave 16",
+      "x": 194.12,
+      "y": 172.48,
+      "color": "red"
+    },
+    {
+      "id": "OSC1 octave 32",
+      "x": 194.12,
+      "y": 210.1,
+      "color": "red"
+    },
+    {
+      "id": "OSC2 octave 8",
+      "x": 247.91,
+      "y": 136.87,
+      "color": "blue"
+    },
+    {
+      "id": "OSC2 octave 16",
+      "x": 247.91,
+      "y": 172.48,
+      "color": "blue"
+    },
+    {
+      "id": "OSC2 octave 32",
+      "x": 247.91,
+      "y": 210.1,
+      "color": "blue"
+    },
+    {
+      "id": "OSC1 wave 1",
+      "x": 194.12,
+      "y": 347.41,
+      "color": "red"
+    },
+    {
+      "id": "OSC1 wave 2",
+      "x": 180.91,
+      "y": 377.94,
+      "color": "red"
+    },
+    {
+      "id": "OSC1 wave 3",
+      "x": 175.85,
+      "y": 408.48,
+      "color": "red"
+    },
+    {
+      "id": "OSC1 wave 4",
+      "x": 179.91,
+      "y": 438.99,
+      "color": "red"
+    },
+    {
+      "id": "OSC1 wave 5",
+      "x": 193.12,
+      "y": 468.52,
+      "color": "red"
+    },
+    {
+      "id": "OSC2 wave 1",
+      "x": 249.96,
+      "y": 347.41,
+      "color": "blue"
+    },
+    {
+      "id": "OSC2 wave 2",
+      "x": 263.17,
+      "y": 377.94,
+      "color": "blue"
+    },
+    {
+      "id": "OSC2 wave 3",
+      "x": 267.23,
+      "y": 408.48,
+      "color": "blue"
+    },
+    {
+      "id": "OSC2 wave 4",
+      "x": 264.17,
+      "y": 438.99,
+      "color": "blue"
+    },
+    {
+      "id": "OSC2 wave 5",
+      "x": 249.96,
+      "y": 468.52,
+      "color": "blue"
+    },
+    {
+      "id": "Filter 1 LP",
+      "x": 422.52,
+      "y": 69.77,
+      "color": "red"
+    },
+    {
+      "id": "Filter 1 BP",
+      "x": 422.52,
+      "y": 95.19,
+      "color": "red"
+    },
+    {
+      "id": "Filter 1 HP",
+      "x": 422.52,
+      "y": 118.58,
+      "color": "red"
+    },
+    {
+      "id": "Filter 2 LP",
+      "x": 422.52,
+      "y": 158.28,
+      "color": "blue"
+    },
+    {
+      "id": "Filter 2 BP",
+      "x": 422.52,
+      "y": 181.65,
+      "color": "blue"
+    },
+    {
+      "id": "Filter 2 HP",
+      "x": 422.52,
+      "y": 207.05,
+      "color": "blue"
+    },
+    {
+      "id": "Link upper",
+      "x": 695.56,
+      "y": 85.01,
+      "color": "red"
+    },
+    {
+      "id": "Link lower",
+      "x": 695.56,
+      "y": 196.88,
+      "color": "blue"
+    },
+    {
+      "id": "Soft upper",
+      "x": 835.61,
+      "y": 85.01,
+      "color": "red"
+    },
+    {
+      "id": "Soft lower",
+      "x": 835.61,
+      "y": 195.88,
+      "color": "blue"
+    },
+    {
+      "id": "Key upper",
+      "x": 983.83,
+      "y": 85.01,
+      "color": "red"
+    },
+    {
+      "id": "Key lower",
+      "x": 983.83,
+      "y": 196.88,
+      "color": "blue"
+    },
+    {
+      "id": "AM",
+      "x": 422.48,
+      "y": 263.05,
+      "color": "red"
+    },
+    {
+      "id": "AM 1/2",
+      "x": 422.48,
+      "y": 300.59,
+      "color": "red"
+    },
+    {
+      "id": "AM 1",
+      "x": 422.48,
+      "y": 336.2,
+      "color": "red"
+    },
+    {
+      "id": "AM BP",
+      "x": 422.48,
+      "y": 372.83,
+      "color": "red"
+    },
+    {
+      "id": "F/S upper",
+      "x": 695.56,
+      "y": 264.05,
+      "color": "red"
+    },
+    {
+      "id": "F/S lower",
+      "x": 695.56,
+      "y": 372.83,
+      "color": "blue"
+    },
+    {
+      "id": "Retrig env upper",
+      "x": 983.83,
+      "y": 263.05,
+      "color": "red"
+    },
+    {
+      "id": "Env retrig",
+      "x": 983.83,
+      "y": 373.83,
+      "color": "blue"
+    },
+    {
+      "id": "LFO1 wave 1",
+      "x": 668.15,
+      "y": 443.07,
+      "color": "red"
+    },
+    {
+      "id": "LFO1 wave 2",
+      "x": 653.96,
+      "y": 474.55,
+      "color": "red"
+    },
+    {
+      "id": "LFO1 wave 3",
+      "x": 647.88,
+      "y": 506.08,
+      "color": "red"
+    },
+    {
+      "id": "LFO1 wave 4",
+      "x": 653.96,
+      "y": 537.59,
+      "color": "red"
+    },
+    {
+      "id": "LFO1 wave 5",
+      "x": 668.15,
+      "y": 566.11,
+      "color": "red"
+    },
+    {
+      "id": "LFO2 wave 1",
+      "x": 864.06,
+      "y": 443.07,
+      "color": "blue"
+    },
+    {
+      "id": "LFO2 wave 2",
+      "x": 878.27,
+      "y": 474.55,
+      "color": "blue"
+    },
+    {
+      "id": "LFO2 wave 3",
+      "x": 884.38,
+      "y": 506.08,
+      "color": "blue"
+    },
+    {
+      "id": "LFO2 wave 4",
+      "x": 878.27,
+      "y": 537.59,
+      "color": "blue"
+    },
+    {
+      "id": "LFO2 wave 5",
+      "x": 864.06,
+      "y": 566.11,
+      "color": "blue"
+    },
+    {
+      "id": "MIDI in L",
+      "x": 1354.29,
+      "y": 182.65,
+      "color": "red"
+    },
+    {
+      "id": "MIDI in R",
+      "x": 1412.16,
+      "y": 182.65,
+      "color": "amber"
+    }
+  ],
+  "ports": [
+    {
+      "id": "in-0",
+      "label": "OSC1",
+      "kind": "in",
+      "x": 1472.05,
+      "y": 107.36
+    },
+    {
+      "id": "in-1",
+      "label": "OSC2",
+      "kind": "in",
+      "x": 1538.55,
+      "y": 106.36
+    },
+    {
+      "id": "in-2",
+      "label": "OSC1+2",
+      "kind": "in",
+      "x": 1608.04,
+      "y": 106.36
+    },
+    {
+      "id": "in-3",
+      "label": "PW1",
+      "kind": "in",
+      "x": 1674.54,
+      "y": 106.36
+    },
+    {
+      "id": "in-4",
+      "label": "PW2",
+      "kind": "in",
+      "x": 1743.04,
+      "y": 106.36
+    },
+    {
+      "id": "in-5",
+      "label": "SHAPE1",
+      "kind": "in",
+      "x": 1472.05,
+      "y": 172.25
+    },
+    {
+      "id": "in-6",
+      "label": "SHAPE2",
+      "kind": "in",
+      "x": 1538.55,
+      "y": 172.25
+    },
+    {
+      "id": "in-7",
+      "label": "WF IN",
+      "kind": "in",
+      "x": 1608.04,
+      "y": 172.25
+    },
+    {
+      "id": "in-8",
+      "label": "WF SYM",
+      "kind": "in",
+      "x": 1674.54,
+      "y": 171.25
+    },
+    {
+      "id": "in-9",
+      "label": "WF FOLDS",
+      "kind": "in",
+      "x": 1742.04,
+      "y": 172.25
+    },
+    {
+      "id": "in-10",
+      "label": "VCF1 IN",
+      "kind": "in",
+      "x": 1472.05,
+      "y": 234.13
+    },
+    {
+      "id": "in-11",
+      "label": "VCF1 FREQ",
+      "kind": "in",
+      "x": 1538.55,
+      "y": 234.13
+    },
+    {
+      "id": "in-12",
+      "label": "VCF1 RES",
+      "kind": "in",
+      "x": 1608.04,
+      "y": 234.13
+    },
+    {
+      "id": "in-13",
+      "label": "VCF2 IN",
+      "kind": "in",
+      "x": 1674.54,
+      "y": 234.13
+    },
+    {
+      "id": "in-14",
+      "label": "VCF2 FREQ",
+      "kind": "in",
+      "x": 1743.04,
+      "y": 234.13
+    },
+    {
+      "id": "in-15",
+      "label": "VCF2 RES",
+      "kind": "in",
+      "x": 1472.05,
+      "y": 299.02
+    },
+    {
+      "id": "in-16",
+      "label": "VCA1 IN",
+      "kind": "in",
+      "x": 1538.55,
+      "y": 299.02
+    },
+    {
+      "id": "in-17",
+      "label": "VCA1 CV",
+      "kind": "in",
+      "x": 1608.04,
+      "y": 300.02
+    },
+    {
+      "id": "in-18",
+      "label": "EXT IN",
+      "kind": "in",
+      "x": 1674.54,
+      "y": 299.02
+    },
+    {
+      "id": "in-19",
+      "label": "OUT (IN)",
+      "kind": "in",
+      "x": 1743.04,
+      "y": 300.02
+    },
+    {
+      "id": "in-20",
+      "label": "LFO1 TRIG",
+      "kind": "in",
+      "x": 1472.05,
+      "y": 364.9
+    },
+    {
+      "id": "in-21",
+      "label": "LFO2 TRIG",
+      "kind": "in",
+      "x": 1538.55,
+      "y": 364.9
+    },
+    {
+      "id": "in-22",
+      "label": "LFO1 RATE",
+      "kind": "in",
+      "x": 1608.04,
+      "y": 364.9
+    },
+    {
+      "id": "in-23",
+      "label": "LFO2 RATE",
+      "kind": "in",
+      "x": 1674.54,
+      "y": 364.9
+    },
+    {
+      "id": "in-24",
+      "label": "LFO1 SHAPE",
+      "kind": "in",
+      "x": 1743.04,
+      "y": 364.9
+    },
+    {
+      "id": "in-25",
+      "label": "LFO2 SHAPE",
+      "kind": "in",
+      "x": 1472.05,
+      "y": 426.79
+    },
+    {
+      "id": "in-26",
+      "label": "ADSR1",
+      "kind": "in",
+      "x": 1538.55,
+      "y": 426.79
+    },
+    {
+      "id": "in-27",
+      "label": "ADSR2",
+      "kind": "in",
+      "x": 1608.04,
+      "y": 426.79
+    },
+    {
+      "id": "in-28",
+      "label": "ASR1",
+      "kind": "in",
+      "x": 1674.54,
+      "y": 427.79
+    },
+    {
+      "id": "in-29",
+      "label": "VCA2 IN",
+      "kind": "in",
+      "x": 1743.04,
+      "y": 427.79
+    },
+    {
+      "id": "in-30",
+      "label": "VCA2 CV",
+      "kind": "in",
+      "x": 1472.05,
+      "y": 492.67
+    },
+    {
+      "id": "in-31",
+      "label": "ATT1 IN",
+      "kind": "in",
+      "x": 1538.55,
+      "y": 492.67
+    },
+    {
+      "id": "in-32",
+      "label": "ATT2 IN",
+      "kind": "in",
+      "x": 1608.04,
+      "y": 492.67
+    },
+    {
+      "id": "in-33",
+      "label": "MULT IN",
+      "kind": "in",
+      "x": 1675.54,
+      "y": 492.67
+    },
+    {
+      "id": "in-34",
+      "label": "CV MIX1",
+      "kind": "in",
+      "x": 1742.04,
+      "y": 492.67
+    },
+    {
+      "id": "in-35",
+      "label": "CV MIX2",
+      "kind": "in",
+      "x": 1472.05,
+      "y": 559.56
+    },
+    {
+      "id": "in-36",
+      "label": "ASSIGN",
+      "kind": "in",
+      "x": 1538.55,
+      "y": 559.56
+    },
+    {
+      "id": "in-37",
+      "label": "SUM A",
+      "kind": "in",
+      "x": 1609.04,
+      "y": 559.56
+    },
+    {
+      "id": "in-38",
+      "label": "SUM B",
+      "kind": "in",
+      "x": 1674.54,
+      "y": 559.56
+    },
+    {
+      "id": "in-39",
+      "label": "SUM B",
+      "kind": "in",
+      "x": 1743.04,
+      "y": 559.56
+    },
+    {
+      "id": "out-0",
+      "label": "OSC1",
+      "kind": "out",
+      "x": 1809.06,
+      "y": 106.36
+    },
+    {
+      "id": "out-1",
+      "label": "OSC2",
+      "kind": "out",
+      "x": 1878.56,
+      "y": 106.36
+    },
+    {
+      "id": "out-2",
+      "label": "OSCMIX",
+      "kind": "out",
+      "x": 1945.05,
+      "y": 106.36
+    },
+    {
+      "id": "out-3",
+      "label": "WF",
+      "kind": "out",
+      "x": 1809.06,
+      "y": 172.25
+    },
+    {
+      "id": "out-4",
+      "label": "VCF1",
+      "kind": "out",
+      "x": 1878.56,
+      "y": 172.25
+    },
+    {
+      "id": "out-5",
+      "label": "VCF2",
+      "kind": "out",
+      "x": 1945.05,
+      "y": 172.25
+    },
+    {
+      "id": "out-6",
+      "label": "VCF MIX",
+      "kind": "out",
+      "x": 1809.06,
+      "y": 234.13
+    },
+    {
+      "id": "out-7",
+      "label": "VCA1",
+      "kind": "out",
+      "x": 1878.56,
+      "y": 234.13
+    },
+    {
+      "id": "out-8",
+      "label": "VCA2",
+      "kind": "out",
+      "x": 1945.05,
+      "y": 234.13
+    },
+    {
+      "id": "out-9",
+      "label": "MULT1",
+      "kind": "out",
+      "x": 1809.06,
+      "y": 300.02
+    },
+    {
+      "id": "out-10",
+      "label": "MULT2",
+      "kind": "out",
+      "x": 1878.56,
+      "y": 300.02
+    },
+    {
+      "id": "out-11",
+      "label": "ATT1",
+      "kind": "out",
+      "x": 1945.05,
+      "y": 300.02
+    },
+    {
+      "id": "out-12",
+      "label": "CV MIX",
+      "kind": "out",
+      "x": 1809.06,
+      "y": 364.9
+    },
+    {
+      "id": "out-13",
+      "label": "SUM",
+      "kind": "out",
+      "x": 1878.56,
+      "y": 364.9
+    },
+    {
+      "id": "out-14",
+      "label": "ATT2",
+      "kind": "out",
+      "x": 1945.05,
+      "y": 364.9
+    },
+    {
+      "id": "out-15",
+      "label": "ADSR1",
+      "kind": "out",
+      "x": 1810.06,
+      "y": 427.79
+    },
+    {
+      "id": "out-16",
+      "label": "ADSR2",
+      "kind": "out",
+      "x": 1878.56,
+      "y": 427.79
+    },
+    {
+      "id": "out-17",
+      "label": "ASR1",
+      "kind": "out",
+      "x": 1944.05,
+      "y": 427.79
+    },
+    {
+      "id": "out-18",
+      "label": "ASR2",
+      "kind": "out",
+      "x": 1809.06,
+      "y": 492.67
+    },
+    {
+      "id": "out-19",
+      "label": "LFO1 UNI",
+      "kind": "out",
+      "x": 1878.56,
+      "y": 492.67
+    },
+    {
+      "id": "out-20",
+      "label": "LFO1 BI",
+      "kind": "out",
+      "x": 1945.05,
+      "y": 492.67
+    },
+    {
+      "id": "out-21",
+      "label": "LFO2 UNI",
+      "kind": "out",
+      "x": 1809.06,
+      "y": 559.56
+    },
+    {
+      "id": "out-22",
+      "label": "LFO2 BI",
+      "kind": "out",
+      "x": 1878.56,
+      "y": 559.56
+    },
+    {
+      "id": "out-23",
+      "label": "ASSIGN",
+      "kind": "out",
+      "x": 1944.05,
+      "y": 559.56
+    }
+  ],
+  "geometry": {
+    "knob": {
+      "shape": "circle",
+      "hitRadius": 34,
+      "indicatorLength": 24,
+      "indicatorWidth": 4
+    },
+    "switch": {
+      "shape": "rect",
+      "width": 34,
+      "height": 32,
+      "cornerRadius": 5
+    },
+    "led": {
+      "shape": "circle",
+      "hitRadius": 9
+    },
+    "port": {
+      "shape": "circle",
+      "hitRadius": 20,
+      "connectionRadius": 24,
+      "endpointRadius": 8
+    },
+    "cable": {
+      "lineWidth": 6,
+      "hitAreaWidth": 14
+    }
+  }
+}

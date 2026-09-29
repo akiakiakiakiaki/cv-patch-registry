@@ -1,0 +1,128 @@
+:root {
+  color-scheme: dark;
+
+  --color-bg: #17191c;
+  --color-panel: #202327;
+  --color-line: #34383e;
+  --color-muted: #9ba1a9;
+  --color-ink: #f1f3f4;
+  --color-accent: #f2a84a;
+  --color-button-border: #45494f;
+  --color-button-bg: #282b2f;
+  --color-button-ink: #e8e9eb;
+  --color-button-hover: #34383e;
+  --color-toolbar-border: #303338;
+  --color-toolbar-bg: #1c1e21;
+  --color-brand-bg: #ed9a37;
+  --color-brand-ink: #17191c;
+  --color-panel-muted: #959ba3;
+  --color-quiet-ink: #b2b6bc;
+  --color-input-bg: #151719;
+  --color-primary: #f1a444;
+  --color-primary-ink: #191a1c;
+  --color-primary-hover: #ffb95d;
+  --color-panel-border: #383c42;
+  --color-heavy-shadow: #0003;
+  --color-action-muted: #afb4bb;
+  --color-entry-border: #3b3f45;
+  --color-entry-bg: #1a1c1f;
+  --color-entry-active-border: #e9a047;
+  --color-entry-active-bg: #29241d;
+  --color-transparent-white: #ffffff0c;
+  --color-entry-muted: #9298a0;
+  --color-danger: #e68a83;
+  --color-hint: #a8adb3;
+  --color-hint-strong: #eceef0;
+  --color-success: #7fce9a;
+  --color-debug-border: #b28cff;
+  --color-debug-bg: #3c2e55;
+  --color-debug-ink: #f2eaff;
+  --color-debug-status: #d3b7ff;
+  --color-debug-highlight: #c18bff;
+  --color-debug-highlight-fill: #a855f722;
+  --color-debug-highlight-fill-strong: #a855f755;
+  --color-debug-highlight-fill-solid: #a855f7;
+  --color-debug-highlight-light: #f1e6ff;
+  --color-debug-highlight-fill-port: #a855f744;
+  --color-board: #eee;
+  --color-shadow: #0005;
+  --color-transparent: #fff0;
+  --color-knob-hover: #ffc45b22;
+  --color-knob-hover-stroke: #f39b35aa;
+  --color-knob-tick: #f14138;
+  --color-switch-fill: #82d8ff20;
+  --color-switch-stroke: #82d8ff;
+  --color-switch-red-fill: #f0443e20;
+  --color-switch-active: #82d8ffb8;
+  --color-switch-active-stroke: #2b83b5;
+  --color-switch-hover: #82d8ff55;
+  --color-led-fill: #82d8ff24;
+  --color-led-stroke: #82d8ff;
+  --color-led-active: #82d8ff;
+  --color-led-active-stroke: #2b83b5;
+  --color-led-red: #f0443e;
+  --color-led-red-fill: #f0443e24;
+  --color-led-red-stroke: #a61919;
+  --color-led-blue: #82d8ff;
+  --color-led-blue-stroke: #2b83b5;
+  --color-led-blue-shadow: #72cfff;
+  --color-port-hover: #ffc35744;
+  --color-port-hover-stroke: #e99633;
+  --color-white: #fff;
+  --color-black: #000;
+  --color-near-black: #111;
+  --color-footer: #777e86;
+  --color-hintbar-border: #292c30;
+
+  --patch-color-black: #17191c;
+  --patch-color-white: #fff;
+  --patch-color-gray: #888d94;
+  --patch-color-yellow: #f5d547;
+  --patch-color-red: #e8413a;
+  --patch-color-blue: #3178df;
+  --patch-cord-shadow-dark: #000b;
+  --patch-cord-shadow-light: #fff;
+
+  --ui-border-width: 1px;
+  --overlay-emphasis-stroke-width: 2px;
+  --active-control-stroke-width: 3px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: var(--ui-border-width) solid var(--color-button-border);
+  border-radius: 7px;
+  background: var(--color-button-bg);
+  color: var(--color-button-ink);
+  padding: 9px 13px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+button:hover {
+  background: var(--color-button-hover);
+}
+
+button:focus-visible,
+input:focus-visible,
+svg [tabindex]:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}

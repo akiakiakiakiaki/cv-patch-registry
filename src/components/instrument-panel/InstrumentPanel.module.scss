@@ -1,0 +1,230 @@
+.boardWrap {
+  overflow: auto;
+  padding: 18px 18px 10px;
+}
+
+.board {
+  position: relative;
+  width: 100%;
+  margin: auto;
+  background: var(--color-board);
+  box-shadow: 0 12px 35px var(--color-shadow);
+  line-height: 0;
+}
+
+.boardImage {
+  display: block;
+  width: 100%;
+  user-select: none;
+
+  :global(svg) {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.boardOverlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  touch-action: none;
+}
+
+.knobHit {
+  fill: var(--color-transparent);
+  stroke: var(--color-transparent);
+  stroke-width: 1px;
+  cursor: ns-resize;
+  vector-effect: non-scaling-stroke;
+
+  &:hover {
+    fill: var(--color-knob-hover);
+    stroke: var(--color-knob-hover-stroke);
+  }
+}
+
+.knobTick {
+  stroke: var(--color-knob-tick);
+  stroke-linecap: round;
+  pointer-events: none;
+  filter: drop-shadow(0 0 1px var(--color-white));
+}
+
+.toggleHit {
+  fill: var(--color-switch-fill);
+  stroke: var(--color-switch-stroke);
+  stroke-width: var(--active-control-stroke-width);
+  cursor: pointer;
+  vector-effect: non-scaling-stroke;
+
+  &:hover {
+    fill: var(--color-switch-hover);
+  }
+}
+
+.toggleRed {
+  fill: var(--color-switch-red-fill);
+  stroke: var(--color-led-red-stroke);
+}
+
+.toggleRed.active {
+  fill: var(--color-led-red);
+  stroke: var(--color-led-red-stroke);
+  stroke-width: var(--active-control-stroke-width);
+}
+
+.toggleBlue.active {
+  fill: var(--color-led-blue);
+  stroke: var(--color-led-blue-stroke);
+  stroke-width: var(--active-control-stroke-width);
+}
+
+.ledHit {
+  fill: var(--color-led-fill);
+  stroke: var(--color-led-stroke);
+  stroke-width: var(--active-control-stroke-width);
+  cursor: pointer;
+  vector-effect: non-scaling-stroke;
+}
+
+.ledRed {
+  fill: var(--color-led-red-fill);
+  stroke: var(--color-led-red-stroke);
+}
+
+.ledBlue {
+  fill: var(--color-led-fill);
+  stroke: var(--color-led-blue-stroke);
+}
+
+.ledRedActive {
+  fill: var(--color-led-red);
+  stroke: var(--color-led-red-stroke);
+  stroke-width: var(--active-control-stroke-width);
+  filter: drop-shadow(0 0 2px var(--color-led-red));
+}
+
+.ledBlueActive {
+  fill: var(--color-led-blue);
+  stroke: var(--color-led-blue-stroke);
+  stroke-width: var(--active-control-stroke-width);
+  filter: drop-shadow(0 0 2px var(--color-led-blue-shadow));
+}
+
+.portHit {
+  fill: var(--color-transparent);
+  stroke: var(--color-transparent);
+  cursor: crosshair;
+  vector-effect: non-scaling-stroke;
+
+  &:hover {
+    fill: var(--color-port-hover);
+    stroke: var(--color-port-hover-stroke);
+  }
+}
+
+.cable {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 1px var(--patch-cord-shadow-dark))
+    drop-shadow(0 0 1px var(--patch-cord-shadow-light));
+  pointer-events: none;
+  opacity: 0.94;
+}
+
+.cableHitArea {
+  fill: none;
+  stroke: transparent;
+  cursor: grab;
+  pointer-events: stroke;
+}
+
+.cableEndpoint {
+  stroke: var(--color-white);
+  stroke-width: var(--overlay-emphasis-stroke-width);
+  cursor: grab;
+  filter: drop-shadow(0 0 2px var(--color-near-black));
+}
+
+.cablePreview {
+  stroke-dasharray: 8 5;
+  animation: cableFlow 0.35s linear infinite;
+}
+
+.cableColorPicker {
+  pointer-events: all;
+}
+
+.cableColorPickerBackground {
+  fill: var(--color-panel);
+  stroke: var(--color-white);
+  stroke-width: 1px;
+  filter: drop-shadow(0 2px 4px var(--color-black));
+}
+
+.cableColorSwatch {
+  cursor: pointer;
+  stroke: var(--color-white);
+  stroke-width: 1.5px;
+
+  &:hover,
+  &:focus {
+    stroke: var(--color-primary);
+    stroke-width: 3px;
+    outline: none;
+  }
+}
+
+.cableColorSwatchSelected {
+  stroke: var(--color-primary);
+  stroke-width: 3px;
+}
+
+.layoutEditFocus {
+  filter: drop-shadow(0 0 4px var(--color-debug-highlight));
+}
+
+.knobHit.layoutEditFocus {
+  fill: var(--color-debug-highlight-fill);
+  stroke: var(--color-debug-highlight);
+  stroke-width: var(--overlay-emphasis-stroke-width);
+}
+
+.toggleHit.layoutEditFocus {
+  fill: var(--color-debug-highlight-fill-strong);
+  stroke: var(--color-debug-highlight);
+  stroke-width: var(--active-control-stroke-width);
+}
+
+.ledHit.layoutEditFocus {
+  fill: var(--color-debug-highlight-fill-solid);
+  stroke: var(--color-debug-highlight-light);
+  stroke-width: var(--active-control-stroke-width);
+}
+
+.portHit.layoutEditFocus {
+  fill: var(--color-debug-highlight-fill-port);
+  stroke: var(--color-debug-highlight);
+  stroke-width: var(--active-control-stroke-width);
+}
+
+@keyframes cableFlow {
+  to {
+    stroke-dashoffset: -13;
+  }
+}
+
+@media (max-width: 720px) {
+  .boardWrap {
+    padding: 12px 8px;
+  }
+
+  .board {
+    width: 100%;
+    margin: auto;
+  }
+}

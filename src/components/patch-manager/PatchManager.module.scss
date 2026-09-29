@@ -1,0 +1,296 @@
+.toolbar {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 26px;
+  border-bottom: var(--ui-border-width) solid var(--color-toolbar-border);
+  background: var(--color-toolbar-bg);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 220px;
+
+  strong,
+  small {
+    display: block;
+  }
+
+  strong {
+    font-size: 14px;
+  }
+
+  small {
+    margin-top: 3px;
+    color: var(--color-muted);
+    font-size: 11px;
+  }
+}
+
+.brandMark {
+  display: grid;
+  width: 35px;
+  height: 35px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--color-brand-bg);
+  color: var(--color-brand-ink);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.brandLogo {
+  display: block;
+  width: 22px;
+  height: 22px;
+
+  :global(svg) {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.patchName {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-muted);
+  font-size: 12px;
+
+  input {
+    width: 180px;
+    padding: 9px 11px;
+    border: var(--ui-border-width) solid var(--color-line);
+    border-radius: 7px;
+    background: var(--color-input-bg);
+    color: var(--color-white);
+  }
+}
+
+.instrumentSelect {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-muted);
+  font-size: 12px;
+
+  select {
+    min-width: 180px;
+    padding: 9px 11px;
+    border: 1px solid var(--color-line);
+    border-radius: 7px;
+    background: var(--color-input-bg);
+    color: var(--color-white);
+  }
+}
+
+.languageSwitch {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-input-bg);
+
+  button {
+    padding: 6px 8px;
+    border-color: transparent;
+    background: transparent;
+    color: var(--color-muted);
+    font-size: 11px;
+  }
+
+  button[aria-pressed="true"] {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: var(--color-primary-ink);
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+
+  .primary {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: var(--color-primary-ink);
+
+    &:hover {
+      background: var(--color-primary-hover);
+    }
+  }
+}
+
+.patchPanel {
+  position: relative;
+  z-index: 2;
+  padding: 17px 26px 20px;
+  border-bottom: var(--ui-border-width) solid var(--color-panel-border);
+  background: var(--color-panel);
+  box-shadow: 0 12px 22px var(--color-heavy-shadow);
+}
+
+.panelHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+
+  strong,
+  small {
+    display: block;
+  }
+
+  strong {
+    font-size: 13px;
+  }
+
+  small {
+    margin-top: 4px;
+    color: var(--color-panel-muted);
+    font-size: 11px;
+  }
+}
+
+.quiet {
+  color: var(--color-quiet-ink);
+  background: transparent;
+}
+
+.patchList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 9px;
+}
+
+.patchEntry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+  padding: 7px;
+  border: var(--ui-border-width) solid var(--color-entry-border);
+  border-radius: 8px;
+  background: var(--color-entry-bg);
+
+  &.active {
+    border-color: var(--color-entry-active-border);
+    background: var(--color-entry-active-bg);
+  }
+
+  .iconAction {
+    padding: 6px 8px;
+    color: var(--color-action-muted);
+    font-size: 11px;
+  }
+
+  .deleteAction {
+    color: var(--color-danger);
+  }
+}
+
+.patchSelect {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+
+  &:hover {
+    background: var(--color-transparent-white);
+  }
+
+  strong,
+  small {
+    display: block;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  strong {
+    font-size: 12px;
+  }
+
+  small {
+    margin-top: 4px;
+    color: var(--color-entry-muted);
+    font-size: 10px;
+    font-weight: 400;
+  }
+}
+
+.patchActions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+@media (max-width: 1100px) {
+  .toolbar {
+    flex-wrap: wrap;
+    padding: 13px 18px;
+  }
+
+  .patchName {
+    order: 3;
+    width: 100%;
+
+    input {
+      flex: 1;
+    }
+  }
+
+  .instrumentSelect {
+    order: 2;
+    width: 100%;
+
+    select {
+      flex: 1;
+    }
+  }
+
+  .actions {
+    margin-left: 0;
+  }
+
+  .patchPanel {
+    padding: 15px 18px;
+  }
+}
+
+@media (max-width: 720px) {
+  .brand {
+    min-width: unset;
+    flex: 1;
+  }
+
+  .actions {
+    width: 100%;
+
+    > button {
+      flex: 1;
+    }
+  }
+}
