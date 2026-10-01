@@ -1,0 +1,79 @@
+CV Patch Registry Source-Available License
+Version 1.0
+
+Copyright (c) 2026 Michael Ilg
+
+1. Permission
+
+Permission is hereby granted to any person obtaining a copy of this software
+(the "Software") to view, study, use, copy, modify, and create derivative
+works of the Software for personal, educational, research, hobby, and other
+non-commercial purposes, subject to the conditions below.
+
+2. Non-Commercial Use Only
+
+The Software may not be used for commercial purposes without prior written
+permission from the copyright holder.
+
+For the purposes of this license, commercial use includes, but is not limited
+to:
+
+- operating the Software as a commercial hosted service or SaaS product;
+- selling, licensing, sublicensing, or otherwise commercially distributing the
+  Software or a modified version of the Software;
+- incorporating the Software into a commercial product or commercial service;
+- using the Software within a commercial business as part of a product,
+  service, workflow, or offering that provides commercial value to customers
+  or users;
+- offering paid, premium, subscription-based, or otherwise monetized
+  features or functionality based on the Software;
+- using the Software to provide a competing commercial service.
+
+3. Contributions
+
+Contributions to the Software are welcome. By submitting a contribution,
+the contributor represents that they have the necessary rights to submit the
+contribution and grants the copyright holder permission to use, modify,
+reproduce, distribute, and license the contribution as part of the Software,
+subject to this license and any separate contributor agreement that may
+apply.
+
+The copyright holder may request a separate Contributor License Agreement
+(CLA) before accepting substantial contributions.
+
+4. Copyright
+
+The Software and all associated copyrights remain the property of their
+respective copyright holders. This license does not transfer ownership of
+the Software or any copyright.
+
+5. No Trademark Rights
+
+This license does not grant permission to use any trademarks, service marks,
+logos, or other branding associated with the Software or the project.
+
+6. Disclaimer
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY CLAIM,
+DAMAGES, OR OTHER LIABILITY ARISING FROM, OUT OF, OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+7. Commercial Licensing
+
+The copyright holder may grant separate commercial licenses permitting uses
+that are prohibited by this license. Such permission must be granted
+explicitly in writing.
+
+8. Changes to This License
+
+The copyright holder may publish future versions of this license. Unless
+otherwise stated, contributions and versions of the Software remain subject
+to the license version under which they were originally released.
+
+---
+
+For commercial licensing inquiries, please contact the copyright holder.

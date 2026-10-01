@@ -7,7 +7,6 @@ dist/
 *.tsbuildinfo
 
 # Local environment files; keep the template tracked
-.env
 .env.*
 !.env.example
 

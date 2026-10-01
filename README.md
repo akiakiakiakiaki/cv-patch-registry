@@ -15,22 +15,22 @@ The app is structured to support multiple synthesizers. **Behringer Proton is cu
 
 ## Run locally
 
-Next.js 16 requires Node.js 20.9 or newer. The project uses Node 22.23.2 through `.nvmrc`.
+Next.js 16 requires Node.js 20.9 or newer.
 
 ```sh
 nvm use
 npm install
-cp .env.example .env.local
+cp .env.example .env.development.local
 npm run dev
 ```
 
 Open <http://localhost:3000>.
 
-Environment files are local and are not committed. Start with `.env.example`, copy it to `.env.local`, and adjust the values there as needed. Next.js loads `.env.local` automatically.
+Environment files are local and are not committed. Start with `.env.example`, copy it to `.env.local`, and adjust the values there as needed. Next.js loads `.env.development.local` automatically.
 
 ## Instrument layout editor
 
-Set `NEXT_PUBLIC_DEBUG_LAYOUT=true` in `.env.local` to show the layout editor controls, then restart the dev server. this allows for positioning every control element manually. The default in `.env.example` is `false`. Select an encoder, LED, switch, or patch point and use the arrow keys to adjust its position one layout unit at a time. Save the layout to write the positions to that instrument's JSON layout file. The current Proton layout is stored at `src/lib/instrument/behringer-proton/behringer-proton-layout.json`.
+Set `NEXT_PUBLIC_DEBUG_LAYOUT=true` in `.env.development.local` to show the layout editor controls, then restart the dev server. this allows for positioning every control element manually. The default in `.env.example` is `false`. Select an encoder, LED, switch, or patch point and use the arrow keys to adjust its position one layout unit at a time. Save the layout to write the positions to that instrument's JSON layout file. The current Proton layout is stored at `src/lib/instrument/behringer-proton/behringer-proton-layout.json`.
 
 Each control has a stable ID and position in the layout JSON. Shared shapes and sizes are defined once in the layout's `geometry` section. The overlay and background image use the same viewBox so controls scale with the image.
 
@@ -66,3 +66,8 @@ After enabling it, `git commit` runs `npm run test:run` and is stopped if any te
 - `src/app`: Next.js pages, API routes, and global styles.
 - `src/i18n`: German and English UI messages and locale selection.
 - `prototype/`: the original standalone prototype, kept as a reference and not used by the Next.js app.
+
+Copyright © 2026 Michael Ilg
+
+Licensed under the GNU Affero General Public License v3.0.
+See LICENSE for details.
