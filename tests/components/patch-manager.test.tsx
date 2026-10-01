@@ -55,10 +55,31 @@ describe("PatchManager", () => {
 
   it("shows the registered synth and routes its selection", async () => {
     const user = userEvent.setup();
-    const { props } = renderManager();
-    await user.selectOptions(screen.getByRole("combobox", { name: "Select synthesizer" }), behringerProton.id);
+    const otherInstrument = { ...behringerProton, id: "other-synth", displayName: "Other Synth" };
+    const { props } = renderManager({
+      instruments: [behringerProton, otherInstrument],
+      instrumentId: otherInstrument.id,
+    });
+    await user.click(screen.getByRole("combobox", { name: "Synthesizer" }));
+    const protonOption = await screen.findByRole("option", { name: "Behringer Proton" });
+    expect(protonOption).toBeInTheDocument();
+    await user.click(protonOption);
     expect(props.onInstrumentChange).toHaveBeenCalledWith(behringerProton.id);
-    expect(screen.getByRole("option", { name: "Behringer Proton" })).toBeInTheDocument();
+  });
+
+  it("pushes patch actions to the end of their flex row", () => {
+    renderManager();
+
+    expect(getComputedStyle(screen.getByTestId("patch-actions")).marginLeft).toBe("auto");
+  });
+
+  it("keeps language and color mode switches in a padded fixed viewport container", () => {
+    renderManager();
+
+    const container = screen.getByTestId("preference-switches-container");
+    expect(getComputedStyle(container).position).toBe("fixed");
+    expect(screen.getByRole("group", { name: "Language" })).toBeInTheDocument();
+    expect(screen.getByTestId("patch-actions")).not.toContainElement(container);
   });
 
   it("creates, selects, renames, and deletes patches through callbacks", async () => {
@@ -82,7 +103,7 @@ describe("PatchManager", () => {
   it("does not rename or delete when the user cancels", async () => {
     const user = userEvent.setup();
     const { props } = renderManager();
-    await user.click(screen.getByRole("button", { name: "Patches" }));
+    await user.click(screen.getByRole("button", { name: /^Patches/ }));
     vi.spyOn(window, "prompt").mockReturnValue(null);
     vi.spyOn(window, "confirm").mockReturnValue(false);
 
@@ -104,7 +125,7 @@ describe("PatchManager", () => {
     expect(input).not.toBeNull();
     fireEvent.change(input!, { target: { files: [file] } });
     await waitFor(() => expect(props.onImport).toHaveBeenCalledWith(file));
-    expect(screen.getByRole("button", { name: "Patches" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: /^Patches/ })).toHaveAttribute("aria-expanded", "true");
   });
 
   it("switches language and saves the override in localStorage", async () => {

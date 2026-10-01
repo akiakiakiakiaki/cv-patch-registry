@@ -26,7 +26,7 @@ npm run dev
 
 Open <http://localhost:3000>.
 
-Environment files are local and are not committed. Start with `.env.example`, copy it to `.env.local`, and adjust the values there as needed. Next.js loads `.env.development.local` automatically.
+Environment files are local and are not committed. Start with `.env.example`, copy it to `.env.development.local`, and adjust the values there as needed. Next.js loads `.env.development.local` automatically.
 
 ## Instrument layout editor
 

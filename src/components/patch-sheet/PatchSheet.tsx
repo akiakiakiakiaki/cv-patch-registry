@@ -1,6 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Switch from "@mui/material/Switch";
+import Typography from "@mui/material/Typography";
 import {
   associateLegacyPatches,
   decodeImport,
@@ -25,7 +34,6 @@ import {
 } from "@/lib/domain/patch-service";
 import { LocalPatchRepository } from "@/lib/storage/local-patch-repository";
 import { useInstrumentLayoutEditor } from "@/hooks/use-instrument-layout-editor";
-import styles from "@/components/patch-sheet/PatchSheet.module.scss";
 import { useI18n } from "@/i18n/provider";
 import type { Locale } from "@/i18n/config";
 import { isMessageKey } from "@/i18n/messages";
@@ -75,10 +83,10 @@ export function PatchSheet() {
 
   if (!library) {
     return (
-      <main className={styles.loadingState}>
-        <div className={styles.loaderMark}>P</div>
-        <p>{t("loading.library")}</p>
-      </main>
+      <Box component="main" sx={{ minHeight: "100vh", display: "grid", placeContent: "center", justifyItems: "center", gap: 2 }}>
+        <CircularProgress color="primary" />
+        <Typography color="text.secondary">{t("loading.library")}</Typography>
+      </Box>
     );
   }
   const currentLibrary = library as PatchLibrary;
@@ -88,9 +96,9 @@ export function PatchSheet() {
   );
   if (!selectedPatch) {
     return (
-      <main className={styles.loadingState}>
-        <p>{t("loading.noActivePatch")}</p>
-      </main>
+      <Box component="main" sx={{ minHeight: "100vh", display: "grid", placeContent: "center" }}>
+        <Alert severity="warning">{t("loading.noActivePatch")}</Alert>
+      </Box>
     );
   }
   const activePatch: PatchRecord = selectedPatch;
@@ -232,69 +240,53 @@ export function PatchSheet() {
         onExport={exportLibrary}
         onImport={(file) => void importFile(file)}
       />
-      <main>
-        <section className={styles.hintbar}>
+      <Box component="main">
+        <Paper component="section" square variant="outlined" sx={{ px: { xs: 2, md: 3 }, py: 1, borderTop: 0, borderLeft: 0, borderRight: 0 }}>
+          <Stack direction="row" useFlexGap sx={{ alignItems: "center", flexWrap: "wrap", gap: 1.5 }}>
           {layoutEditMode ? (
-            <span>
-                <b>{t("hint.layoutMode")}</b> {t("hint.layoutHelp")}
-            </span>
+            <Typography variant="caption"><strong>{t("hint.layoutMode")}</strong> {t("hint.layoutHelp")}</Typography>
           ) : (
             <>
-              <span>
-                <b>{t("hint.encoder")}</b> {t("hint.encoderHelp")}
-              </span>
-              <span>
-                <b>{t("hint.switches")}</b> {t("hint.switchesHelp")}
-              </span>
-              <span>
-                <b>{t("hint.cables")}</b> {t("hint.cablesHelp")}
-              </span>
+              <Typography variant="caption"><strong>{t("hint.encoder")}</strong> {t("hint.encoderHelp")}</Typography>
+              <Typography variant="caption"><strong>{t("hint.switches")}</strong> {t("hint.switchesHelp")}</Typography>
+              <Typography variant="caption"><strong>{t("hint.cables")}</strong> {t("hint.cablesHelp")}</Typography>
             </>
           )}
           {debugLayoutEnabled && (
             <>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={layoutEditMode}
-                className={`${styles.layoutDebugSwitch}${layoutEditMode ? ` ${styles.enabled}` : ""}`}
-                onClick={() => {
-                  setLayoutEditMode((enabled) => !enabled);
-                  layoutEditor.clearFocus();
-                }}
-              >
-                {t("debug.adjust")}: {layoutEditMode ? t("debug.on") : t("debug.off")}
-              </button>
+              <FormControlLabel
+                control={<Switch checked={layoutEditMode} onChange={() => { setLayoutEditMode((enabled) => !enabled); layoutEditor.clearFocus(); }} />}
+                label={t("debug.adjust")}
+              />
               {layoutEditMode && (
                 <>
-                  <span
-                    className={styles.layoutDebugStatus}
-                    role="status"
-                    aria-live="polite"
-                  >
+                  <Typography variant="caption" color="secondary.main" role="status" aria-live="polite" sx={{ fontFamily: "monospace" }}>
                     {layoutEditor.focusedElement && focusedPosition
                       ? `${layoutEditor.focusedElement.kind}: ${layoutEditor.focusedElement.id} · x ${focusedPosition.x.toFixed(2)}, y ${focusedPosition.y.toFixed(2)}`
                       : t("debug.noneSelected")}
                     {layoutEditor.message ? ` · ${layoutEditor.message}` : ""}
-                  </span>
-                  <button
-                    type="button"
+                  </Typography>
+                  <Button
+                    variant="outlined"
                     onClick={() => void layoutEditor.save()}
                     disabled={!layoutEditor.dirty || layoutEditor.saving}
                   >
                     {layoutEditor.saving ? t("debug.savingLayout") : t("debug.saveLayout")}
-                  </button>
+                  </Button>
                 </>
               )}
             </>
           )}
-          <span
-            className={styles.status}
+          <Alert
+            severity={status.startsWith(t("status.importFailed")) ? "error" : "success"}
+            variant="standard"
             role="status"
+            sx={{ ml: "auto", py: 0, alignItems: "center", "& .MuiAlert-message": { typography: "caption" } }}
           >
             {status}
-          </span>
-        </section>
+          </Alert>
+          </Stack>
+        </Paper>
         <InstrumentPanel
           data={activePatch.data}
           instrument={instrument}
@@ -309,19 +301,17 @@ export function PatchSheet() {
           onLedChange={changeLed}
           onCableChange={changeCables}
         />
-        <footer className={styles.pageFooter}>
-          <span>
-            {t("footer.autosave")}
-          </span>
-          <span>
+        <Box component="footer" sx={{ display: "flex", justifyContent: "space-between", gap: 2, px: { xs: 2, md: 3 }, py: 1.5, color: "text.secondary", typography: "caption", flexDirection: { xs: "column", md: "row" } }}>
+          <Typography variant="caption">{t("footer.autosave")}</Typography>
+          <Typography variant="caption" sx={{ fontFamily: "monospace", textAlign: { xs: "left", md: "right" } }}>
             {layoutEditor.layout.knobs.length} {t("footer.knobs")} · {activePatch.data.cables.length} {t("footer.cables")} · {t("footer.lastChanged")} {" "}
             {new Intl.DateTimeFormat(dateLocale(locale), {
               dateStyle: "medium",
               timeStyle: "short",
             }).format(new Date(activePatch.updatedAt))}
-          </span>
-        </footer>
-      </main>
+          </Typography>
+        </Box>
+      </Box>
     </>
   );
 }

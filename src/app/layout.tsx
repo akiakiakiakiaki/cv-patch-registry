@@ -4,6 +4,10 @@ import { headers } from "next/headers";
 import { I18nProvider } from "@/i18n/provider";
 import { resolveLocale } from "@/i18n/config";
 import { translate } from "@/i18n/messages";
+import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
+import { AppRouterCacheProvider } from "@mui/material-nextjs/v16-appRouter";
+import { AppProviders } from "@/components/app-providers/AppProviders";
+import { COLOR_MODE_STORAGE_KEY } from "@/components/app-providers/theme";
 import "./globals.scss";
 
 async function requestLocale() {
@@ -25,9 +29,18 @@ export default async function RootLayout({
 }: Readonly<{ children: ReactNode }>) {
   const locale = await requestLocale();
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
       <body>
-        <I18nProvider locale={locale}>{children}</I18nProvider>
+        <InitColorSchemeScript
+          attribute="class"
+          defaultMode="system"
+          modeStorageKey={COLOR_MODE_STORAGE_KEY}
+        />
+        <AppRouterCacheProvider>
+          <AppProviders>
+            <I18nProvider locale={locale}>{children}</I18nProvider>
+          </AppProviders>
+        </AppRouterCacheProvider>
       </body>
     </html>
   );

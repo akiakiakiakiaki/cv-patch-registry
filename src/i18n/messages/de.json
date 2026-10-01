@@ -1,10 +1,12 @@
 {
   "metadata.description": "Lokaler Patch-Editor für verschiedene Synthesizer.",
   "brand.title": "CV Patch Registry",
-  "brand.subtitle": "Patch-Editor · lokal im Browser",
+  "brand.subtitle": "Patch Sheets für analoge Synthese",
   "instrument.select": "Synthesizer",
   "instrument.selectAria": "Synthesizer auswählen",
   "language.label": "Sprache",
+  "theme.switchToLight": "Helles Design aktivieren",
+  "theme.switchToDark": "Dunkles Design aktivieren",
   "patch.active": "Aktives Patch",
   "patch.generic": "Patch",
   "patch.nameAria": "Name des aktiven Patches",
