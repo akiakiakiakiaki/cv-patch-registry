@@ -50,7 +50,7 @@
   "loading.library": "Opening local patch library …",
   "loading.noActivePatch": "No active patch found.",
   "hint.layoutMode": "Layout mode",
-  "hint.layoutHelp": "Click an element · use arrow keys to move by 1 px · Esc clears focus",
+  "hint.layoutHelp": "Click an element · use arrow keys to move by 0.5 px · Esc clears focus",
   "hint.encoder": "Knobs",
   "hint.encoderHelp": "drag or click",
   "hint.switches": "Switches & LEDs",

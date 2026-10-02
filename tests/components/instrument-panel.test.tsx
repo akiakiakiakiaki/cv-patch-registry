@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { InstrumentPanel } from "@/components/instrument-panel/InstrumentPanel";
 import { I18nProvider } from "@/i18n/provider";
 import type { PatchCable, PatchData } from "@/lib/domain/types";
-import { PATCH_CABLE_COLORS } from "@/lib/domain/patch-colors";
+import { PATCH_CABLE_COLOR_IDS } from "@/lib/domain/patch-colors";
 import { testInstrument, testLayout } from "../fixtures/instrument";
 
 const emptyData: PatchData = { knobs: {}, switches: {}, leds: {}, cables: [] };
@@ -120,7 +120,7 @@ describe("InstrumentPanel", () => {
     finishPortDrag(svg, 1, { x: 800, y: 300 });
 
     expect(props.onCableChange).toHaveBeenCalledWith([
-      { from: "out-a", to: "in-a", color: PATCH_CABLE_COLORS[0].value },
+      { from: "out-a", to: "in-a", colorId: PATCH_CABLE_COLOR_IDS[0] },
     ]);
   });
 
@@ -132,7 +132,7 @@ describe("InstrumentPanel", () => {
     finishPortDrag(svg, 2, { x: 100, y: 400 });
 
     expect(props.onCableChange).toHaveBeenCalledWith([
-      { from: "out-b", to: "in-b", color: PATCH_CABLE_COLORS[0].value },
+      { from: "out-b", to: "in-b", colorId: PATCH_CABLE_COLOR_IDS[0] },
     ]);
   });
 
@@ -141,7 +141,7 @@ describe("InstrumentPanel", () => {
     const cable: PatchCable = {
       from: "out-a",
       to: "in-a",
-      color: PATCH_CABLE_COLORS[4].value,
+      colorId: PATCH_CABLE_COLOR_IDS[4],
     };
     const { props, svg } = renderPanel({ ...emptyData, cables: [cable] });
     const endpoint = screen.getByLabelText("Drag cable end at Out A");
@@ -153,7 +153,7 @@ describe("InstrumentPanel", () => {
     const picker = screen.getByRole("group", { name: "Choose patch cable color" });
     fireEvent.click(picker.querySelector('[aria-label="Blue"]')!);
     expect(props.onCableChange).toHaveBeenCalledWith([
-      { ...cable, color: PATCH_CABLE_COLORS[5].value },
+      { ...cable, colorId: PATCH_CABLE_COLOR_IDS[5] },
     ]);
   });
 
@@ -162,7 +162,7 @@ describe("InstrumentPanel", () => {
     const cable: PatchCable = {
       from: "out-a",
       to: "in-a",
-      color: PATCH_CABLE_COLORS[4].value,
+      colorId: PATCH_CABLE_COLOR_IDS[4],
     };
     const { props, svg } = renderPanel({ ...emptyData, cables: [cable] });
     startPortDrag(
@@ -188,7 +188,7 @@ describe("InstrumentPanel", () => {
 
     expect(props.onCableChange).toHaveBeenCalledTimes(1);
     expect(props.onCableChange).toHaveBeenCalledWith([
-      { ...cable, color: PATCH_CABLE_COLORS[5].value },
+      { ...cable, colorId: PATCH_CABLE_COLOR_IDS[5] },
     ]);
   });
 
@@ -197,7 +197,7 @@ describe("InstrumentPanel", () => {
     const cable: PatchCable = {
       from: "out-a",
       to: "in-a",
-      color: PATCH_CABLE_COLORS[4].value,
+      colorId: PATCH_CABLE_COLOR_IDS[4],
     };
     const { svg } = renderPanel({ ...emptyData, cables: [cable] });
     startPortDrag(screen.getByLabelText("Drag cable end at Out A"), 8, {
@@ -217,7 +217,7 @@ describe("InstrumentPanel", () => {
     const cable: PatchCable = {
       from: "out-a",
       to: "in-a",
-      color: PATCH_CABLE_COLORS[4].value,
+      colorId: PATCH_CABLE_COLOR_IDS[4],
     };
     const { props, svg } = renderPanel({ ...emptyData, cables: [cable] });
     for (const pointerId of [4, 5]) {
@@ -233,7 +233,7 @@ describe("InstrumentPanel", () => {
     const cable: PatchCable = {
       from: "out-a",
       to: "in-a",
-      color: PATCH_CABLE_COLORS[2].value,
+      colorId: PATCH_CABLE_COLOR_IDS[2],
     };
     const { props, svg } = renderPanel({ ...emptyData, cables: [cable] });
     startPortDrag(screen.getByLabelText("Drag cable end at Out A"), 9, {
@@ -243,7 +243,7 @@ describe("InstrumentPanel", () => {
     finishPortDrag(svg, 9, { x: 100, y: 400 });
 
     expect(props.onCableChange).toHaveBeenCalledWith([
-      { from: "out-b", to: "in-a", color: cable.color },
+      { from: "out-b", to: "in-a", colorId: cable.colorId },
     ]);
   });
 
@@ -251,7 +251,7 @@ describe("InstrumentPanel", () => {
     const cable: PatchCable = {
       from: "out-a",
       to: "in-a",
-      color: PATCH_CABLE_COLORS[2].value,
+      colorId: PATCH_CABLE_COLOR_IDS[2],
     };
     const { props, svg } = renderPanel({ ...emptyData, cables: [cable] });
     startPortDrag(screen.getByLabelText("Drag cable end at Out A"), 10, {
@@ -275,7 +275,7 @@ describe("InstrumentPanel", () => {
     const existingCable: PatchCable = {
       from: "out-a",
       to: "in-a",
-      color: PATCH_CABLE_COLORS[4].value,
+      colorId: PATCH_CABLE_COLOR_IDS[4],
     };
     const occupied = renderPanel({ ...emptyData, cables: [existingCable] });
     startPortDrag(within(occupied.container).getByRole("button", { name: "Output Out B" }), 7, {

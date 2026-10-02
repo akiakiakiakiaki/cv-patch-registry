@@ -8,7 +8,7 @@ import type {
   PatchRecord,
 } from "@/lib/domain/types";
 import type { InstrumentDefinition } from "@/lib/instruments/types";
-import { normalizePatchCableColor } from "@/lib/domain/patch-colors";
+import { normalizePatchCableColorId } from "@/lib/adapters/patch-cable-color-adapter";
 import { normalizeKnobValue } from "@/lib/domain/knob-range";
 
 type UnknownRecord = Record<string, unknown>;
@@ -71,12 +71,12 @@ export function normalizePatchData(
     if (!from || !to || from.kind === to.kind) return [];
     usedPorts.add(entry.from);
     usedPorts.add(entry.to);
-    const color = normalizePatchCableColor(entry.color);
+    const colorId = normalizePatchCableColorId(entry.colorId);
     return [
       {
         from: from.kind === "out" ? from.id : to.id,
         to: from.kind === "in" ? from.id : to.id,
-        color,
+        colorId,
       },
     ];
   });

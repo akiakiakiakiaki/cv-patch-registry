@@ -1,4 +1,5 @@
 import type { InstrumentLayout, Point } from "@/lib/instrument/layout";
+import { normalizePixelPosition } from "@/lib/instrument/pixel-position";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -21,7 +22,11 @@ function decodePoints<T extends Point & { id: string }>(
       return null;
     if (candidate.x < 0 || candidate.x > viewBox.width) return null;
     if (candidate.y < 0 || candidate.y > viewBox.height) return null;
-    decoded.push({ ...referencePoint, x: candidate.x, y: candidate.y });
+    decoded.push({
+      ...referencePoint,
+      x: normalizePixelPosition(candidate.x, viewBox.width),
+      y: normalizePixelPosition(candidate.y, viewBox.height),
+    });
   }
 
   return decoded;

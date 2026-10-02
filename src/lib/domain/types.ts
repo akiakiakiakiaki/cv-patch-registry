@@ -1,7 +1,9 @@
+import type { PatchCableColorId } from "@/lib/domain/patch-colors";
+
 export interface PatchCable {
   from: string;
   to: string;
-  color: string;
+  colorId: PatchCableColorId;
 }
 
 export interface PatchData {

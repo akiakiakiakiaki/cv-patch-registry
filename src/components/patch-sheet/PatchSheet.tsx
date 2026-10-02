@@ -262,7 +262,7 @@ export function PatchSheet() {
                 <>
                   <Typography variant="caption" color="secondary.main" role="status" aria-live="polite" sx={{ fontFamily: "monospace" }}>
                     {layoutEditor.focusedElement && focusedPosition
-                      ? `${layoutEditor.focusedElement.kind}: ${layoutEditor.focusedElement.id} · x ${focusedPosition.x.toFixed(2)}, y ${focusedPosition.y.toFixed(2)}`
+                      ? `${layoutEditor.focusedElement.kind}: ${layoutEditor.focusedElement.id} · x ${focusedPosition.x.toFixed(1)}, y ${focusedPosition.y.toFixed(1)}`
                       : t("debug.noneSelected")}
                     {layoutEditor.message ? ` · ${layoutEditor.message}` : ""}
                   </Typography>

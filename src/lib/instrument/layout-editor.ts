@@ -1,4 +1,5 @@
 import type { FocusedLayoutElement, InstrumentLayout, LayoutElementKind } from '@/lib/instrument/layout';
+import { normalizePixelPosition } from '@/lib/instrument/pixel-position';
 
 export function moveLayoutElement(
   layout: InstrumentLayout,
@@ -18,8 +19,8 @@ export function moveLayoutElement(
 
   const moved = {
     ...point,
-    x: Math.max(0, Math.min(layout.viewBox.width, point.x + delta.x)),
-    y: Math.max(0, Math.min(layout.viewBox.height, point.y + delta.y))
+    x: normalizePixelPosition(point.x + delta.x, layout.viewBox.width),
+    y: normalizePixelPosition(point.y + delta.y, layout.viewBox.height)
   };
   return { ...layout, [listName]: points.map((item) => item.id === target.id ? moved : item) };
 }

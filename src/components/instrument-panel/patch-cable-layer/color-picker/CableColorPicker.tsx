@@ -2,7 +2,8 @@
 
 import type { RefObject } from "react";
 import type { PatchData } from "@/lib/domain/types";
-import { PATCH_CABLE_COLORS } from "@/lib/domain/patch-colors";
+import { PATCH_CABLE_COLOR_OPTIONS } from "@/lib/adapters/patch-cable-color-adapter";
+import type { PatchCableColorId } from "@/lib/domain/patch-colors";
 import { useI18n } from "@/i18n/provider";
 import styles from "../../InstrumentPanel.module.scss";
 import type { CableColorPicker as CableColorPickerState } from "../../types";
@@ -11,7 +12,7 @@ interface CableColorPickerProps {
   data: PatchData;
   picker: CableColorPickerState | null;
   pickerRef: RefObject<SVGGElement | null>;
-  onSelect: (picker: CableColorPickerState, color: string) => void;
+  onSelect: (picker: CableColorPickerState, colorId: PatchCableColorId) => void;
 }
 
 export function CableColorPicker({
@@ -40,25 +41,25 @@ export function CableColorPicker({
         height={38}
         rx={8}
       />
-      {PATCH_CABLE_COLORS.map((color, index) => (
+      {PATCH_CABLE_COLOR_OPTIONS.map((color, index) => (
         <circle
           key={color.id}
-          className={`${styles.cableColorSwatch}${data.cables.some((cable) => cable.from === picker.from && cable.to === picker.to && cable.color === color.value) ? ` ${styles.cableColorSwatchSelected}` : ""}`}
+          className={`${styles.cableColorSwatch}${data.cables.some((cable) => cable.from === picker.from && cable.to === picker.to && cable.colorId === color.id) ? ` ${styles.cableColorSwatchSelected}` : ""}`}
           cx={17 + index * 26}
           cy={19}
           r={9}
-          fill={color.value}
+          fill={color.cssColor}
           role="button"
           tabIndex={0}
           aria-label={t(`color.${color.id}`)}
           onClick={(event) => {
             event.stopPropagation();
-            onSelect(picker, color.value);
+            onSelect(picker, color.id);
           }}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
-              onSelect(picker, color.value);
+              onSelect(picker, color.id);
             }
           }}
         />

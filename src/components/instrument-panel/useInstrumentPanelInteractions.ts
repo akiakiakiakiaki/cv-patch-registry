@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import type { PatchCable, PatchData } from "@/lib/domain/types";
 import {
-  normalizePatchCableColor,
-  PATCH_CABLE_COLORS,
+  DEFAULT_PATCH_CABLE_COLOR_ID,
+  PATCH_CABLE_COLOR_IDS,
 } from "@/lib/domain/patch-colors";
+import type { PatchCableColorId } from "@/lib/domain/patch-colors";
 import { cableCurve, getNearestPort } from "@/lib/instrument/geometry";
 import type { InstrumentLayout, PatchPort, Point } from "@/lib/instrument/layout";
 import { KNOB_VALUE_MAX, KNOB_VALUE_MIN } from "@/lib/domain/knob-range";
@@ -130,7 +131,7 @@ export function useInstrumentPanelInteractions({
     event: PointerEvent<SVGElement>,
     fixedPort: PatchPort,
     originalIndex: number | null,
-    color?: string,
+    colorId?: PatchCableColorId,
     clickedEndpoint: PatchPort | null = null,
   ) {
     event.preventDefault();
@@ -149,15 +150,14 @@ export function useInstrumentPanelInteractions({
       lastEndpointClick.current = null;
     }
     const startPoint = eventPoint(svg, event);
-    const selectedColor = normalizePatchCableColor(
-      color ??
-        PATCH_CABLE_COLORS[data.cables.length % PATCH_CABLE_COLORS.length]!
-          .value,
-    );
+    const selectedColorId =
+      colorId ??
+      PATCH_CABLE_COLOR_IDS[data.cables.length % PATCH_CABLE_COLOR_IDS.length] ??
+      DEFAULT_PATCH_CABLE_COLOR_ID;
     cableGesture.current = {
       fixedPort,
       originalIndex,
-      color: selectedColor,
+      colorId: selectedColorId,
       startPoint,
       clickedEndpoint,
       moved: false,
@@ -180,7 +180,7 @@ export function useInstrumentPanelInteractions({
     const otherId = cable.from === port.id ? cable.to : cable.from;
     const otherPort = portById.get(otherId);
     if (otherPort)
-      beginCableDrag(event, otherPort, connectedIndex, cable.color, port);
+      beginCableDrag(event, otherPort, connectedIndex, cable.colorId, port);
   }
 
   function beginFromCable(
@@ -200,7 +200,7 @@ export function useInstrumentPanelInteractions({
       event,
       moveStart ? end : start,
       cableIndex,
-      cable.color,
+      cable.colorId,
     );
   }
 
@@ -213,7 +213,7 @@ export function useInstrumentPanelInteractions({
     if (layoutEditMode) return;
     const otherPort = portById.get(cable.from === port.id ? cable.to : cable.from);
     if (otherPort)
-      beginCableDrag(event, otherPort, cableIndex, cable.color, port);
+      beginCableDrag(event, otherPort, cableIndex, cable.colorId, port);
   }
 
   function finishCableDrag(event: PointerEvent<SVGSVGElement>) {
@@ -300,7 +300,7 @@ export function useInstrumentPanelInteractions({
     if (target) {
       onCableChange([
         ...remaining,
-        normalizedCable(gesture.fixedPort, target, gesture.color),
+        normalizedCable(gesture.fixedPort, target, gesture.colorId),
       ]);
     } else if (gesture.originalIndex !== null) {
       onCableChange(remaining);
@@ -320,11 +320,14 @@ export function useInstrumentPanelInteractions({
     setPointer(nextPointer);
   }
 
-  function selectCableColor(colorPicker: CableColorPicker, color: string) {
+  function selectCableColor(
+    colorPicker: CableColorPicker,
+    colorId: PatchCableColorId,
+  ) {
     onCableChange(
       data.cables.map((cable) =>
         cable.from === colorPicker.from && cable.to === colorPicker.to
-          ? { ...cable, color }
+          ? { ...cable, colorId }
           : cable,
       ),
     );
@@ -341,7 +344,7 @@ export function useInstrumentPanelInteractions({
     cableGesture.current && pointer
       ? {
           path: cableCurve(cableGesture.current.fixedPort, pointer),
-          color: cableGesture.current.color,
+          colorId: cableGesture.current.colorId,
         }
       : null;
   const visibleCables = data.cables.filter(

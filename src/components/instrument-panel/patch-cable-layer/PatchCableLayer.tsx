@@ -1,6 +1,7 @@
 "use client";
 
 import type { PatchData } from "@/lib/domain/types";
+import { patchCableColorCssValue } from "@/lib/adapters/patch-cable-color-adapter";
 import { cableCurve } from "@/lib/instrument/geometry";
 import type { InstrumentLayout } from "@/lib/instrument/layout";
 import { useI18n } from "@/i18n/provider";
@@ -35,7 +36,7 @@ export function PatchCableLayer({
             <path
               d={path}
               className={styles.cable}
-              stroke={cable.color}
+              stroke={patchCableColorCssValue(cable.colorId)}
               strokeWidth={layout.geometry.cable.lineWidth}
             />
             <path
@@ -61,7 +62,7 @@ export function PatchCableLayer({
                 r={layout.geometry.port.endpointRadius}
                 className={styles.cableEndpoint}
                 data-cable-endpoint
-                fill={cable.color}
+                fill={patchCableColorCssValue(cable.colorId)}
                 aria-label={t("instrument.cableEnd", { port: port.label })}
                 onPointerDown={(event) =>
                   interactions.beginFromCableEndpoint(
@@ -81,7 +82,7 @@ export function PatchCableLayer({
         <path
           d={preview.path}
           className={`${styles.cable} ${styles.cablePreview}`}
-          stroke={preview.color}
+          stroke={patchCableColorCssValue(preview.colorId)}
           strokeWidth={layout.geometry.cable.lineWidth}
         />
       )}

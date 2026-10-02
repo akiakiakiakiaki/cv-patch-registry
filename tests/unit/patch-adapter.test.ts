@@ -47,11 +47,11 @@ describe("patch adapter", () => {
         switches: { enabled: true, ignored: "yes" },
         leds: { lit: true, ignored: 1 },
         cables: [
-          { from: input.id, to: output.id, color: "var(--patch-color-blue)" },
-          { from: secondOutput.id, to: nextInput.id, color: "var(--patch-color-white)" },
-          { from: output.id, to: input.id, color: "var(--patch-color-red)" },
-          { from: input.id, to: nextInput.id, color: "var(--patch-color-black)" },
-          { from: "missing", to: nextInput.id, color: "var(--patch-color-gray)" },
+          { from: input.id, to: output.id, colorId: "blue" },
+          { from: secondOutput.id, to: nextInput.id, colorId: "white" },
+          { from: output.id, to: input.id, colorId: "red" },
+          { from: input.id, to: nextInput.id, colorId: "black" },
+          { from: "missing", to: nextInput.id, colorId: "gray" },
           { from: 5, to: input.id },
         ],
       },
@@ -62,18 +62,18 @@ describe("patch adapter", () => {
     expect(data.switches).toEqual({ enabled: true });
     expect(data.leds).toEqual({ lit: true });
     expect(data.cables).toEqual([
-      { from: output.id, to: input.id, color: "var(--patch-color-blue)" },
-      { from: secondOutput.id, to: nextInput.id, color: "var(--patch-color-white)" },
+      { from: output.id, to: input.id, colorId: "blue" },
+      { from: secondOutput.id, to: nextInput.id, colorId: "white" },
     ]);
   });
 
   it("reads legacy LED maps and defaults unknown cable colors to red", () => {
     const data = normalizePatchData(
-      { circles: { "Wave 1": true }, cables: [{ from: output.id, to: input.id, color: "unknown" }] },
+      { circles: { "Wave 1": true }, cables: [{ from: output.id, to: input.id, colorId: "unknown" }] },
       instrument,
     );
     expect(data.leds).toEqual({ "Wave 1": true });
-    expect(data.cables[0]?.color).toBe("var(--patch-color-red)");
+    expect(data.cables[0]?.colorId).toBe("red");
   });
 
   it("normalizes imported knob values to integer MIDI range", () => {

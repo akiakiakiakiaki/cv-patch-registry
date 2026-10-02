@@ -1,6 +1,6 @@
 # CV Patch Registry
 
-CV Patch Registry is a browser based tool for creating and organizing analogue synthesizer patches. Choose a synth, adjust its controls using MIDI values from 0 to 127, toggle LEDs and switches, and draw patch cables between its inputs and outputs. Patch changes are saved automatically in the browser for the selected synth.
+CV Patch Registry is a browser based tool for creating and organizing analogue synthesizer patches, so they can be remembered, rebuilt and shared. Choose a synth, adjust its controls, toggle LEDs and switches, and draw patch cables between its inputs and outputs. Patch changes are saved automatically in the browser for the selected synth.
 
 The app is structured to support multiple synthesizers. **Behringer Proton is currently the only implemented synth.** Its display name and versioned control layout are defined in `src/lib/instrument/behringer-proton/behringer-proton-layout.json`; the available instruments are registered in `src/lib/instruments/registry.ts`.
 

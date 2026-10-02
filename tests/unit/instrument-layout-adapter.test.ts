@@ -16,6 +16,16 @@ describe("instrument layout adapter", () => {
     expect(decoded?.geometry).toEqual(reference.geometry);
   });
 
+  it("normalizes decoded positions to whole or half pixels", () => {
+    const candidate = structuredClone(reference);
+    candidate.knobs[0]!.x = 114.13;
+    candidate.knobs[0]!.y = 173.62;
+
+    const decoded = decodeInstrumentLayout(candidate, reference);
+
+    expect(decoded?.knobs[0]).toMatchObject({ x: 114, y: 173.5 });
+  });
+
   it.each([
     ["synth ID", { id: "other" }],
     ["schema version", { schemaVersion: 99 }],

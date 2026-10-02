@@ -24,15 +24,29 @@ describe("layout editor", () => {
   it("moves the selected element and clamps it to the viewBox", () => {
     const start = behringerProton.layout;
     const knob = start.knobs[0]!;
-    const moved = moveLayoutElement(start, { kind: "knob", id: knob.id }, { x: 1, y: -2 });
-    expect(moved.knobs[0]).toMatchObject({ x: knob.x + 1, y: knob.y - 2 });
+    const moved = moveLayoutElement(start, { kind: "knob", id: knob.id }, { x: 0.5, y: -0.5 });
+    expect(moved.knobs[0]).toMatchObject({ x: knob.x + 0.5, y: knob.y - 0.5 });
 
     const clamped = moveLayoutElement(
       start,
       { kind: "port", id: start.ports[0]!.id },
       { x: -start.viewBox.width, y: start.viewBox.height * 2 },
     );
-    expect(clamped.ports[0]).toMatchObject({ x: 0, y: start.viewBox.height });
+    expect(clamped.ports[0]).toMatchObject({ x: 0, y: 650.5 });
+  });
+
+  it("snaps moved positions to the nearest whole or half pixel", () => {
+    const start = structuredClone(behringerProton.layout);
+    start.knobs[0]!.x = 100.2;
+    start.knobs[0]!.y = 100.2;
+
+    const moved = moveLayoutElement(
+      start,
+      { kind: "knob", id: start.knobs[0]!.id },
+      { x: 0.5, y: -0.5 },
+    );
+
+    expect(moved.knobs[0]).toMatchObject({ x: 100.5, y: 99.5 });
   });
 
   it("returns the existing layout if the selected element does not exist", () => {

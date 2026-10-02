@@ -37,10 +37,10 @@ export function InstrumentPanel({
   function handleKeyDown(event: KeyboardEvent<SVGSVGElement>) {
     if (!layoutEditMode) return;
     const deltas: Record<string, Point> = {
-      ArrowUp: { x: 0, y: -1 },
-      ArrowDown: { x: 0, y: 1 },
-      ArrowLeft: { x: -1, y: 0 },
-      ArrowRight: { x: 1, y: 0 },
+      ArrowUp: { x: 0, y: -0.5 },
+      ArrowDown: { x: 0, y: 0.5 },
+      ArrowLeft: { x: -0.5, y: 0 },
+      ArrowRight: { x: 0.5, y: 0 },
     };
     if (event.key === "Escape") {
       onClearLayoutFocus();

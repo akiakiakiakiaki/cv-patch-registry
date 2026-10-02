@@ -21,3 +21,4 @@
 - Increase `layoutVersion` for layout revisions and `schemaVersion` for incompatible layout structure changes.
 - Keep patch state in the shared patch shape. Add instrument-specific migration in adapters when required.
 - Patch-library exports must carry `format`, `schemaVersion`, and `instrumentId`; reject unsupported versions or a mismatched synth, while retaining legacy Proton import support.
+- Before changing a persisted patch or instrument-layout contract, check whether the change is compatible with its current `schemaVersion` or `layoutVersion`. Warn the user before proceeding with an incompatible change, state the affected data and migration/versioning options, and never silently change the contract. Once an incompatible change is approved, bump the appropriate version and add or document the required migration.

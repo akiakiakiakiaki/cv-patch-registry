@@ -1,4 +1,5 @@
 import type { PatchCable, PatchData } from "@/lib/domain/types";
+import type { PatchCableColorId } from "@/lib/domain/patch-colors";
 import type {
   FocusedLayoutElement,
   InstrumentLayout,
@@ -32,7 +33,7 @@ export interface CableColorPicker {
 export interface CableGesture {
   fixedPort: PatchPort;
   originalIndex: number | null;
-  color: string;
+  colorId: PatchCableColorId;
   startPoint: Point;
   clickedEndpoint: PatchPort | null;
   moved: boolean;
@@ -46,5 +47,5 @@ export interface EndpointClick {
 
 export interface CablePreview {
   path: string;
-  color: string;
+  colorId: PatchCableColorId;
 }

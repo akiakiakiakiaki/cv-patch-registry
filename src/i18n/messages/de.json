@@ -50,7 +50,7 @@
   "loading.library": "Lokale Patchbibliothek wird geöffnet …",
   "loading.noActivePatch": "Kein aktives Patch gefunden.",
   "hint.layoutMode": "Layoutmodus",
-  "hint.layoutHelp": "Element anklicken · Pfeiltasten verschieben um 1 px · Esc löst den Fokus",
+  "hint.layoutHelp": "Element anklicken · Pfeiltasten verschieben um 0,5 px · Esc löst den Fokus",
   "hint.encoder": "Encoder",
   "hint.encoderHelp": "ziehen oder klicken",
   "hint.switches": "Schalter & LEDs",

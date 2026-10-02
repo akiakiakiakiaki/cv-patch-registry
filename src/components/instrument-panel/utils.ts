@@ -1,15 +1,16 @@
 import type { KeyboardEvent } from "react";
 import type { PatchCable } from "@/lib/domain/types";
+import type { PatchCableColorId } from "@/lib/domain/patch-colors";
 import type { PatchPort, Point } from "@/lib/instrument/layout";
 
 export function normalizedCable(
   from: PatchPort,
   to: PatchPort,
-  color: string,
+  colorId: PatchCableColorId,
 ): PatchCable {
   const out = from.kind === "out" ? from : to;
   const input = from.kind === "in" ? from : to;
-  return { from: out.id, to: input.id, color };
+  return { from: out.id, to: input.id, colorId };
 }
 
 export function eventPoint(
