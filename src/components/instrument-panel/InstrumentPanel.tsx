@@ -1,17 +1,29 @@
 "use client";
 
-import type { KeyboardEvent } from "react";
+import { useEffect, useRef } from "react";
+import type { KeyboardEvent, PointerEvent } from "react";
 import { InstrumentArtwork } from "@/components/instrument-artwork/InstrumentArtwork";
 import { useI18n } from "@/i18n/provider";
-import type { Point } from "@/lib/instrument/layout";
+import type { FocusedLayoutElement, Point } from "@/lib/instrument/layout";
+import { layoutElementPosition } from "@/lib/instrument/layout-editor";
+import { normalizePixelPosition } from "@/lib/instrument/pixel-position";
 import { InstrumentControlLayer } from "./control-layer/InstrumentControlLayer";
 import { PatchCableLayer } from "./patch-cable-layer/PatchCableLayer";
 import { CableColorPicker } from "./patch-cable-layer/color-picker/CableColorPicker";
 import styles from "./InstrumentPanel.module.scss";
 import type { InstrumentPanelProps } from "./types";
 import { useInstrumentPanelInteractions } from "./useInstrumentPanelInteractions";
+import { eventPoint } from "./utils";
+
+interface LayoutDrag {
+  target: FocusedLayoutElement;
+  grab: Point;
+}
+
+const NOOP = () => {};
 
 export function InstrumentPanel({
+  readOnly = false,
   data,
   instrument,
   layout,
@@ -20,19 +32,57 @@ export function InstrumentPanel({
   onFocusLayoutElement,
   onClearLayoutFocus,
   onMoveFocusedLayoutElement,
+  panelRef,
   onKnobChange,
   onSwitchChange,
   onLedChange,
   onCableChange,
 }: InstrumentPanelProps) {
   const { t } = useI18n();
+  const layoutDrag = useRef<LayoutDrag | null>(null);
+  useEffect(() => {
+    if (panelRef) panelRef.current = interactions.svgRef.current;
+  });
+  // Read-only panels ignore every change, even if a gesture slips through the inert attribute.
+  const guard = <Args extends unknown[]>(handler: (...args: Args) => void) =>
+    readOnly ? NOOP : (...args: Args) => handler(...args);
+  const changeKnob = guard(onKnobChange);
+  const changeCables = guard(onCableChange);
+  const changeSwitch = guard(onSwitchChange);
+  const changeLed = guard(onLedChange);
   const interactions = useInstrumentPanelInteractions({
     data,
     layout,
     layoutEditMode,
-    onKnobChange,
-    onCableChange,
+    onKnobChange: changeKnob,
+    onCableChange: changeCables,
   });
+
+  function beginLayoutDrag(target: FocusedLayoutElement, event: PointerEvent<SVGElement>) {
+    const svg = interactions.svgRef.current;
+    const position = layoutElementPosition(layout, target);
+    if (!layoutEditMode || !svg || !position) return;
+    const point = eventPoint(svg, event);
+    layoutDrag.current = { target, grab: { x: point.x - position.x, y: point.y - position.y } };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  /** Moves the dragged element to the pointer, snapped to half panel units like the keyboard steps. */
+  function continueLayoutDrag(event: PointerEvent<SVGSVGElement>) {
+    const drag = layoutDrag.current;
+    const svg = interactions.svgRef.current;
+    const position = drag ? layoutElementPosition(layout, drag.target) : undefined;
+    if (!drag || !svg || !position) return;
+    const point = eventPoint(svg, event);
+    const x = normalizePixelPosition(point.x - drag.grab.x, layout.viewBox.width);
+    const y = normalizePixelPosition(point.y - drag.grab.y, layout.viewBox.height);
+    const delta = { x: x - position.x, y: y - position.y };
+    if (delta.x !== 0 || delta.y !== 0) onMoveFocusedLayoutElement(delta);
+  }
+
+  function endLayoutDrag() {
+    layoutDrag.current = null;
+  }
 
   function handleKeyDown(event: KeyboardEvent<SVGSVGElement>) {
     if (!layoutEditMode) return;
@@ -54,6 +104,7 @@ export function InstrumentPanel({
 
   return (
     <section
+      inert={readOnly}
       className={styles.boardWrap}
       aria-label={t("instrument.aria", { name: instrument.displayName })}
     >
@@ -71,9 +122,18 @@ export function InstrumentPanel({
           preserveAspectRatio="none"
           aria-label={t("instrument.controlsAria")}
           onKeyDown={handleKeyDown}
-          onPointerMove={interactions.handleSvgPointerMove}
-          onPointerUp={interactions.finishCableDrag}
-          onPointerCancel={interactions.finishCableDrag}
+          onPointerMove={(event) => {
+            continueLayoutDrag(event);
+            interactions.handleSvgPointerMove(event);
+          }}
+          onPointerUp={(event) => {
+            endLayoutDrag();
+            interactions.finishCableDrag(event);
+          }}
+          onPointerCancel={(event) => {
+            endLayoutDrag();
+            interactions.finishCableDrag(event);
+          }}
         >
           <PatchCableLayer
             data={data}
@@ -88,9 +148,10 @@ export function InstrumentPanel({
             focusedElement={focusedElement}
             interactions={interactions}
             onFocusLayoutElement={onFocusLayoutElement}
-            onKnobChange={onKnobChange}
-            onSwitchChange={onSwitchChange}
-            onLedChange={onLedChange}
+            onBeginLayoutDrag={beginLayoutDrag}
+            onKnobChange={changeKnob}
+            onSwitchChange={changeSwitch}
+            onLedChange={changeLed}
           />
           <CableColorPicker
             data={data}

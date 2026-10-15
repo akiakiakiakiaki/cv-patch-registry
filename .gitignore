@@ -21,3 +21,7 @@ playwright/.cache/
 # Logs and operating system files
 *.log
 .DS_Store
+
+# Runtime uploads and local database
+public/assets/uploads/
+.data/

@@ -1,5 +1,7 @@
 import { createId } from "@/lib/domain/ids";
-import { PATCH_LIBRARY_SCHEMA_VERSION } from "@/lib/domain/types";
+import { PATCH_LIBRARY_SCHEMA_MINOR, PATCH_LIBRARY_SCHEMA_VERSION } from "@/lib/domain/types";
+import { canConnect, normalizeCableEndpoints } from "@/lib/domain/port-rules";
+import { readSchemaMinor } from "@/lib/domain/schema-version";
 import type {
   PatchCable,
   PatchData,
@@ -8,6 +10,7 @@ import type {
   PatchRecord,
 } from "@/lib/domain/types";
 import type { InstrumentDefinition } from "@/lib/instruments/types";
+import type { InstrumentLayout } from "@/lib/instrument/layout";
 import { normalizePatchCableColorId } from "@/lib/adapters/patch-cable-color-adapter";
 import { normalizeKnobValue } from "@/lib/domain/knob-range";
 
@@ -47,9 +50,17 @@ export function normalizePatchData(
   value: unknown,
   instrument: InstrumentDefinition,
 ): PatchData {
+  return normalizePatchDataForLayout(value, instrument.layout);
+}
+
+/** Same rules for any layout, e.g. a user-built synth revision that is not an InstrumentDefinition. */
+export function normalizePatchDataForLayout(
+  value: unknown,
+  layout: Pick<InstrumentLayout, "ports">,
+): PatchData {
   const raw = isRecord(value) ? value : {};
   const usedPorts = new Set<string>();
-  const ports = instrument.layout.ports;
+  const ports = layout.ports;
   const validPortIds = new Set(ports.map((port) => port.id));
   const rawCables = Array.isArray(raw.cables) ? raw.cables : [];
   const cables = rawCables.flatMap((entry): PatchCable[] => {
@@ -68,17 +79,11 @@ export function normalizePatchData(
       return [];
     const from = ports.find((port) => port.id === entry.from);
     const to = ports.find((port) => port.id === entry.to);
-    if (!from || !to || from.kind === to.kind) return [];
+    if (!from || !to || entry.from === entry.to || !canConnect(from, to)) return [];
     usedPorts.add(entry.from);
     usedPorts.add(entry.to);
     const colorId = normalizePatchCableColorId(entry.colorId);
-    return [
-      {
-        from: from.kind === "out" ? from.id : to.id,
-        to: from.kind === "in" ? from.id : to.id,
-        colorId,
-      },
-    ];
+    return [{ ...normalizeCableEndpoints(from, to), colorId }];
   });
 
   return {
@@ -115,6 +120,7 @@ export function decodeLibrary(
   instrument: InstrumentDefinition,
 ): PatchLibrary | null {
   if (!isRecord(value) || !Array.isArray(value.patches)) return null;
+  if (readSchemaMinor(value.schemaMinor, PATCH_LIBRARY_SCHEMA_MINOR) === null) return null;
   if (value.format === "synth-patch-library") {
     if (
       value.schemaVersion !== PATCH_LIBRARY_SCHEMA_VERSION ||
@@ -157,6 +163,8 @@ export function decodeImport(
   instrument: InstrumentDefinition,
 ): DecodedImport {
   if (!isRecord(value)) throw new Error("status.importErrorObject");
+  if (readSchemaMinor(value.schemaMinor, PATCH_LIBRARY_SCHEMA_MINOR) === null)
+    throw new Error("status.importUnsupportedVersion");
   if (value.format === "synth-patch-library") {
     if (value.schemaVersion !== PATCH_LIBRARY_SCHEMA_VERSION)
       throw new Error("status.importUnsupportedVersion");
@@ -217,14 +225,30 @@ export function associateLegacyPatches(
   });
 }
 
+/** Lowest schemaMinor the library needs: 1 only if a cable uses a uni port. */
+export function requiredPatchSchemaMinor(
+  library: PatchLibrary,
+  instrument: InstrumentDefinition,
+): number {
+  const uniPortIds = new Set(
+    instrument.layout.ports.filter((port) => port.kind === "uni").map((port) => port.id),
+  );
+  const usesUni = library.patches.some((patch) =>
+    patch.data.cables.some((cable) => uniPortIds.has(cable.from) || uniPortIds.has(cable.to)),
+  );
+  return usesUni ? 1 : 0;
+}
+
 export function encodeLibrary(
   library: PatchLibrary,
   instrumentId: string,
   exportedAt = new Date().toISOString(),
+  schemaMinor = 0,
 ): PatchLibraryExport {
   return {
     format: "synth-patch-library",
     schemaVersion: PATCH_LIBRARY_SCHEMA_VERSION,
+    ...(schemaMinor > 0 ? { schemaMinor } : {}),
     instrumentId,
     exportedAt,
     activeId: library.activeId,

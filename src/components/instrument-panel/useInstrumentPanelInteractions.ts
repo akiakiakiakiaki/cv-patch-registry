@@ -8,6 +8,7 @@ import {
   PATCH_CABLE_COLOR_IDS,
 } from "@/lib/domain/patch-colors";
 import type { PatchCableColorId } from "@/lib/domain/patch-colors";
+import { canConnect } from "@/lib/domain/port-rules";
 import { cableCurve, getNearestPort } from "@/lib/instrument/geometry";
 import type { InstrumentLayout, PatchPort, Point } from "@/lib/instrument/layout";
 import { KNOB_VALUE_MAX, KNOB_VALUE_MIN } from "@/lib/domain/knob-range";
@@ -288,7 +289,7 @@ export function useInstrumentPanelInteractions({
       remaining.flatMap((cable) => [cable.from, cable.to]),
     );
     const choices = layout.ports.filter(
-      (port) => port.kind === (gesture.fixedPort.kind === "out" ? "in" : "out"),
+      (port) => port.id !== gesture.fixedPort.id && canConnect(gesture.fixedPort, port),
     );
     const availablePorts = choices.filter((port) => !usedPorts.has(port.id));
     const target = getNearestPort(

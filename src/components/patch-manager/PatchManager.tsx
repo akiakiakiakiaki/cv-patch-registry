@@ -18,12 +18,20 @@ import Typography from "@mui/material/Typography";
 import type { PatchRecord } from "@/lib/domain/types";
 import { formatTimestamp } from "@/lib/utils/date-format";
 import { useI18n } from "@/i18n/provider";
-import type { InstrumentDefinition } from "@/lib/instruments/types";
 import { InlineSvgAsset } from "@/components/inline-svg-asset/InlineSvgAsset";
 import { ColorModeSwitch } from "@/components/color-mode-switch/ColorModeSwitch";
+import { AccountLinks } from "@/components/account-links/AccountLinks";
+
+export interface InstrumentOption {
+  id: string;
+  displayName: string;
+}
+
+const CREATE_SYNTH = "__create_synth__";
 
 interface PatchManagerProps {
-  instruments: readonly InstrumentDefinition[];
+  instruments: readonly InstrumentOption[];
+  onCreateSynth: () => void;
   instrumentId: string;
   onInstrumentChange: (instrumentId: string) => void;
   patches: readonly PatchRecord[];
@@ -147,7 +155,10 @@ export function PatchManager(props: PatchManagerProps) {
               labelId="instrument-select-label"
               label={t("instrument.select")}
               value={props.instrumentId}
-              onChange={(event) => props.onInstrumentChange(event.target.value)}
+              onChange={(event) => {
+                if (event.target.value === CREATE_SYNTH) return props.onCreateSynth();
+                props.onInstrumentChange(event.target.value);
+              }}
               inputProps={{ "aria-label": t("instrument.selectAria") }}
             >
               {props.instruments.map((instrument) => (
@@ -158,6 +169,7 @@ export function PatchManager(props: PatchManagerProps) {
                   {instrument.displayName}
                 </MenuItem>
               ))}
+              <MenuItem value={CREATE_SYNTH}>+ {t("synths.new")}</MenuItem>
             </Select>
           </FormControl>
 
@@ -250,6 +262,7 @@ export function PatchManager(props: PatchManagerProps) {
               </Button>
             ))}
           </ButtonGroup>
+          <AccountLinks />
           <ColorModeSwitch />
         </Stack>
       </Box>

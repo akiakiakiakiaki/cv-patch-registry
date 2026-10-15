@@ -28,6 +28,7 @@ interface InstrumentControlLayerProps {
   focusedElement: FocusedLayoutElement | null;
   interactions: ReturnType<typeof useInstrumentPanelInteractions>;
   onFocusLayoutElement: (target: FocusedLayoutElement) => void;
+  onBeginLayoutDrag: (target: FocusedLayoutElement, event: PointerEvent<SVGElement>) => void;
   onKnobChange: (id: string, value: number) => void;
   onSwitchChange: (id: string, value: boolean) => void;
   onLedChange: (id: string, value: boolean) => void;
@@ -41,6 +42,7 @@ export function InstrumentControlLayer({
   focusedElement,
   interactions,
   onFocusLayoutElement,
+  onBeginLayoutDrag,
   onKnobChange,
   onSwitchChange,
   onLedChange,
@@ -53,6 +55,8 @@ export function InstrumentControlLayer({
   ) {
     onFocusLayoutElement(target);
     event.currentTarget.focus();
+    // A pointer press on a layout element starts a drag; the panel tracks the pointer from here.
+    if ("pointerId" in event) onBeginLayoutDrag(target, event as PointerEvent<SVGElement>);
   }
 
   function updateKnobFromKey(
@@ -176,6 +180,9 @@ export function InstrumentControlLayer({
             role="button"
             ariaLabel={control.id}
             ariaPressed={!layoutEditMode && state.active}
+            onPointerDown={(event) => {
+              if (layoutEditMode) focusElement(event, { kind: "switch", id: control.id });
+            }}
             onClick={(event) => {
               if (layoutEditMode) {
                 focusElement(event, { kind: "switch", id: control.id });
@@ -222,6 +229,9 @@ export function InstrumentControlLayer({
               .join(" ")}
             ariaLabel={led.id}
             ariaChecked={!layoutEditMode && active}
+            onPointerDown={(event) => {
+              if (layoutEditMode) focusElement(event, { kind: "led", id: led.id });
+            }}
             onClick={(event) => {
               if (layoutEditMode) {
                 focusElement(event, { kind: "led", id: led.id });
@@ -247,7 +257,7 @@ export function InstrumentControlLayer({
           tabIndex={0}
           role="button"
           ariaLabel={t(
-            port.kind === "out" ? "instrument.output" : "instrument.input",
+            port.kind === "out" ? "instrument.output" : port.kind === "uni" ? "instrument.uni" : "instrument.input",
             { label: port.label },
           )}
           onPointerDown={(event) => {

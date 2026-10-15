@@ -1,5 +1,6 @@
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { encodeInstrumentLayout } from '@/lib/adapters/instrument-layout-adapter';
 import type { InstrumentLayout } from '@/lib/instrument/layout';
 import type { InstrumentDefinition } from '@/lib/instruments/types';
 
@@ -17,7 +18,7 @@ export class InstrumentLayoutRepository {
 
   async save(layout: InstrumentLayout): Promise<void> {
     const temporaryPath = `${this.layoutPath}.tmp`;
-    await writeFile(temporaryPath, `${JSON.stringify(layout, null, 2)}\n`, 'utf8');
+    await writeFile(temporaryPath, `${JSON.stringify(encodeInstrumentLayout(layout), null, 2)}\n`, 'utf8');
     await rename(temporaryPath, this.layoutPath);
   }
 }

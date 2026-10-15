@@ -9,6 +9,8 @@ import type {
 import type { InstrumentDefinition } from "@/lib/instruments/types";
 
 export interface InstrumentPanelProps {
+  /** Public patches of other users: the panel is inert and every change is ignored. */
+  readOnly?: boolean;
   data: PatchData;
   instrument: InstrumentDefinition;
   layout: InstrumentLayout;
@@ -17,6 +19,8 @@ export interface InstrumentPanelProps {
   onFocusLayoutElement: (target: FocusedLayoutElement) => void;
   onClearLayoutFocus: () => void;
   onMoveFocusedLayoutElement: (delta: Point) => void;
+  /** Lets a parent convert pointer positions into panel units (e.g. palette drops). */
+  panelRef?: { current: SVGSVGElement | null };
   onKnobChange: (id: string, value: number) => void;
   onSwitchChange: (id: string, value: boolean) => void;
   onLedChange: (id: string, value: boolean) => void;

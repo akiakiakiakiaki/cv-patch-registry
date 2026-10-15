@@ -8,6 +8,19 @@ import { LocalPatchRepository } from "@/lib/storage/local-patch-repository";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
 import type { InstrumentDefinition } from "@/lib/instruments/types";
 
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
+
+// Anonymous visitor: patches stay in this browser.
+vi.mock("@/lib/auth/client", () => ({
+  authClient: {
+    useSession: () => ({ data: null, isPending: false }),
+    signOut: vi.fn(),
+  },
+}));
+
 vi.mock("@/hooks/use-instrument-layout-editor", () => ({
   useInstrumentLayoutEditor: (instrument: InstrumentDefinition) => ({
     layout: instrument.layout,
@@ -46,6 +59,7 @@ describe("PatchSheet", () => {
 
   beforeEach(() => {
     window.localStorage.clear();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ synths: [] }), { status: 200 })));
   });
 
   it("immediately saves control changes to the current synth's local library", async () => {

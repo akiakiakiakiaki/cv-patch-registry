@@ -26,10 +26,13 @@ export interface PatchLibrary {
 }
 
 export const PATCH_LIBRARY_SCHEMA_VERSION = 1 as const;
+/** Highest patch-library minor this app can read. Minor 1 allows cables to uni ports. */
+export const PATCH_LIBRARY_SCHEMA_MINOR = 1 as const;
 
 export interface PatchLibraryExport {
   format: 'synth-patch-library';
   schemaVersion: 1;
+  schemaMinor?: number;
   instrumentId: string;
   exportedAt: string;
   activeId: string;

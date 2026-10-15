@@ -1,0 +1,1 @@
+ALTER TABLE "synths" ADD COLUMN "deleted_at" timestamp;

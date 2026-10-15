@@ -1,25 +1,31 @@
+import type { PortKind } from "@/lib/domain/port-rules";
+
 export interface Point {
   x: number;
   y: number;
 }
 
+/** Labels are editable and optional. Without a label the control ID is shown. */
 export interface KnobDefinition extends Point {
   id: string;
+  label?: string;
 }
 
 export interface SwitchDefinition extends Point {
   id: string;
+  label?: string;
 }
 
 export interface LedDefinition extends Point {
   id: string;
+  label?: string;
   color: 'red' | 'blue' | 'amber';
 }
 
 export interface PatchPort extends Point {
   id: string;
   label: string;
-  kind: 'in' | 'out';
+  kind: PortKind;
 }
 
 export interface InstrumentGeometry {
@@ -32,6 +38,8 @@ export interface InstrumentGeometry {
 
 export interface InstrumentLayout {
   schemaVersion: number;
+  /** Missing means 0. Written only when the layout uses a feature of a newer minor (e.g. uni ports). */
+  schemaMinor?: number;
   layoutVersion: number;
   id: string;
   displayName: string;

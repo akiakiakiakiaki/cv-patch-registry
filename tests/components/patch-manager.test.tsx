@@ -24,7 +24,8 @@ const patches: PatchRecord[] = [
 
 function renderManager(overrides: Partial<ComponentProps<typeof PatchManager>> = {}) {
   const props: ComponentProps<typeof PatchManager> = {
-    instruments: [behringerProton],
+    instruments: [{ id: behringerProton.id, displayName: behringerProton.displayName }],
+    onCreateSynth: vi.fn(),
     instrumentId: behringerProton.id,
     onInstrumentChange: vi.fn(),
     patches,
