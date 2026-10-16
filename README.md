@@ -92,17 +92,17 @@ Everything happens on the start page:
 
 ### Environment
 
-| Variable | Purpose |
-|---|---|
-| `BETTER_AUTH_SECRET` | Session secret. Required outside local development. |
-| `BETTER_AUTH_URL` | Public base URL, e.g. `http://localhost:3000`. |
-| `AUTH_REQUIRE_EMAIL_VERIFICATION` | `true` blocks sign-in until the address is verified. |
-| `NEXT_PUBLIC_AUTH_REQUIRE_EMAIL_VERIFICATION` | Same flag for the client, which shows the "check your mail" message. |
-| `FEATURE_AUDIO` / `NEXT_PUBLIC_FEATURE_AUDIO` | Enables sample upload and playback. |
-| `PATCH_DB_PROVIDER` | `pglite` (default) or `postgres`. Supabase also uses `postgres` here. |
-| `PATCH_DB_DIR` | Optional database directory. Defaults to `.data/pglite`. |
-| `DATABASE_URL` | PostgreSQL connection string. Required with `PATCH_DB_PROVIDER=postgres`; use the Supabase database connection string if applicable. |
-| `PATCH_DB_POOL_MAX` | PostgreSQL client connections per app process. Defaults to `1`; increase only if the app shows connection queuing. |
+| Variable                                      | Purpose                                                                                                                              |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `BETTER_AUTH_SECRET`                          | Session secret. Required outside local development.                                                                                  |
+| `BETTER_AUTH_URL`                             | Public base URL, e.g. `http://localhost:3000`.                                                                                       |
+| `AUTH_REQUIRE_EMAIL_VERIFICATION`             | `true` blocks sign-in until the address is verified.                                                                                 |
+| `NEXT_PUBLIC_AUTH_REQUIRE_EMAIL_VERIFICATION` | Same flag for the client, which shows the "check your mail" message.                                                                 |
+| `FEATURE_AUDIO` / `NEXT_PUBLIC_FEATURE_AUDIO` | Enables sample upload and playback.                                                                                                  |
+| `PATCH_DB_PROVIDER`                           | `pglite` (default) or `postgres`. Supabase also uses `postgres` here.                                                                |
+| `PATCH_DB_DIR`                                | Optional database directory. Defaults to `.data/pglite`.                                                                             |
+| `DATABASE_URL`                                | PostgreSQL connection string. Required with `PATCH_DB_PROVIDER=postgres`; use the Supabase database connection string if applicable. |
+| `PATCH_DB_POOL_MAX`                           | PostgreSQL client connections per app process. Defaults to `1`; increase only if the app shows connection queuing.                   |
 
 PGlite uses a lock file next to its data directory, so only one process opens that directory. A stale lock from a killed process is taken over automatically. On Ctrl+C or SIGTERM the database is closed cleanly. Use a different `PATCH_DB_DIR` to run a second instance on purpose. PostgreSQL is managed by its server and has no local directory lock.
 
@@ -121,9 +121,8 @@ To use local PGlite, set `PATCH_DB_PROVIDER=pglite` (or leave it unset). To use 
 - [ ] Data processing agreements with the hosting and mail providers.
 - [ ] Account deletion, including the user's uploads (not implemented yet).
 - [ ] Report button on public patches, synths and samples, with a takedown process (EU DSA Art. 16). Not implemented yet.
-- [ ] Copyright: manufacturer panel artwork (e.g. Behringer Proton) must be cleared before it is public.
+- [ ] Clear copyright of panels before it is public.
 - [ ] Sample rights: the upload confirms the rights, but the takedown process above still applies.
-- [ ] License conflict: `LICENSE` is AGPL v3, while `CONTRIBUTING.md` restricts commercial hosting. Resolve before public operation.
 - [ ] Upload rate limits and a registration captcha (both missing).
 - [ ] Database backups and a tested restore.
 - [ ] Known gaps: samples are unlisted but not access-protected, sample duration is only checked in the browser, and samples cannot be deleted yet.

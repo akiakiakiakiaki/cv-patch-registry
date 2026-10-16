@@ -21,6 +21,7 @@ import {
   deletePatchOwned,
   findPatchWithSynth,
   insertPatch,
+  insertPatchIfAbsent,
   listPatchesWithSynth,
   replacePatchTags,
   tagSlugsFor,
@@ -265,9 +266,11 @@ export async function importLocalPatches(
   const layout = revision ? parseSynthLayout(revision.layout) : null;
   if (!revision || !layout) return { ok: false, error: "synth-not-found" };
 
+  let created = 0;
   for (const patch of parsed.data.patches) {
-    await insertPatch(db, {
-      id: randomUUID(),
+    const id = patch.id ?? randomUUID();
+    const inserted = await insertPatchIfAbsent(db, {
+      id,
       ownerId: actor.id,
       synthRevisionId: revision.id,
       name: patch.name,
@@ -275,6 +278,13 @@ export async function importLocalPatches(
       revision: 1,
       data: encodePatchDocument(normalizeSubmittedData(patch.data ?? {}, layout), layout),
     });
+    if (!inserted) {
+      // Keep retries of the same browser import idempotent. Never overwrite another patch.
+      const existing = await findPatchWithSynth(db, id);
+      if (existing?.patch.ownerId === actor.id && existing.synthSlug === synth.slug) continue;
+      return { ok: false, error: "conflict" };
+    }
+    created += 1;
   }
-  return { ok: true, created: parsed.data.patches.length };
+  return { ok: true, created };
 }

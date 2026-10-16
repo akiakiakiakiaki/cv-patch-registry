@@ -47,6 +47,17 @@ export class LocalPatchRepository {
     window.localStorage.setItem(this.storageKey(), JSON.stringify(encodeLibrary(library, this.instrument.id)));
   }
 
+  clear(): void {
+    if (typeof window === 'undefined') return;
+    const key = this.storageKey();
+    window.localStorage.removeItem(key);
+    window.localStorage.removeItem(`${key}:knob-range`);
+    if (this.instrument.id === 'behringer-proton') {
+      window.localStorage.removeItem(PREVIOUS_LIBRARY_KEY);
+      window.localStorage.removeItem(PREVIOUS_SINGLE_PATCH_KEY);
+    }
+  }
+
   private storageKey(): string {
     return this.instrument.id === 'behringer-proton'
       ? PROTON_STORAGE_KEY

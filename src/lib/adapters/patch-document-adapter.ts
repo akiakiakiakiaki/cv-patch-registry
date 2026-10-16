@@ -76,7 +76,7 @@ export type PatchUpdateInput = z.infer<typeof patchUpdateSchema>;
 export const localImportSchema = z.object({
   synthSlug: z.string().regex(SLUG_PATTERN),
   patches: z
-    .array(z.object({ name: z.string().trim().min(1).max(80), data: z.unknown().optional() }))
+    .array(z.object({ id: z.string().trim().min(1).max(128).optional(), name: z.string().trim().min(1).max(80), data: z.unknown().optional() }))
     .min(1)
     .max(100),
 });

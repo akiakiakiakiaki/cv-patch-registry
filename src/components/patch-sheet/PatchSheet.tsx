@@ -104,7 +104,6 @@ export function PatchSheet() {
   const [localStatus, setLocalStatus] = useState(t("status.saved"));
   const [debugEditing, setDebugEditing] = useState(false);
   const [linkedPatchId, setLinkedPatchId] = useState<string | null>(searchParams.get("patch"));
-  const browserProtonPatches = useMemo(() => new LocalPatchRepository(behringerProton).load().patches, []);
 
   const isBuiltIn = selectedSlug === BUILT_IN_SYNTH;
   // The selector must always offer the selected synth, even before the catalog has loaded (MUI warns otherwise).
@@ -382,7 +381,7 @@ export function PatchSheet() {
             <Alert severity={status.startsWith(t("status.importFailed")) ? "error" : "success"} variant="standard" role="status" sx={{ ml: "auto", py: 0, alignItems: "center", "& .MuiAlert-message": { typography: "caption" } }}>
               {status}
             </Alert>
-            {isBuiltIn && accountMode ? <ImportLocalPatches synthSlug={selectedSlug} patches={browserProtonPatches} /> : null}
+            {isBuiltIn && accountMode ? <ImportLocalPatches synthSlug={selectedSlug} /> : null}
           </Stack>
         </Paper>
 

@@ -79,6 +79,16 @@ export async function insertPatch(db: Database, row: typeof patches.$inferInsert
   await db.insert(patches).values(row);
 }
 
+/** Inserts a patch once by ID; returns false when another request already used that ID. */
+export async function insertPatchIfAbsent(db: Database, row: typeof patches.$inferInsert): Promise<boolean> {
+  const inserted = await db
+    .insert(patches)
+    .values(row)
+    .onConflictDoNothing({ target: patches.id })
+    .returning({ id: patches.id });
+  return inserted.length === 1;
+}
+
 /**
  * Owner-scoped, revision-checked update. Returns false if the patch is not the owner's
  * or the revision changed meanwhile (both answered as 404 or 409 by the service).
