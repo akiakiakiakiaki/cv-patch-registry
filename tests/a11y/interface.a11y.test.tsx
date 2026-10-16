@@ -20,6 +20,7 @@ describe("interface accessibility", () => {
     const { container } = render(
       <I18nProvider locale="en">
         <PatchManager
+          role="user"
           instruments={[{ id: behringerProton.id, displayName: behringerProton.displayName }]}
           onCreateSynth={vi.fn()}
           instrumentId={behringerProton.id}

@@ -6,7 +6,7 @@ import NextLink from "next/link";
 import { authClient } from "@/lib/auth/client";
 import { useI18n } from "@/i18n/provider";
 
-/** Account actions only. Synths and patches are managed on the start page. */
+/** Explore and account navigation links. */
 export function AccountLinks() {
   const { t } = useI18n();
   const { data: session, isPending } = authClient.useSession();

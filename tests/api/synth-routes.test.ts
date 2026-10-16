@@ -5,7 +5,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-const session = vi.hoisted(() => ({ user: null as { id: string } | null }));
+const session = vi.hoisted(() => ({ user: null as { id: string; role: "user" | "admin" } | null }));
 const storageRoot = vi.hoisted(() => ({ dir: "" }));
 
 vi.mock("@/lib/auth/session", () => ({
@@ -27,8 +27,8 @@ const PNG_800x400 = (() => {
   return bytes;
 })();
 
-const owner = { id: randomUUID() };
-const stranger = { id: randomUUID() };
+const owner = { id: randomUUID(), role: "user" as const };
+const stranger = { id: randomUUID(), role: "user" as const };
 
 const assetsRoute = () => import("@/app/api/assets/route");
 const synthsRoute = () => import("@/app/api/synths/route");

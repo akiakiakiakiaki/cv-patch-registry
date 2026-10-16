@@ -30,46 +30,67 @@ export async function findRevision(db: Database, revisionId: string): Promise<Re
   return row ?? null;
 }
 
-export async function findLatestRevision(db: Database, synthId: string): Promise<RevisionRow | null> {
-  const [row] = await db
-    .select()
-    .from(synthRevisions)
-    .where(eq(synthRevisions.synthId, synthId))
-    .orderBy(desc(synthRevisions.number))
-    .limit(1);
-  return row ?? null;
-}
-
-export async function insertSynth(db: Database, row: typeof synths.$inferInsert): Promise<void> {
-  await db.insert(synths).values(row);
-}
-
-export async function insertRevision(db: Database, row: typeof synthRevisions.$inferInsert): Promise<void> {
-  await db.insert(synthRevisions).values(row);
+/** Creates the synth and its initial revision together; a duplicate slug returns false. */
+export async function createSynthWithInitialRevision(
+  db: Database,
+  input: {
+    synth: Omit<typeof synths.$inferInsert, "currentRevisionId">;
+    revision: typeof synthRevisions.$inferInsert;
+  },
+): Promise<boolean> {
+  if (input.revision.synthId !== input.synth.id) {
+    throw new Error("Initial synth revision must belong to its synth");
+  }
+  return db.transaction(async (tx) => {
+    const [inserted] = await tx
+      .insert(synths)
+      .values({ ...input.synth, currentRevisionId: input.revision.id })
+      .onConflictDoNothing({ target: synths.slug })
+      .returning({ id: synths.id });
+    if (!inserted) return false;
+    await tx.insert(synthRevisions).values(input.revision);
+    return true;
+  });
 }
 
 /**
- * Moves the synth to a new revision only if it still points at the expected one (optimistic concurrency).
- * Returns false when another save won the race.
+ * Advances the current revision only if it still matches the editor's base revision. The pointer,
+ * synth metadata and immutable revision row commit or roll back as one transaction.
  */
-export async function advanceSynthRevision(
+export async function appendSynthRevision(
   db: Database,
-  input: { synthId: string; ownerId: string; expectedRevisionId: string | null; nextRevisionId: string },
+  input: {
+    synthId: string;
+    ownerId: string;
+    expectedRevisionId: string;
+    synth: Pick<typeof synths.$inferInsert, "displayName" | "manufacturer">;
+    revision: typeof synthRevisions.$inferInsert;
+  },
 ): Promise<boolean> {
-  const updated = await db
-    .update(synths)
-    .set({ currentRevisionId: input.nextRevisionId, updatedAt: new Date() })
-    .where(
-      and(
-        eq(synths.id, input.synthId),
-        eq(synths.ownerId, input.ownerId),
-        input.expectedRevisionId === null
-          ? isNull(synths.currentRevisionId)
-          : eq(synths.currentRevisionId, input.expectedRevisionId),
-      ),
-    )
-    .returning({ id: synths.id });
-  return updated.length === 1;
+  if (input.revision.synthId !== input.synthId) {
+    throw new Error("Synth revision must belong to the synth being updated");
+  }
+  return db.transaction(async (tx) => {
+    const updated = await tx
+      .update(synths)
+      .set({
+        ...input.synth,
+        currentRevisionId: input.revision.id,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(synths.id, input.synthId),
+          eq(synths.ownerId, input.ownerId),
+          eq(synths.currentRevisionId, input.expectedRevisionId),
+          isNull(synths.deletedAt),
+        ),
+      )
+      .returning({ id: synths.id });
+    if (updated.length !== 1) return false;
+    await tx.insert(synthRevisions).values(input.revision);
+    return true;
+  });
 }
 
 /** Owner-scoped soft delete. Revisions, panels and patches stay in place for the later cleanup. */

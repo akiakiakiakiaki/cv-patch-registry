@@ -7,7 +7,7 @@ const uploadSecurityHeaders = JSON.parse(
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // PGlite ships optional Node-only code paths (socket server). Keep it external so the bundler does not resolve them.
-  serverExternalPackages: ["@electric-sql/pglite"],
+  serverExternalPackages: ["@electric-sql/pglite", "pg"],
   async headers() {
     return [{ source: "/assets/uploads/:path*", headers: uploadSecurityHeaders }];
   },

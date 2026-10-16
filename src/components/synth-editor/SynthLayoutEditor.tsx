@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
@@ -16,6 +16,7 @@ import { useSynthDraft, type SynthDraftSource } from "@/components/synth-editor/
 import { useI18n } from "@/i18n/provider";
 import type { ControlKind } from "@/lib/domain/control-ids";
 import type { PatchData } from "@/lib/domain/types";
+import type { FocusedLayoutElement } from "@/lib/instrument/layout";
 import { genericSwitchAdapter } from "@/lib/instruments/generic-switch-adapter";
 import type { InstrumentDefinition } from "@/lib/instruments/types";
 import { uploadPanelFile } from "@/components/synth-editor/upload-panel";
@@ -41,12 +42,13 @@ export function SynthLayoutEditor({
   const panelRef = useRef<SVGSVGElement | null>(null);
   const panelFile = useRef<HTMLInputElement>(null);
   const [dragKind, setDragKind] = useState<ControlKind | null>(null);
-  // Palette drag feedback: the element follows the cursor, and over the panel a marker shows where it lands.
-  const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
-  const [preview, setPreview] = useState<{ left: number; top: number } | null>(null);
+  // The preview uses panel coordinates so its shape and size match the placed control.
+  const [preview, setPreview] = useState<{ x: number; y: number } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [focusRequestedElement, setFocusRequestedElement] = useState<FocusedLayoutElement | null>(null);
+  const clearFocusRequest = useCallback(() => setFocusRequestedElement(null), []);
 
   async function deleteSynthNow() {
     if (!window.confirm(t("synths.deleteConfirm", { name: draft.displayName }))) return;
@@ -59,35 +61,27 @@ export function SynthLayoutEditor({
   // Palette drag: a palette item dropped on the panel is placed where the pointer is released.
   useEffect(() => {
     if (!dragKind) return;
-    const locate = (event: PointerEvent) => {
+    const locate = (event: PointerEvent): { x: number; y: number } | null => {
       const rect = panelRef.current?.getBoundingClientRect();
-      setPointer({ x: event.clientX, y: event.clientY });
       if (!rect) return null;
       const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
-      if (!inside) return { rect, inside, point: null };
+      if (!inside) return null;
       return {
-        rect,
-        inside,
-        point: {
-          x: ((event.clientX - rect.left) / rect.width) * draft.panel.width,
-          y: ((event.clientY - rect.top) / rect.height) * draft.panel.height,
-        },
+        x: ((event.clientX - rect.left) / rect.width) * draft.panel.width,
+        y: ((event.clientY - rect.top) / rect.height) * draft.panel.height,
       };
     };
     const move = (event: PointerEvent) => {
-      const located = locate(event);
-      setPreview(located?.point ? { left: (located.point.x / draft.panel.width) * 100, top: (located.point.y / draft.panel.height) * 100 } : null);
+      setPreview(locate(event));
     };
     const drop = (event: PointerEvent) => {
-      const located = locate(event);
-      if (located?.point) draft.addAt(dragKind, located.point);
+      const point = locate(event);
+      if (point) setFocusRequestedElement(draft.addAt(dragKind, point));
       setDragKind(null);
-      setPointer(null);
       setPreview(null);
     };
     const cancel = () => {
       setDragKind(null);
-      setPointer(null);
       setPreview(null);
     };
     window.addEventListener("pointermove", move);
@@ -125,26 +119,16 @@ export function SynthLayoutEditor({
   return (
     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "minmax(0,1fr) 360px" }, gap: 3, p: { xs: 2, md: 3 } }}>
       <Box sx={{ position: "relative" }}>
-        {dragKind && pointer ? (
-          <Box
-            aria-hidden="true"
-            sx={{ position: "fixed", left: pointer.x + 14, top: pointer.y + 14, zIndex: "tooltip", pointerEvents: "none", px: 1, py: 0.5, borderRadius: 1, bgcolor: "primary.main", color: "primary.contrastText", typography: "caption", boxShadow: 2 }}
-          >
-            {t(`synths.kind.${dragKind}`)}
-          </Box>
-        ) : null}
-        {dragKind && preview ? (
-          <Box
-            aria-hidden="true"
-            sx={{ position: "absolute", left: `${preview.left}%`, top: `${preview.top}%`, width: 18, height: 18, borderRadius: "50%", border: 2, borderColor: "primary.main", bgcolor: "primary.main", opacity: 0.5, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
-          />
-        ) : null}
         <InstrumentPanel
           data={EMPTY_DATA}
           instrument={instrument}
           layout={draft.layout}
           layoutEditMode
           focusedElement={draft.focused}
+          placementPreview={dragKind && preview ? { kind: dragKind, point: preview } : null}
+          focusRequestedElement={focusRequestedElement}
+          onFocusRequestHandled={clearFocusRequest}
+          onDeleteFocusedLayoutElement={({ id }) => draft.remove(id)}
           onFocusLayoutElement={draft.focus}
           onClearLayoutFocus={draft.clearFocus}
           onMoveFocusedLayoutElement={draft.moveFocused}
@@ -174,13 +158,10 @@ export function SynthLayoutEditor({
                 key={kind}
                 variant="outlined"
                 size="small"
-                onPointerDown={(event) => {
-                  setDragKind(kind);
-                  setPointer({ x: event.clientX, y: event.clientY });
-                }}
+                onPointerDown={() => setDragKind(kind)}
                 onClick={(event) => {
                   // detail 0 means keyboard activation; pointer clicks are placed by the drop listener.
-                  if (event.detail === 0) draft.addCenter(kind);
+                  if (event.detail === 0) setFocusRequestedElement(draft.addCenter(kind));
                 }}
               >
                 {t("synths.addKind", { kind: t(`synths.kind.${kind}`) })}
@@ -219,7 +200,15 @@ export function SynthLayoutEditor({
           <Stack component="ul" spacing={0.5} sx={{ listStyle: "none", p: 0, m: 0, maxHeight: 260, overflow: "auto" }}>
             {draft.controls.map((control) => (
               <Box component="li" key={control.id} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Button size="small" onClick={() => draft.focus({ kind: controlKindToLayout(control.kind), id: control.id })} sx={{ justifyContent: "flex-start", flex: 1, textAlign: "left" }}>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    const target = { kind: controlKindToLayout(control.kind), id: control.id };
+                    draft.focus(target);
+                    setFocusRequestedElement(target);
+                  }}
+                  sx={{ justifyContent: "flex-start", flex: 1, textAlign: "left" }}
+                >
                   {control.label} · {t(`synths.kind.${control.kind}`)}
                 </Button>
                 <IconButton size="small" aria-label={t("synths.removeAria", { label: control.label })} onClick={() => draft.remove(control.id)}>

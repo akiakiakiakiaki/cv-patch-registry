@@ -21,10 +21,8 @@ export function unauthorized(): NextResponse {
   return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 }
 
-export async function readJson(request: Request): Promise<unknown | undefined> {
-  try {
-    return await request.json();
-  } catch {
-    return undefined;
-  }
+export function invalidJsonResponse(reason: "invalid" | "too-large"): NextResponse {
+  return reason === "too-large"
+    ? NextResponse.json({ error: "payload-too-large" }, { status: 413 })
+    : NextResponse.json({ error: "invalid" }, { status: 422 });
 }

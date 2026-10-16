@@ -8,6 +8,7 @@ import type {
   PatchPort,
   Point,
 } from "@/lib/instrument/layout";
+import type { ControlKind } from "@/lib/domain/control-ids";
 import type { InstrumentDefinition } from "@/lib/instruments/types";
 import { InstrumentHitArea } from "@/components/instrument-hit-area/InstrumentHitArea";
 import styles from "../InstrumentPanel.module.scss";
@@ -26,6 +27,7 @@ interface InstrumentControlLayerProps {
   layout: InstrumentLayout;
   layoutEditMode: boolean;
   focusedElement: FocusedLayoutElement | null;
+  placementPreview?: { kind: ControlKind; point: Point } | null;
   interactions: ReturnType<typeof useInstrumentPanelInteractions>;
   onFocusLayoutElement: (target: FocusedLayoutElement) => void;
   onBeginLayoutDrag: (target: FocusedLayoutElement, event: PointerEvent<SVGElement>) => void;
@@ -40,6 +42,7 @@ export function InstrumentControlLayer({
   layout,
   layoutEditMode,
   focusedElement,
+  placementPreview,
   interactions,
   onFocusLayoutElement,
   onBeginLayoutDrag,
@@ -116,6 +119,7 @@ export function InstrumentControlLayer({
               ariaValueMin={layoutEditMode ? undefined : KNOB_VALUE_MIN}
               ariaValueMax={layoutEditMode ? undefined : KNOB_VALUE_MAX}
               ariaValueNow={layoutEditMode ? undefined : value}
+              layoutElement={{ kind: "knob", id: knob.id }}
               onPointerDown={(event) => beginKnob(event, knob.id, value)}
               onPointerMove={interactions.updateKnobGesture}
               onPointerUp={() =>
@@ -180,6 +184,7 @@ export function InstrumentControlLayer({
             role="button"
             ariaLabel={control.id}
             ariaPressed={!layoutEditMode && state.active}
+            layoutElement={{ kind: "switch", id: control.id }}
             onPointerDown={(event) => {
               if (layoutEditMode) focusElement(event, { kind: "switch", id: control.id });
             }}
@@ -209,6 +214,7 @@ export function InstrumentControlLayer({
             radius={layout.geometry.led.hitRadius}
             tabIndex={0}
             role="checkbox"
+            layoutElement={{ kind: "led", id: led.id }}
             className={[
               styles.ledHit,
               led.color === "red" ? styles.ledRed : styles.ledBlue,
@@ -256,6 +262,7 @@ export function InstrumentControlLayer({
           className={`${styles.portHit}${layoutEditMode && focusedElement?.kind === "port" && focusedElement.id === port.id ? ` ${styles.layoutEditFocus}` : ""}`}
           tabIndex={0}
           role="button"
+          layoutElement={{ kind: "port", id: port.id }}
           ariaLabel={t(
             port.kind === "out" ? "instrument.output" : port.kind === "uni" ? "instrument.uni" : "instrument.input",
             { label: port.label },
@@ -272,6 +279,88 @@ export function InstrumentControlLayer({
           }}
         />
       ))}
+      {placementPreview ? (
+        <PlacementPreview layout={layout} {...placementPreview} />
+      ) : null}
     </>
+  );
+}
+
+function PlacementPreview({
+  kind,
+  point,
+  layout,
+}: {
+  kind: ControlKind;
+  point: Point;
+  layout: InstrumentLayout;
+}) {
+  const ghostClass = `${styles.layoutEditFocus}`;
+
+  if (kind === "knob") {
+    const angle =
+      ((layout.knobStartAngle + (DEFAULT_KNOB_VALUE * layout.knobSweepAngle) / KNOB_VALUE_MAX) * Math.PI) / 180;
+    const { indicatorLength } = layout.geometry.knob;
+    return (
+      <g aria-hidden="true" opacity={0.7} pointerEvents="none">
+        <circle
+          className={`${styles.knobHit} ${ghostClass}`}
+          cx={point.x}
+          cy={point.y}
+          r={layout.geometry.knob.hitRadius}
+        />
+        <line
+          className={styles.knobTick}
+          x1={point.x}
+          y1={point.y}
+          x2={point.x + Math.cos(angle) * indicatorLength}
+          y2={point.y + Math.sin(angle) * indicatorLength}
+          strokeWidth={layout.geometry.knob.indicatorWidth}
+        />
+      </g>
+    );
+  }
+
+  if (kind === "switch") {
+    const { width, height, cornerRadius } = layout.geometry.switch;
+    return (
+      <rect
+        aria-hidden="true"
+        pointerEvents="none"
+        opacity={0.7}
+        className={`${styles.toggleHit} ${styles.toggleBlue} ${ghostClass}`}
+        x={point.x - width / 2}
+        y={point.y - height / 2}
+        width={width}
+        height={height}
+        rx={cornerRadius}
+      />
+    );
+  }
+
+  if (kind === "led") {
+    return (
+      <circle
+        aria-hidden="true"
+        pointerEvents="none"
+        opacity={0.7}
+        className={`${styles.ledHit} ${styles.ledRed} ${ghostClass}`}
+        cx={point.x}
+        cy={point.y}
+        r={layout.geometry.led.hitRadius}
+      />
+    );
+  }
+
+  return (
+    <circle
+      aria-hidden="true"
+      pointerEvents="none"
+      opacity={0.7}
+      className={`${styles.portHit} ${ghostClass}`}
+      cx={point.x}
+      cy={point.y}
+      r={layout.geometry.port.hitRadius}
+    />
   );
 }

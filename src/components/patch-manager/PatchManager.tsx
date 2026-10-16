@@ -16,11 +16,10 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import type { PatchRecord } from "@/lib/domain/types";
+import type { AppRole } from "@/lib/auth/roles";
+import { hasCapability } from "@/lib/auth/roles";
 import { formatTimestamp } from "@/lib/utils/date-format";
 import { useI18n } from "@/i18n/provider";
-import { InlineSvgAsset } from "@/components/inline-svg-asset/InlineSvgAsset";
-import { ColorModeSwitch } from "@/components/color-mode-switch/ColorModeSwitch";
-import { AccountLinks } from "@/components/account-links/AccountLinks";
 
 export interface InstrumentOption {
   id: string;
@@ -30,6 +29,7 @@ export interface InstrumentOption {
 const CREATE_SYNTH = "__create_synth__";
 
 interface PatchManagerProps {
+  role: AppRole;
   instruments: readonly InstrumentOption[];
   onCreateSynth: () => void;
   instrumentId: string;
@@ -49,8 +49,10 @@ interface PatchManagerProps {
 
 export function PatchManager(props: PatchManagerProps) {
   const [expanded, setExpanded] = useState(false);
-  const { locale, setLocale, t } = useI18n();
+  const { locale, t } = useI18n();
   const fileInput = useRef<HTMLInputElement>(null);
+  const canManageSynths = hasCapability(props.role, "manageSynths");
+  const canImportExport = hasCapability(props.role, "importExportPatches");
   const patches = [...props.patches].sort((left, right) =>
     right.updatedAt.localeCompare(left.updatedAt),
   );
@@ -82,7 +84,7 @@ export function PatchManager(props: PatchManagerProps) {
   return (
     <>
       <Paper
-        component="header"
+        component="section"
         square
         elevation={0}
         sx={{
@@ -97,53 +99,6 @@ export function PatchManager(props: PatchManagerProps) {
           useFlexGap
           sx={{ alignItems: "center", flexWrap: "wrap", gap: 1.5 }}
         >
-          <Stack
-            direction="row"
-            spacing={1.25}
-            sx={{ mr: "auto", minWidth: 220, alignItems: "center" }}
-          >
-            <Paper
-              elevation={0}
-              sx={{
-                width: 38,
-                height: 38,
-                borderRadius: 1,
-                bgcolor: "primary.main",
-                display: "grid",
-                placeItems: "center",
-                "html.light & .brandMarkLogo": {
-                  filter: "brightness(0) invert(1)",
-                },
-              }}
-            >
-              <InlineSvgAsset
-                className="brandMarkLogo"
-                src="/logo.svg"
-                ariaHidden
-                style={{
-                  width: 23,
-                  height: 23,
-                  display: "grid",
-                  placeItems: "center",
-                }}
-              />
-            </Paper>
-            <Box>
-              <Typography
-                variant="subtitle2"
-                sx={{ fontWeight: 700 }}
-              >
-                {t("brand.title")}
-              </Typography>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-              >
-                {t("brand.subtitle")}
-              </Typography>
-            </Box>
-          </Stack>
-
           <FormControl
             size="small"
             sx={{ minWidth: { xs: "100%", sm: 190 } }}
@@ -169,7 +124,9 @@ export function PatchManager(props: PatchManagerProps) {
                   {instrument.displayName}
                 </MenuItem>
               ))}
-              <MenuItem value={CREATE_SYNTH}>+ {t("synths.new")}</MenuItem>
+              {canManageSynths ? (
+                <MenuItem value={CREATE_SYNTH}>+ {t("synths.new")}</MenuItem>
+              ) : null}
             </Select>
           </FormControl>
 
@@ -207,65 +164,27 @@ export function PatchManager(props: PatchManagerProps) {
             >
               + {t("patch.new")}
             </Button>
-            <Button
-              variant="contained"
-              onClick={props.onExport}
-            >
-              {t("patch.downloadAll")}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => fileInput.current?.click()}
-            >
-              {t("patch.import")}
-            </Button>
-            <input
-              ref={fileInput}
-              hidden
-              type="file"
-              aria-label={t("patch.import")}
-              accept=".json,application/json"
-              onChange={importFile}
-            />
+            {canImportExport ? (
+              <>
+                <Button variant="contained" onClick={props.onExport}>
+                  {t("patch.downloadAll")}
+                </Button>
+                <Button variant="outlined" onClick={() => fileInput.current?.click()}>
+                  {t("patch.import")}
+                </Button>
+                <input
+                  ref={fileInput}
+                  hidden
+                  type="file"
+                  aria-label={t("patch.import")}
+                  accept=".json,application/json"
+                  onChange={importFile}
+                />
+              </>
+            ) : null}
           </Stack>
         </Stack>
       </Paper>
-
-      <Box
-        data-testid="preference-switches-container"
-        sx={{
-          position: "fixed",
-          right: { xs: 2, sm: 3 },
-          bottom: { xs: 2, sm: 3 },
-          zIndex: "tooltip",
-          px: { xs: 2, md: 3 },
-          py: 1.5,
-          pointerEvents: "none",
-        }}
-      >
-        <Stack
-          direction="row"
-          sx={{ alignItems: "center", gap: 1, pointerEvents: "auto" }}
-        >
-          <ButtonGroup
-            size="small"
-            aria-label={t("language.label")}
-          >
-            {(["de", "en"] as const).map((language) => (
-              <Button
-                key={language}
-                aria-pressed={locale === language}
-                variant={locale === language ? "contained" : "outlined"}
-                onClick={() => setLocale(language)}
-              >
-                {language.toUpperCase()}
-              </Button>
-            ))}
-          </ButtonGroup>
-          <AccountLinks />
-          <ColorModeSwitch />
-        </Stack>
-      </Box>
 
       {expanded && (
         <Paper

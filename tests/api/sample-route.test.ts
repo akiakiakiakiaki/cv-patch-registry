@@ -2,10 +2,10 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-const session = vi.hoisted(() => ({ user: null as { id: string } | null }));
+const session = vi.hoisted(() => ({ user: null as { id: string; role: "user" | "admin" } | null }));
 vi.mock("@/lib/auth/session", () => ({ requireUser: async () => session.user }));
 
-const owner = { id: randomUUID() };
+const owner = { id: randomUUID(), role: "user" as const };
 const MP3 = new Uint8Array([0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02]);
 let patchId = "";
 

@@ -60,3 +60,21 @@ svg [tabindex]:focus-visible {
   --overlay-emphasis-stroke-width: 2px;
   --active-control-stroke-width: 3px;
 }
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+.appShell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.appContent {
+  flex: 1 0 auto;
+}

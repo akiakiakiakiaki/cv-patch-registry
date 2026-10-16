@@ -6,18 +6,15 @@ import { uploadPublicUrl } from "@/lib/storage/upload-files";
 import type { InstrumentLayout } from "@/lib/instrument/layout";
 import { findActiveOwnedAsset, findAssetById } from "@/lib/repositories/assets-repository";
 import {
-  advanceSynthRevision,
+  appendSynthRevision,
+  createSynthWithInitialRevision,
   findRevision,
   findSynthBySlug,
   findActiveSynthBySlug,
-  insertRevision,
-  insertSynth,
   listSynthRows,
   type RevisionRow,
   type SynthRow,
 } from "@/lib/repositories/synths-repository";
-import { synths } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
 
 export type SynthFailure =
   | { ok: false; error: "invalid"; issues: string[] }
@@ -52,28 +49,26 @@ export async function createSynth(db: Database, actor: Actor, input: unknown): P
 
   const synthId = randomUUID();
   const revisionId = randomUUID();
-  try {
-    await insertSynth(db, {
+  const created = await createSynthWithInitialRevision(db, {
+    synth: {
       id: synthId,
       ownerId: actor.id,
       slug: draft.slug,
       displayName: draft.displayName,
       manufacturer: draft.manufacturer || null,
-    });
-  } catch {
-    return { ok: false, error: "slug-taken" };
-  }
-  await insertRevision(db, {
-    id: revisionId,
-    synthId,
-    number: 1,
-    panelSource: "asset",
-    panelAssetId: asset.id,
-    layout: built.layout,
-    schemaVersion: built.layout.schemaVersion,
-    schemaMinor: built.layout.schemaMinor ?? 0,
+    },
+    revision: {
+      id: revisionId,
+      synthId,
+      number: 1,
+      panelSource: "asset",
+      panelAssetId: asset.id,
+      layout: built.layout,
+      schemaVersion: built.layout.schemaVersion,
+      schemaMinor: built.layout.schemaMinor ?? 0,
+    },
   });
-  await advanceSynthRevision(db, { synthId, ownerId: actor.id, expectedRevisionId: null, nextRevisionId: revisionId });
+  if (!created) return { ok: false, error: "slug-taken" };
   return { ok: true, slug: draft.slug, revision: 1 };
 }
 
@@ -103,28 +98,26 @@ export async function createSynthRevision(
   if (!built.ok) return { ok: false, error: "invalid", issues: built.issues };
 
   const revisionId = randomUUID();
-  await insertRevision(db, {
-    id: revisionId,
-    synthId: synth.id,
-    number: nextNumber,
-    panelSource: "asset",
-    panelAssetId: panel.assetId,
-    layout: built.layout,
-    schemaVersion: built.layout.schemaVersion,
-    schemaMinor: built.layout.schemaMinor ?? 0,
-  });
-  const advanced = await advanceSynthRevision(db, {
+  const advanced = await appendSynthRevision(db, {
     synthId: synth.id,
     ownerId: actor.id,
     expectedRevisionId: current.id,
-    nextRevisionId: revisionId,
+    synth: {
+      displayName: draft.displayName,
+      manufacturer: draft.manufacturer || null,
+    },
+    revision: {
+      id: revisionId,
+      synthId: synth.id,
+      number: nextNumber,
+      panelSource: "asset",
+      panelAssetId: panel.assetId,
+      layout: built.layout,
+      schemaVersion: built.layout.schemaVersion,
+      schemaMinor: built.layout.schemaMinor ?? 0,
+    },
   });
   if (!advanced) return { ok: false, error: "conflict" };
-
-  await db
-    .update(synths)
-    .set({ displayName: draft.displayName, manufacturer: draft.manufacturer || null, updatedAt: new Date() })
-    .where(and(eq(synths.id, synth.id), eq(synths.ownerId, actor.id)));
   return { ok: true, slug, revision: nextNumber };
 }
 

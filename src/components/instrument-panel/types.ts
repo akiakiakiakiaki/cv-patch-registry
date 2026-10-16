@@ -7,6 +7,7 @@ import type {
   Point,
 } from "@/lib/instrument/layout";
 import type { InstrumentDefinition } from "@/lib/instruments/types";
+import type { ControlKind } from "@/lib/domain/control-ids";
 
 export interface InstrumentPanelProps {
   /** Public patches of other users: the panel is inert and every change is ignored. */
@@ -19,8 +20,14 @@ export interface InstrumentPanelProps {
   onFocusLayoutElement: (target: FocusedLayoutElement) => void;
   onClearLayoutFocus: () => void;
   onMoveFocusedLayoutElement: (delta: Point) => void;
+  /** Requests DOM focus for the selected sidebar control in layout editor mode. */
+  focusRequestedElement?: FocusedLayoutElement | null;
+  onFocusRequestHandled?: () => void;
+  onDeleteFocusedLayoutElement?: (target: FocusedLayoutElement) => void;
   /** Lets a parent convert pointer positions into panel units (e.g. palette drops). */
   panelRef?: { current: SVGSVGElement | null };
+  /** Ghost shape shown while placing a new control from the editor palette. */
+  placementPreview?: { kind: ControlKind; point: Point } | null;
   onKnobChange: (id: string, value: number) => void;
   onSwitchChange: (id: string, value: boolean) => void;
   onLedChange: (id: string, value: boolean) => void;

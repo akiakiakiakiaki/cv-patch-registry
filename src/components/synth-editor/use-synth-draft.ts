@@ -12,7 +12,7 @@ import {
   updateControl,
   type EditorControl,
 } from "@/components/synth-editor/draft-state";
-import type { ControlKind } from "@/lib/domain/control-ids";
+import { generateControlId, type ControlKind } from "@/lib/domain/control-ids";
 
 export interface SynthDraftSource {
   slug: string;
@@ -65,12 +65,19 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
     return apply();
   }
 
-  function addAt(kind: ControlKind, point: { x: number; y: number }) {
-    change(() => setControls((previous) => addControl(previous, kind, point, bounds)));
+  function addAt(kind: ControlKind, point: { x: number; y: number }): FocusedLayoutElement {
+    const id = generateControlId(kind);
+    change(() => setControls((previous) => addControl(previous, kind, point, bounds, id)));
+    const target: FocusedLayoutElement = {
+      kind: kind === "knob" || kind === "switch" || kind === "led" ? kind : "port",
+      id,
+    };
+    setFocused(target);
+    return target;
   }
 
-  function addCenter(kind: ControlKind) {
-    addAt(kind, { x: panel.width / 2, y: panel.height / 2 });
+  function addCenter(kind: ControlKind): FocusedLayoutElement {
+    return addAt(kind, { x: panel.width / 2, y: panel.height / 2 });
   }
 
   /** Keyboard and mouse both move the focused control in half-unit steps. */

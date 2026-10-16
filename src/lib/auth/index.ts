@@ -12,10 +12,29 @@ function createAuth() {
     database: drizzleAdapter(getDatabase().db, { provider: "pg", schema: authSchema }),
     secret: process.env.BETTER_AUTH_SECRET,
     baseURL: process.env.BETTER_AUTH_URL,
+    advanced: { useSecureCookies: process.env.NODE_ENV === "production" },
+    user: {
+      additionalFields: {
+        role: {
+          type: ["user", "admin"],
+          required: false,
+          defaultValue: "user",
+          input: false,
+        },
+      },
+    },
     emailAndPassword: {
       enabled: true,
       minPasswordLength: 8,
       requireEmailVerification,
+      revokeSessionsOnPasswordReset: true,
+      sendResetPassword: async ({ user, url }) => {
+        await getMailSender().send({
+          to: user.email,
+          subject: "Passwort zurücksetzen",
+          text: `Setze dein Passwort über diesen Link zurück (gültig für 1 Stunde): ${url}`,
+        });
+      },
     },
     emailVerification: {
       sendOnSignUp: requireEmailVerification,

@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppProviders } from "@/components/app-providers/AppProviders";
+import { AppFooter } from "@/components/app-shell/AppFooter";
 import { PatchManager } from "@/components/patch-manager/PatchManager";
 import { I18nProvider } from "@/i18n/provider";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
@@ -24,6 +26,7 @@ const patches: PatchRecord[] = [
 
 function renderManager(overrides: Partial<ComponentProps<typeof PatchManager>> = {}) {
   const props: ComponentProps<typeof PatchManager> = {
+    role: "user",
     instruments: [{ id: behringerProton.id, displayName: behringerProton.displayName }],
     onCreateSynth: vi.fn(),
     instrumentId: behringerProton.id,
@@ -74,13 +77,11 @@ describe("PatchManager", () => {
     expect(getComputedStyle(screen.getByTestId("patch-actions")).marginLeft).toBe("auto");
   });
 
-  it("keeps language and color mode switches in a padded fixed viewport container", () => {
+  it("leaves language and color mode controls to the shared app shell", () => {
     renderManager();
 
-    const container = screen.getByTestId("preference-switches-container");
-    expect(getComputedStyle(container).position).toBe("fixed");
-    expect(screen.getByRole("group", { name: "Language" })).toBeInTheDocument();
-    expect(screen.getByTestId("patch-actions")).not.toContainElement(container);
+    expect(screen.queryByTestId("preference-switches-container")).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Language" })).not.toBeInTheDocument();
   });
 
   it("creates, selects, renames, and deletes patches through callbacks", async () => {
@@ -129,9 +130,15 @@ describe("PatchManager", () => {
     expect(screen.getByRole("button", { name: /^Patches/ })).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("switches language and saves the override in localStorage", async () => {
+  it("switches language in the shared footer and saves the override in localStorage", async () => {
     const user = userEvent.setup();
-    renderManager();
+    render(
+      <AppProviders>
+        <I18nProvider locale="en">
+          <AppFooter />
+        </I18nProvider>
+      </AppProviders>,
+    );
     await user.click(screen.getByRole("button", { name: "DE" }));
 
     expect(await screen.findByLabelText("Sprache")).toBeInTheDocument();

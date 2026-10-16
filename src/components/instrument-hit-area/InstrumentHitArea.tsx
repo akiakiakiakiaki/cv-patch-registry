@@ -4,6 +4,7 @@ import type {
   MouseEventHandler,
   PointerEventHandler,
 } from "react";
+import type { FocusedLayoutElement } from "@/lib/instrument/layout";
 
 interface InstrumentHitAreaProps {
   shape: "circle" | "rect";
@@ -22,6 +23,7 @@ interface InstrumentHitAreaProps {
   ariaValueMin?: number;
   ariaValueMax?: number;
   ariaValueNow?: number;
+  layoutElement?: FocusedLayoutElement;
   onClick?: MouseEventHandler<SVGElement>;
   onPointerDown?: PointerEventHandler<SVGElement>;
   onPointerMove?: PointerEventHandler<SVGElement>;
@@ -40,6 +42,8 @@ export function InstrumentHitArea(props: InstrumentHitAreaProps) {
     "aria-valuemin": props.ariaValueMin,
     "aria-valuemax": props.ariaValueMax,
     "aria-valuenow": props.ariaValueNow,
+    "data-layout-element-kind": props.layoutElement?.kind,
+    "data-layout-element-id": props.layoutElement?.id,
     onClick: props.onClick,
     onPointerDown: props.onPointerDown,
     onPointerMove: props.onPointerMove,

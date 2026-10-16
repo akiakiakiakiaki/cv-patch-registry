@@ -4,11 +4,13 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Alert from "@mui/material/Alert";
-import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
+import Link from "@mui/material/Link";
+import NextLink from "next/link";
 import { authClient } from "@/lib/auth/client";
 import { useI18n } from "@/i18n/provider";
 
@@ -48,19 +50,37 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       return;
     }
 
-    const { error: signInError } = await authClient.signIn.email({ email, password });
+    let signInError: { status?: number } | null = null;
+    try {
+      signInError = (await authClient.signIn.email({ email, password })).error ?? null;
+    } catch {
+      signInError = { status: 0 };
+    }
     setPending(false);
     if (signInError) {
-      setError(signInError.status === 403 ? t("auth.notVerified") : t("auth.invalidCredentials"));
+      // Only a 401 means wrong credentials. Anything else (403, server or network errors) is reported as such.
+      if (signInError.status === 401) setError(t("auth.invalidCredentials"));
+      else if (signInError.status === 403) setError(t("auth.notVerified"));
+      else setError(t("auth.serverError"));
       return;
     }
     router.push("/");
   }
 
   return (
-    <Box component="form" onSubmit={handleSubmit} noValidate sx={{ width: "100%", maxWidth: 420 }}>
-      <Stack spacing={2}>
-        <Typography variant="h1" sx={{ fontSize: "1.5rem" }}>
+    <Paper
+      component="section"
+      variant="outlined"
+      sx={{
+        width: "100%",
+        maxWidth: 440,
+        p: { xs: 3, sm: 4 },
+        borderRadius: 3,
+        boxShadow: 3,
+      }}
+    >
+      <Stack component="form" onSubmit={handleSubmit} noValidate spacing={2.5}>
+        <Typography variant="h4" sx={{ fontWeight: 700 }}>
           {mode === "register" ? t("auth.registerTitle") : t("auth.loginTitle")}
         </Typography>
         {mode === "register" && (
@@ -78,10 +98,24 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         />
         {error && <Alert severity="error" role="alert">{error}</Alert>}
         {info && <Alert severity="info" role="status">{info}</Alert>}
-        <Button type="submit" variant="contained" disabled={pending}>
+        <Button type="submit" variant="contained" size="large" disabled={pending}>
           {mode === "register" ? t("auth.registerSubmit") : t("auth.loginSubmit")}
         </Button>
+        {mode === "login" ? (
+          <Link component={NextLink} href="/forgot-password" variant="body2" align="center">
+            {t("auth.forgotPassword")}
+          </Link>
+        ) : null}
+        <Link
+          component={NextLink}
+          href={mode === "login" ? "/register" : "/login"}
+          variant="body2"
+          align="center"
+          underline="hover"
+        >
+          {t(mode === "login" ? "auth.goToRegister" : "auth.goToLogin")}
+        </Link>
       </Stack>
-    </Box>
+    </Paper>
   );
 }

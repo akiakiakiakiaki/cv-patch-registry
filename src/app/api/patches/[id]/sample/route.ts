@@ -5,6 +5,7 @@ import { serverDatabase } from "@/lib/db/server";
 import { readBodyLimited } from "@/lib/http/read-limited";
 import { attachSample, type SampleFailure } from "@/lib/patches/sample-service";
 import { getStorage } from "@/lib/storage";
+import { rejectCrossOriginMutation } from "@/lib/http/mutation-origin";
 
 export const runtime = "nodejs";
 
@@ -22,6 +23,8 @@ const STATUS: Record<SampleFailure["error"], number> = {
 
 /** Raw MP3 body. Title, license and the rights confirmation travel in the query string. */
 export async function POST(request: Request, { params }: RouteContext) {
+  const originFailure = rejectCrossOriginMutation(request);
+  if (originFailure) return originFailure;
   if (!audioEnabled()) return NextResponse.json({ error: "not-found" }, { status: 404 });
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });

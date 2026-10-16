@@ -7,6 +7,8 @@ import { translate } from "@/i18n/messages";
 import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v16-appRouter";
 import { AppProviders } from "@/components/app-providers/AppProviders";
+import { AppHeader } from "@/components/app-shell/AppHeader";
+import { AppFooter } from "@/components/app-shell/AppFooter";
 import { COLOR_MODE_STORAGE_KEY } from "@/components/app-providers/theme";
 import "./globals.scss";
 
@@ -38,7 +40,13 @@ export default async function RootLayout({
         />
         <AppRouterCacheProvider>
           <AppProviders>
-            <I18nProvider locale={locale}>{children}</I18nProvider>
+            <I18nProvider locale={locale}>
+              <div className="appShell">
+                <AppHeader />
+                <div className="appContent">{children}</div>
+                <AppFooter />
+              </div>
+            </I18nProvider>
           </AppProviders>
         </AppRouterCacheProvider>
       </body>

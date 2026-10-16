@@ -16,5 +16,8 @@ export class ConsoleMailSender implements MailSender {
 }
 
 export function getMailSender(): MailSender {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Email delivery is not configured for production");
+  }
   return new ConsoleMailSender();
 }

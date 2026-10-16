@@ -60,7 +60,7 @@ describe("PatchSheet with a user synth", () => {
 });
 
 describe("palette drag feedback", () => {
-  it("shows a cursor-following label while dragging from the palette", () => {
+  it("previews the control shape and selects the control placed by dropping", async () => {
     const { container } = render(
       <I18nProvider locale="en">
         <SynthLayoutEditor
@@ -71,10 +71,29 @@ describe("palette drag feedback", () => {
         />
       </I18nProvider>,
     );
+    const svg = container.querySelector('svg[viewBox="0 0 1000 600"]');
+    expect(svg).not.toBeNull();
+    vi.spyOn(svg!, "getBoundingClientRect").mockReturnValue({
+      x: 10,
+      y: 20,
+      left: 10,
+      top: 20,
+      right: 510,
+      bottom: 320,
+      width: 500,
+      height: 300,
+      toJSON: () => ({}),
+    });
+
     fireEvent.pointerDown(screen.getByRole("button", { name: "Add Switch" }), { clientX: 50, clientY: 60, pointerId: 3 });
-    const ghost = Array.from(container.ownerDocument.querySelectorAll('[aria-hidden="true"]')).find((node) => node.textContent === "Switch");
-    expect(ghost).toBeDefined();
-    fireEvent.pointerUp(window, { clientX: 0, clientY: 0, pointerId: 3 });
+    fireEvent.pointerMove(window, { clientX: 260, clientY: 170, pointerId: 3 });
+    const preview = container.querySelector('rect[aria-hidden="true"]');
+    expect(preview).not.toBeNull();
+    expect(Number(preview?.getAttribute("x"))).toBeCloseTo(500 - testLayout.geometry.switch.width / 2);
+
+    fireEvent.pointerUp(window, { clientX: 260, clientY: 170, pointerId: 3 });
+    expect(await screen.findByRole("button", { name: /Switch 1 · Switch/ })).toBeInTheDocument();
+    await waitFor(() => expect(container.ownerDocument.activeElement).toHaveAttribute("data-layout-element-kind", "switch"));
   });
 });
 

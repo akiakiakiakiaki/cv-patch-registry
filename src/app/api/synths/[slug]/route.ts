@@ -3,6 +3,8 @@ import { requireUser } from "@/lib/auth/session";
 import { serverDatabase } from "@/lib/db/server";
 import { deleteSynth } from "@/lib/synths/synth-delete";
 import { getSynthView } from "@/lib/synths/synth-service";
+import { hasCapability, roleForUser } from "@/lib/auth/roles";
+import { rejectCrossOriginMutation } from "@/lib/http/mutation-origin";
 
 export const runtime = "nodejs";
 
@@ -16,9 +18,13 @@ export async function GET(_request: Request, { params }: RouteContext) {
 }
 
 /** Owner only. Flags the synth as deleted (soft delete). */
-export async function DELETE(_request: Request, { params }: RouteContext) {
+export async function DELETE(request: Request, { params }: RouteContext) {
+  const originFailure = rejectCrossOriginMutation(request);
+  if (originFailure) return originFailure;
   const user = await requireUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!user || !hasCapability(roleForUser(user), "manageSynths")) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   const { slug } = await params;
   const result = await deleteSynth(await serverDatabase(), user, slug);
   if (!result.ok) return NextResponse.json({ error: "not-found" }, { status: 404 });

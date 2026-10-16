@@ -1,12 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { encodeInstrumentLayout } from "@/lib/adapters/instrument-layout-adapter";
 import { canonicalJson } from "@/lib/domain/canonical-json";
 import type { Database } from "@/lib/db/client";
-import { synths } from "@/lib/db/schema";
+import { synthRevisions, synths } from "@/lib/db/schema";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
 import { seedCuratedTags } from "@/lib/repositories/tags-repository";
-import { findLatestRevision, findSynthBySlug, insertRevision, insertSynth } from "@/lib/repositories/synths-repository";
 
 const BUILT_IN_PANEL_SRC = "/proton.svg";
 
@@ -19,29 +18,43 @@ export async function seedBuiltInSynths(db: Database): Promise<void> {
   const layout = encodeInstrumentLayout(behringerProton.layout);
   const slug = layout.id;
 
-  let synth = await findSynthBySlug(db, slug);
-  if (!synth) {
-    await insertSynth(db, { id: randomUUID(), ownerId: null, slug, displayName: layout.displayName });
-    synth = await findSynthBySlug(db, slug);
-  }
-  if (!synth) throw new Error("Built-in synth could not be created");
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(synths)
+      .values({ id: randomUUID(), ownerId: null, slug, displayName: layout.displayName })
+      .onConflictDoNothing({ target: synths.slug });
 
-  const latest = await findLatestRevision(db, synth.id);
-  if (latest && canonicalJson(latest.layout) === canonicalJson(layout)) return;
+    const [synth] = await tx.select().from(synths).where(eq(synths.slug, slug)).for("update");
+    if (!synth || synth.ownerId !== null) throw new Error("Built-in synth could not be created");
 
-  const revisionId = randomUUID();
-  await insertRevision(db, {
-    id: revisionId,
-    synthId: synth.id,
-    number: (latest?.number ?? 0) + 1,
-    panelSource: "bundled",
-    panelBundledSrc: BUILT_IN_PANEL_SRC,
-    layout,
-    schemaVersion: layout.schemaVersion,
-    schemaMinor: layout.schemaMinor ?? 0,
+    const [latest] = await tx
+      .select()
+      .from(synthRevisions)
+      .where(eq(synthRevisions.synthId, synth.id))
+      .orderBy(desc(synthRevisions.number))
+      .limit(1);
+
+    if (latest && canonicalJson(latest.layout) === canonicalJson(layout)) {
+      if (synth.currentRevisionId !== latest.id) {
+        await tx.update(synths).set({ currentRevisionId: latest.id, updatedAt: new Date() }).where(eq(synths.id, synth.id));
+      }
+      return;
+    }
+
+    const revisionId = randomUUID();
+    await tx.insert(synthRevisions).values({
+      id: revisionId,
+      synthId: synth.id,
+      number: (latest?.number ?? 0) + 1,
+      panelSource: "bundled",
+      panelBundledSrc: BUILT_IN_PANEL_SRC,
+      layout,
+      schemaVersion: layout.schemaVersion,
+      schemaMinor: layout.schemaMinor ?? 0,
+    });
+    await tx
+      .update(synths)
+      .set({ currentRevisionId: revisionId, updatedAt: new Date() })
+      .where(eq(synths.id, synth.id));
   });
-  await db
-    .update(synths)
-    .set({ currentRevisionId: revisionId, updatedAt: new Date() })
-    .where(eq(synths.id, synth.id));
 }

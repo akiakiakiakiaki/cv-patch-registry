@@ -24,10 +24,11 @@ export function addControl(
   kind: ControlKind,
   position: { x: number; y: number },
   bounds: PanelBounds,
+  id = generateControlId(kind),
 ): EditorControl[] {
   const point = clampToPanel(position, bounds);
   const control: EditorControl = {
-    id: generateControlId(kind),
+    id,
     kind,
     label: nextAutoLabel(kind, controls.map((item) => item.label)),
     ...point,

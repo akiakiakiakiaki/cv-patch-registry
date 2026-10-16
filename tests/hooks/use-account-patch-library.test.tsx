@@ -50,6 +50,55 @@ describe("useAccountPatchLibrary", () => {
     expect(JSON.parse(String(patchCall[1]?.body))).toMatchObject({ expectedRevision: 4, data: { knobs: { "Tune 1": 20 } } });
   });
 
+  it("flushes pending edits before loading another synth", async () => {
+    const otherState = { ...state, id: "22222222-2222-4222-8222-222222222222", name: "Other synth patch" };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "PATCH") return jsonResponse({ ok: true, revision: 5 });
+      const synth = new URL(String(input), "http://localhost").searchParams.get("synth");
+      return jsonResponse({ patches: [synth === "new-synth" ? otherState : state] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { result, rerender } = renderHook(({ synth }) => useAccountPatchLibrary(synth, true), {
+      initialProps: { synth: "old-synth" },
+    });
+    await waitFor(() => expect(result.current.library?.patches[0]?.name).toBe("Warm"));
+
+    act(() => {
+      const library = result.current.library as PatchLibrary;
+      result.current.commit({
+        ...library,
+        patches: [{ ...library.patches[0]!, data: { ...state.data, knobs: { "Tune 1": 25 } } }],
+      });
+    });
+    rerender({ synth: "new-synth" });
+
+    await waitFor(() => expect(result.current.library?.patches[0]?.name).toBe("Other synth patch"));
+    const patchCall = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
+    expect(patchCall).toBeDefined();
+    expect(JSON.parse(String(patchCall?.[1]?.body))).toMatchObject({ data: { knobs: { "Tune 1": 25 } } });
+  });
+
+  it("flushes pending edits when the account patch editor unmounts", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+      init?.method === "PATCH" ? jsonResponse({ ok: true, revision: 5 }) : jsonResponse({ patches: [state] }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { result, unmount } = renderHook(() => useAccountPatchLibrary("behringer-proton", true));
+    await waitFor(() => expect(result.current.library).not.toBeNull());
+    act(() => {
+      const library = result.current.library as PatchLibrary;
+      result.current.commit({
+        ...library,
+        patches: [{ ...library.patches[0]!, data: { ...state.data, knobs: { "Tune 1": 30 } } }],
+      });
+    });
+
+    unmount();
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(true));
+    const patchCall = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH")!;
+    expect(JSON.parse(String(patchCall[1]?.body))).toMatchObject({ data: { knobs: { "Tune 1": 30 } } });
+  });
+
   it("reports a conflict and reloads when another tab saved first", async () => {
     let loads = 0;
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {

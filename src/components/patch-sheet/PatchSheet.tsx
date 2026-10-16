@@ -32,6 +32,7 @@ import type { SynthView } from "@/lib/synths/synth-service";
 import type { PatchLibrary, PatchRecord, PatchCable } from "@/lib/domain/types";
 import type { InstrumentDefinition } from "@/lib/instruments/types";
 import { authClient } from "@/lib/auth/client";
+import { hasCapability, roleForUser } from "@/lib/auth/roles";
 import {
   activatePatch,
   addPatch,
@@ -90,6 +91,7 @@ export function PatchSheet() {
   const searchParams = useSearchParams();
   const debugLayoutEnabled = process.env.NEXT_PUBLIC_DEBUG_LAYOUT === "true";
   const accountUserId = session?.user?.id ?? null;
+  const role = roleForUser(session?.user);
 
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [selectedSlug, setSelectedSlug] = useState(searchParams.get("synth") ?? BUILT_IN_SYNTH);
@@ -117,8 +119,9 @@ export function PatchSheet() {
     [isBuiltIn, view],
   );
   const isOwner = Boolean(view && accountUserId && view.ownerId === accountUserId);
-  const accountMode = Boolean(accountUserId);
-  const debugActive = debugLayoutEnabled && isBuiltIn;
+  const accountMode = role !== "guest" && Boolean(accountUserId);
+  const debugActive = debugLayoutEnabled && isBuiltIn && hasCapability(role, "adjustBuiltInLayout");
+  const canManageSynths = hasCapability(role, "manageSynths");
 
   const loadCatalog = useCallback(async () => {
     const response = await fetch("/api/synths", { cache: "no-store" });
@@ -208,6 +211,7 @@ export function PatchSheet() {
         <CircularProgress color="primary" />
         <Typography color="text.secondary">{t("loading.library")}</Typography>
         <PatchManager
+          role={role}
           instruments={selectorOptions.map((item) => ({ id: item.slug, displayName: item.displayName }))}
           onCreateSynth={() => setCreating(true)}
           instrumentId={selectedSlug}
@@ -224,7 +228,17 @@ export function PatchSheet() {
           onExport={NOOP}
           onImport={NOOP}
         />
-        <NewSynthDialog open={creating} onClose={() => setCreating(false)} onCreated={(slug) => { setCreating(false); void loadCatalog(); setSelectedSlug(slug); }} />
+        {canManageSynths ? (
+          <NewSynthDialog
+            open={creating}
+            onClose={() => setCreating(false)}
+            onCreated={(slug) => {
+              setCreating(false);
+              void loadCatalog();
+              setSelectedSlug(slug);
+            }}
+          />
+        ) : null}
       </Box>
     );
   }
@@ -306,12 +320,13 @@ export function PatchSheet() {
     }
   }
 
-  const ownerCanEdit = isOwner && !isBuiltIn && view !== null;
+  const ownerCanEdit = canManageSynths && isOwner && !isBuiltIn && view !== null;
   // Patches saved in this browser before signing in can be copied to the account (built-in synth only).
 
   return (
     <>
       <PatchManager
+        role={role}
         instruments={selectorOptions.map((item) => ({ id: item.slug, displayName: item.displayName }))}
         onCreateSynth={() => setCreating(true)}
         instrumentId={selectedSlug}
@@ -417,15 +432,17 @@ export function PatchSheet() {
         </Box>
       </Box>
 
-      <NewSynthDialog
-        open={creating}
-        onClose={() => setCreating(false)}
-        onCreated={(slug) => {
-          setCreating(false);
-          void loadCatalog();
-          setSelectedSlug(slug);
-        }}
-      />
+      {canManageSynths ? (
+        <NewSynthDialog
+          open={creating}
+          onClose={() => setCreating(false)}
+          onCreated={(slug) => {
+            setCreating(false);
+            void loadCatalog();
+            setSelectedSlug(slug);
+          }}
+        />
+      ) : null}
     </>
   );
 }

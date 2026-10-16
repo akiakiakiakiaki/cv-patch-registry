@@ -73,11 +73,6 @@ export function useAccountPatchLibrary(synthSlug: string, enabled: boolean) {
     applyStates(body.patches);
   }, [synthSlug, applyStates]);
 
-  useEffect(() => {
-    if (!enabled) return;
-    void enqueue(load);
-  }, [enabled, load, enqueue]);
-
   const putPatch = useCallback(
     async (id: string, body: Record<string, unknown>) => {
       const expectedRevision = revisions.current.get(id);
@@ -102,6 +97,10 @@ export function useAccountPatchLibrary(synthSlug: string, enabled: boolean) {
   );
 
   const flush = useCallback(() => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
     const ids = [...dirtyIds.current];
     dirtyIds.current.clear();
     for (const id of ids) {
@@ -109,6 +108,16 @@ export function useAccountPatchLibrary(synthSlug: string, enabled: boolean) {
       if (patch) void enqueue(() => putPatch(id, { name: patch.name, data: patch.data }));
     }
   }, [enqueue, putPatch]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    void enqueue(load);
+    return () => {
+      // Drain pending edits before the next synth's load replaces the shared snapshot refs.
+      // This also flushes when the editor unmounts or account mode is disabled.
+      flush();
+    };
+  }, [enabled, load, enqueue, flush]);
 
   /** Applies a new library snapshot from the editor and schedules the matching API calls. */
   const commit = useCallback(

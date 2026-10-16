@@ -32,7 +32,11 @@ export function InstrumentPanel({
   onFocusLayoutElement,
   onClearLayoutFocus,
   onMoveFocusedLayoutElement,
+  focusRequestedElement,
+  onFocusRequestHandled,
+  onDeleteFocusedLayoutElement,
   panelRef,
+  placementPreview,
   onKnobChange,
   onSwitchChange,
   onLedChange,
@@ -40,9 +44,6 @@ export function InstrumentPanel({
 }: InstrumentPanelProps) {
   const { t } = useI18n();
   const layoutDrag = useRef<LayoutDrag | null>(null);
-  useEffect(() => {
-    if (panelRef) panelRef.current = interactions.svgRef.current;
-  });
   // Read-only panels ignore every change, even if a gesture slips through the inert attribute.
   const guard = <Args extends unknown[]>(handler: (...args: Args) => void) =>
     readOnly ? NOOP : (...args: Args) => handler(...args);
@@ -57,6 +58,23 @@ export function InstrumentPanel({
     onKnobChange: changeKnob,
     onCableChange: changeCables,
   });
+  useEffect(() => {
+    if (panelRef) panelRef.current = interactions.svgRef.current;
+  });
+  useEffect(() => {
+    if (!focusRequestedElement) return;
+    const target = Array.from(
+      interactions.svgRef.current?.querySelectorAll<SVGElement>(
+        "[data-layout-element-kind][data-layout-element-id]",
+      ) ?? [],
+    ).find(
+      (element) =>
+        element.dataset.layoutElementKind === focusRequestedElement.kind &&
+        element.dataset.layoutElementId === focusRequestedElement.id,
+    );
+    target?.focus();
+    onFocusRequestHandled?.();
+  }, [focusRequestedElement, onFocusRequestHandled, interactions.svgRef]);
 
   function beginLayoutDrag(target: FocusedLayoutElement, event: PointerEvent<SVGElement>) {
     const svg = interactions.svgRef.current;
@@ -86,6 +104,21 @@ export function InstrumentPanel({
 
   function handleKeyDown(event: KeyboardEvent<SVGSVGElement>) {
     if (!layoutEditMode) return;
+    if (event.key === "Delete" || event.key === "Backspace") {
+      const target = event.target as SVGElement;
+      const kind = target.dataset.layoutElementKind;
+      const id = target.dataset.layoutElementId;
+      if (
+        id &&
+        (kind === "knob" || kind === "switch" || kind === "led" || kind === "port") &&
+        focusedElement?.kind === kind &&
+        focusedElement.id === id
+      ) {
+        event.preventDefault();
+        onDeleteFocusedLayoutElement?.({ kind, id });
+      }
+      return;
+    }
     const deltas: Record<string, Point> = {
       ArrowUp: { x: 0, y: -0.5 },
       ArrowDown: { x: 0, y: 0.5 },
@@ -146,6 +179,7 @@ export function InstrumentPanel({
             layout={layout}
             layoutEditMode={layoutEditMode}
             focusedElement={focusedElement}
+            placementPreview={placementPreview}
             interactions={interactions}
             onFocusLayoutElement={onFocusLayoutElement}
             onBeginLayoutDrag={beginLayoutDrag}

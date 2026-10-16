@@ -2,14 +2,14 @@
 import { randomUUID } from "node:crypto";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-const session = vi.hoisted(() => ({ user: null as { id: string } | null }));
+const session = vi.hoisted(() => ({ user: null as { id: string; role: "user" | "admin" } | null }));
 
 vi.mock("@/lib/auth/session", () => ({
   requireUser: async () => session.user,
 }));
 
-const owner = { id: randomUUID() };
-const stranger = { id: randomUUID() };
+const owner = { id: randomUUID(), role: "user" as const };
+const stranger = { id: randomUUID(), role: "user" as const };
 const PROTON = "behringer-proton";
 let patchId = "";
 
@@ -42,6 +42,16 @@ describe("patch routes", () => {
     session.user = null;
     const response = await (await patchesRoute()).POST(json("POST", "http://localhost/api/patches", { synthSlug: PROTON, name: "x" }));
     expect(response.status).toBe(401);
+  });
+
+  it("rejects cross-origin cookie-authenticated mutations", async () => {
+    const request = new Request("http://localhost/api/patches", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://attacker.example" },
+      body: JSON.stringify({ synthSlug: PROTON, name: "Cross-origin" }),
+    });
+    const response = await (await patchesRoute()).POST(request);
+    expect(response.status).toBe(403);
   });
 
   it("creates a private patch for the owner", async () => {

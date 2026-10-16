@@ -1,18 +1,23 @@
-// Better Auth core tables (user, session, account, verification) as reported by
-// getAuthTables() of better-auth 1.7.10 for emailAndPassword. The export names must
-// match the Better Auth model names, because the Drizzle adapter looks tables up by them.
-import { relations } from "drizzle-orm";
-import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+// Better Auth core tables (user, session, account, verification) plus the app-owned user role.
+// Export names must match Better Auth model names because its Drizzle adapter looks tables up by them.
+import { relations, sql } from "drizzle-orm";
+import { boolean, check, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import type { MemberRole } from "@/lib/auth/roles";
 
-export const user = pgTable("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("emailVerified").notNull().default(false),
-  image: text("image"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
-});
+export const user = pgTable(
+  "user",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("emailVerified").notNull().default(false),
+    image: text("image"),
+    role: text("role").$type<MemberRole>().notNull().default("user"),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  },
+  (table) => [check("user_role_check", sql`${table.role} in ('user', 'admin')`)],
+);
 
 export const session = pgTable(
   "session",

@@ -6,13 +6,19 @@ import { canUploadAsset } from "@/lib/domain/policy";
 import { getStorage } from "@/lib/storage";
 import { readBodyLimited } from "@/lib/http/read-limited";
 import { requireUser } from "@/lib/auth/session";
+import { hasCapability, roleForUser } from "@/lib/auth/roles";
+import { rejectCrossOriginMutation } from "@/lib/http/mutation-origin";
 
 export const runtime = "nodejs";
 
 /** Raw body upload: POST /api/assets?kind=panel. The file type is decided from the bytes. */
 export async function POST(request: Request) {
+  const originFailure = rejectCrossOriginMutation(request);
+  if (originFailure) return originFailure;
   const user = await requireUser();
-  if (!user || !canUploadAsset(user)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!user || !hasCapability(roleForUser(user), "manageSynths") || !canUploadAsset(user)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
 
   const kind = new URL(request.url).searchParams.get("kind");
   if (kind !== "panel") return NextResponse.json({ error: "unsupported-kind" }, { status: 400 });
