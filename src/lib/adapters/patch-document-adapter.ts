@@ -67,6 +67,10 @@ export const patchCreateSchema = z.object({
 export const patchUpdateSchema = z.object({
   ...patchFields,
   expectedRevision: z.number().int().min(0),
+  /** Confirms that settings without a control in the synth's current revision may be dropped. */
+  acceptRevisionLoss: z.boolean().optional(),
+  /** Saves against the patch's own (older) synth revision instead of moving it to the current one. */
+  keepRevision: z.boolean().optional(),
 });
 
 export type PatchCreateInput = z.infer<typeof patchCreateSchema>;

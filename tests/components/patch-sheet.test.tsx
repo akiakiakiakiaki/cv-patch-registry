@@ -61,6 +61,12 @@ describe("PatchSheet", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ synths: [] }), { status: 200 })));
   });
 
+  it("tells guests that patches are saved locally in the browser", async () => {
+    renderSheet();
+    expect(await screen.findByText("Saved locally automatically")).toBeInTheDocument();
+    expect(screen.queryByText("Saved to your account")).not.toBeInTheDocument();
+  });
+
   it("immediately saves control changes to the current synth's local library", async () => {
     repository.save(initialLibrary);
     renderSheet();

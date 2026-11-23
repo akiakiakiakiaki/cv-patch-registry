@@ -2,7 +2,7 @@
 
 CV Patch Registry is a browser based tool for creating and organizing analogue synthesizer patches, so they can be remembered, rebuilt and shared. Choose a synth, adjust its controls, toggle LEDs and switches, and draw patch cables between its inputs and outputs. Patch changes are saved automatically in the browser for the selected synth.
 
-The app is structured to support multiple synthesizers. **Behringer Proton is currently the only implemented synth.** Its display name and versioned control layout are defined in `src/lib/instrument/behringer-proton/behringer-proton-layout.json`; the available instruments are registered in `src/lib/instruments/registry.ts`.
+The app supports multiple synthesizers. **Behringer Proton** is included as a built-in synth; its display name and versioned control layout are defined in `src/lib/instrument/behringer-proton/behringer-proton-layout.json`, and built-in instruments are registered in `src/lib/instruments/registry.ts`. Signed-in users can add their own synthesizers from a panel image.
 
 ## Features
 
@@ -30,7 +30,7 @@ Environment files are local and are not committed. Start with `.env.example`, co
 
 ## Instrument layout editor
 
-Set `NEXT_PUBLIC_DEBUG_LAYOUT=true` in `.env.development.local` and sign in to show the built-in layout adjustment controls, then restart the dev server. This allows positioning each control element manually. The default in `.env.example` is `false`. Select an encoder, LED, switch, or patch point and use the arrow keys to adjust its position one layout unit at a time. Save the layout to write the positions to that instrument's JSON layout file. The current Proton layout is stored at `src/lib/instrument/behringer-proton/behringer-proton-layout.json`.
+Set `NEXT_PUBLIC_DEBUG_LAYOUT=true` in `.env.development.local` and sign in with an `admin` account to show the built-in layout adjustment controls, then restart the dev server. This allows positioning each control element manually. The default in `.env.example` is `false`. Select an encoder, LED, switch, or patch point and use the arrow keys to adjust its position one layout unit at a time. Save the layout to write the positions to that instrument's JSON layout file. The current Proton layout is stored at `src/lib/instrument/behringer-proton/behringer-proton-layout.json`.
 
 Each control has a stable ID and position in the layout JSON. Shared shapes and sizes are defined once in the layout's `geometry` section. The overlay and background image use the same viewBox so controls scale with the image.
 
@@ -65,11 +65,10 @@ After enabling it, `git commit` runs `npm run test:run` and is stopped if any te
 - `src/components`: interactive patch manager and instrument panel.
 - `src/app`: Next.js pages, API routes, and global styles.
 - `src/i18n`: German and English UI messages and locale selection.
-- `prototype/`: the original standalone prototype, kept as a reference and not used by the Next.js app.
 
 Copyright © 2026 Michael Ilg
 
-Licensed under the GNU Affero General Public License v3.0.
+Source-available under the CV Patch Registry Source-Available License.
 See LICENSE for details.
 
 ## Accounts, synthesizers and shared patches (beta)
@@ -83,12 +82,13 @@ Everything happens on the start page:
 
 - Register and sign in with e-mail and password. Forgotten passwords: the login page links to a reset form. In local development the reset link is printed to the server console. Set `AUTH_REQUIRE_EMAIL_VERIFICATION=true` and `NEXT_PUBLIC_AUTH_REQUIRE_EMAIL_VERIFICATION=true` to require verification. Locally the verification link is printed to the server console. Production deliberately has no console mail fallback; configure a real mail sender before enabling password reset or email verification there.
 - Guest visitors can explore and keep patches in this browser. Registered accounts receive the `user` role and can use account storage, patch import/export and synthesizer editing. `admin` is a separately assigned role; role values are server-owned and cannot be selected during registration. Guest-only behavior is also enforced by the write APIs.
-- `user` and `admin` currently have the same member features. The `admin` role is ready for additional administrative permissions, but there is no admin console yet.
+- `user` and `admin` have the same member features, except that only `admin` can adjust the built-in synth layouts (development only, see above).
 - Assign or remove an admin with `npm run db:set-role -- admin@example.com admin` (or use `user` to demote the account). Stop the dev server first when using PGlite; PostgreSQL uses the configured `DATABASE_URL`. Sign in again to refresh the role in the session. Role assignment is not available through public registration.
 - Create synthesizers from a panel image (PNG, JPEG or SVG, up to 5 MB) and place knobs, switches, LEDs, inputs, outputs and universal ports. Each save creates a revision and advances the current pointer in one transaction. A stale concurrent save gets a conflict without leaving a partial revision behind.
 - Patches are private or public. Public patches are listed in `/explore` and readable without signing in. Only the owner can edit them.
 - Data lives in an embedded Postgres (PGlite) in `.data/pglite`. Uploaded panels and samples live in `public/assets/uploads/`. Both paths are gitignored.
-- Audio samples (MP3, up to 30 s, 1.5 MB, 50 MB per user) are behind `FEATURE_AUDIO`. Off by default.
+- Each user has 50 MB of storage, shared by panel images and audio samples, and at most 50 panels. Uploaded panels that no synth uses are removed after 24 hours, at the owner's next panel upload.
+- Audio samples (MP3, up to 30 s, 1.5 MB, counted against the 50 MB) are behind `FEATURE_AUDIO`. Off by default.
 
 ### Environment
 
@@ -103,6 +103,10 @@ Everything happens on the start page:
 | `PATCH_DB_DIR`                                | Optional database directory. Defaults to `.data/pglite`.                                                                             |
 | `DATABASE_URL`                                | PostgreSQL connection string. Required with `PATCH_DB_PROVIDER=postgres`; use the Supabase database connection string if applicable. |
 | `PATCH_DB_POOL_MAX`                           | PostgreSQL client connections per app process. Defaults to `1`; increase only if the app shows connection queuing.                   |
+| `STORAGE_PROVIDER`                            | `local` (default) or `supabase`. Vercel requires `supabase`.                                                                          |
+| `SUPABASE_URL`                                | Supabase project URL. Required for Supabase Storage.                                                                                  |
+| `SUPABASE_STORAGE_BUCKET`                     | Existing Storage bucket name; default example: `patch-assets`.                                                                        |
+| `SUPABASE_SECRET_KEY`                         | Server-only Supabase secret key for Storage uploads and deletes. Legacy `SUPABASE_SERVICE_ROLE_KEY` is also accepted.                 |
 
 PGlite uses a lock file next to its data directory, so only one process opens that directory. A stale lock from a killed process is taken over automatically. On Ctrl+C or SIGTERM the database is closed cleanly. Use a different `PATCH_DB_DIR` to run a second instance on purpose. PostgreSQL is managed by its server and has no local directory lock.
 
@@ -110,19 +114,10 @@ To use local PGlite, set `PATCH_DB_PROVIDER=pglite` (or leave it unset). To use 
 
 ### Hosting notes
 
-- Use `PATCH_DB_PROVIDER=postgres` with `DATABASE_URL` for a server PostgreSQL database, including Supabase's PostgreSQL service. Select the direct or pooler connection string appropriate for the hosting environment. Schema and migrations are plain SQL in `drizzle/`.
-- Storage is the local filesystem behind the `StorageProvider` interface. An S3-compatible or Supabase Storage provider can replace it without a data migration, because only relative keys are stored.
-- Uploaded files are served by `src/app/assets/uploads/[key]/route.ts` with `nosniff` and a sandboxing CSP. The same headers are set in `next.config.mjs` for static files.
-- Cookie-authenticated mutation routes reject a supplied cross-origin `Origin`, and JSON mutation bodies have byte limits. These checks do not replace request-rate limits: configure limits at the hosting proxy for uploads and other expensive operations before public access.
-
-### Before public operation
-
-- [ ] Privacy policy and imprint. Sessions store IP address and user agent, so say so and set a deletion period.
-- [ ] Data processing agreements with the hosting and mail providers.
-- [ ] Account deletion, including the user's uploads (not implemented yet).
-- [ ] Report button on public patches, synths and samples, with a takedown process (EU DSA Art. 16). Not implemented yet.
-- [ ] Clear copyright of panels before it is public.
-- [ ] Sample rights: the upload confirms the rights, but the takedown process above still applies.
-- [ ] Upload rate limits and a registration captcha (both missing).
-- [ ] Database backups and a tested restore.
-- [ ] Known gaps: samples are unlisted but not access-protected, sample duration is only checked in the browser, and samples cannot be deleted yet.
+- For Vercel, set `PATCH_DB_PROVIDER=postgres`, `DATABASE_URL`, and `PATCH_DB_POOL_MAX=1`. Use the Supabase transaction pooler connection string for serverless requests. The application applies SQL migrations from `drizzle/` at startup; Next.js includes those files in server traces.
+- Set `STORAGE_PROVIDER=supabase`, `SUPABASE_URL`, `SUPABASE_STORAGE_BUCKET`, and the server-only `SUPABASE_SECRET_KEY` on Vercel. Create that bucket in Supabase Storage as a public bucket. Uploads and deletes go through the app's authenticated API routes.
+- Keep `BETTER_AUTH_SECRET` and the production `BETTER_AUTH_URL` set in Vercel. Preview deployments use Vercel's deployment URL for Better Auth automatically. Supabase Auth is not used.
+- Storage keys stay in the database, while URLs are generated by the selected provider. Local development defaults to `STORAGE_PROVIDER=local`; do not set a Supabase secret with a `NEXT_PUBLIC_` prefix.
+- If the Supabase database already contains asset rows created while files were stored locally, copy the matching files before deploying: configure the Supabase Storage variables in `.env.development.local`, create the public bucket, then run `npm run storage:migrate-local`. The script uploads files from `public/assets/uploads/` with their existing keys and can be rerun safely.
+- Uploaded files in local mode are served by `src/app/assets/uploads/[key]/route.ts` with `nosniff` and a sandboxing CSP.
+- Cookie-authenticated mutation routes reject a supplied cross-origin `Origin`, and JSON mutation bodies have byte limits.

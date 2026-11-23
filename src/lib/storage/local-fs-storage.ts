@@ -21,14 +21,16 @@ export class LocalFsStorage implements StorageProvider {
     await mkdir(this.temporaryRoot, { recursive: true });
     await mkdir(this.root, { recursive: true });
     const temporaryPath = path.join(this.temporaryRoot, storageKey);
-    await writeFile(temporaryPath, bytes, { flag: "wx" });
-    await rename(temporaryPath, path.join(this.root, storageKey));
+    const destinationPath = path.join(this.root, storageKey);
+    await writeFile(/* turbopackIgnore: true */ temporaryPath, bytes, { flag: "wx" });
+    await rename(temporaryPath, /* turbopackIgnore: true */ destinationPath);
     return storageKey;
   }
 
   async remove(storageKey: string): Promise<void> {
     if (!isValidUploadKey(storageKey)) return;
-    await rm(path.join(this.root, storageKey), { force: true });
+    const filePath = path.join(this.root, storageKey);
+    await rm(/* turbopackIgnore: true */ filePath, { force: true });
   }
 
   publicUrl(storageKey: string): string {

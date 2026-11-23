@@ -8,6 +8,8 @@ const uploadSecurityHeaders = JSON.parse(
 const nextConfig = {
   // PGlite ships optional Node-only code paths (socket server). Keep it external so the bundler does not resolve them.
   serverExternalPackages: ["@electric-sql/pglite", "pg"],
+  // Drizzle loads SQL migrations from a runtime directory rather than static imports.
+  outputFileTracingIncludes: { "/*": ["./drizzle/**/*"] },
   async headers() {
     return [{ source: "/assets/uploads/:path*", headers: uploadSecurityHeaders }];
   },

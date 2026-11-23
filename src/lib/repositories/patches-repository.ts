@@ -17,6 +17,10 @@ export interface PatchWithSynth {
   synthSlug: string;
   synthDisplayName: string;
   synthOwnerId: string | null;
+  /** The synth's current revision; the patch's own revision (and layout) may be older. */
+  synthCurrentRevisionId: string | null;
+  /** Number of the revision the patch is stored with. */
+  revisionNumber: number;
   layout: unknown;
   panelSource: string;
   panelBundledSrc: string | null;
@@ -30,6 +34,8 @@ const withSynth = (db: Database) =>
       synthSlug: synths.slug,
       synthDisplayName: synths.displayName,
       synthOwnerId: synths.ownerId,
+      synthCurrentRevisionId: synths.currentRevisionId,
+      revisionNumber: synthRevisions.number,
       layout: synthRevisions.layout,
       panelSource: synthRevisions.panelSource,
       panelBundledSrc: synthRevisions.panelBundledSrc,

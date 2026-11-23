@@ -8,6 +8,12 @@ export function failureResponse(failure: PatchFailure): NextResponse {
       return NextResponse.json({ error: "invalid", issues: failure.issues }, { status: 422 });
     case "conflict":
       return NextResponse.json({ error: "conflict" }, { status: 409 });
+    case "revision-loss":
+      // 409 like a revision conflict, but the client resolves it by asking the user and resending with acceptRevisionLoss.
+      return NextResponse.json(
+        { error: "revision-loss", fromRevision: failure.fromRevision, toRevision: failure.toRevision, losses: failure.losses },
+        { status: 409 },
+      );
     case "invalid-tags":
     case "too-many-tags":
       return NextResponse.json({ error: failure.error }, { status: 422 });

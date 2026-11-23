@@ -29,10 +29,21 @@ import {
   type PatchWithSynth,
 } from "@/lib/repositories/patches-repository";
 import { findActiveSynthBySlug, findRevision } from "@/lib/repositories/synths-repository";
-import { uploadPublicUrl } from "@/lib/storage/upload-files";
+import { findRevisionLosses, type RevisionLoss } from "@/lib/patches/revision-loss";
+
+/** Saving would move the patch to a newer synth revision that lacks some of its controls. Needs confirmation. */
+export interface RevisionLossFailure {
+  ok: false;
+  error: "revision-loss";
+  fromRevision: number;
+  toRevision: number;
+  losses: RevisionLoss[];
+}
+import { storagePublicUrl } from "@/lib/storage";
 
 export type PatchFailure =
   | { ok: false; error: "invalid"; issues: string[] }
+  | RevisionLossFailure
   | { ok: false; error: "not-found" | "conflict" | "synth-not-found" | "too-many-tags" | "invalid-tags" };
 
 export interface PatchSummary {
@@ -72,7 +83,7 @@ async function panelUrlFor(db: Database, patch: PatchWithSynth): Promise<string>
   if (patch.panelSource === "bundled") return patch.panelBundledSrc ?? "";
   if (!patch.panelAssetId) return "";
   const asset = await findAssetById(db, patch.panelAssetId);
-  return asset ? uploadPublicUrl(asset.storageKey) : "";
+  return asset ? storagePublicUrl(asset.storageKey) : "";
 }
 
 function summaryOf(row: PatchWithSynth, tags: string[]): PatchSummary {
@@ -140,16 +151,27 @@ export async function updatePatch(
   const body = parsed.data;
   if (body.expectedRevision !== existing.patch.revision) return { ok: false, error: "conflict" };
 
-  const layout = parseSynthLayout(existing.layout);
-  if (!layout) return { ok: false, error: "invalid", issues: ["synth"] };
+  const storedLayout = parseSynthLayout(existing.layout);
+  if (!storedLayout) return { ok: false, error: "invalid", issues: ["synth"] };
+  // The editor always shows the synth's current panel, so a save moves the patch to that revision.
+  // Validating against the patch's older revision would silently drop controls and ports added since.
+  const target = body.keepRevision
+    ? { id: existing.patch.synthRevisionId, number: existing.revisionNumber, layout: storedLayout }
+    : await currentRevisionFor(db, existing);
+  if (!target) return { ok: false, error: "invalid", issues: ["synth"] };
+  const layout = target.layout;
   const currentTags = (await tagSlugsFor(db, [patchId])).get(patchId) ?? [];
   const tags = normalizeTags(body.tags ?? currentTags);
   if (!tags.ok) return tagFailure(tags.reason);
 
-  const data =
-    body.data === undefined
-      ? (decodePatchDocument(existing.patch.data, layout) ?? normalizeSubmittedData({}, layout))
-      : normalizeSubmittedData(body.data, layout);
+  const submitted = body.data === undefined ? (decodePatchDocument(existing.patch.data, storedLayout) ?? {}) : body.data;
+  if (target.id !== existing.patch.synthRevisionId && !body.acceptRevisionLoss) {
+    const losses = findRevisionLosses(submitted, storedLayout, layout);
+    if (losses.length > 0) {
+      return { ok: false, error: "revision-loss", fromRevision: existing.revisionNumber, toRevision: target.number, losses };
+    }
+  }
+  const data = normalizeSubmittedData(submitted, layout);
 
   const advanced = await updatePatchIfRevision(db, {
     patchId,
@@ -159,12 +181,28 @@ export async function updatePatch(
       name: body.name,
       description: body.description || null,
       visibility: body.visibility ?? existing.patch.visibility,
+      synthRevisionId: target.id,
       data: encodePatchDocument(data, layout),
     },
   });
   if (!advanced) return { ok: false, error: "conflict" };
   await replacePatchTags(db, patchId, await ensureTagIds(db, tags.tags));
   return { ok: true, revision: body.expectedRevision + 1 };
+}
+
+/** The synth's current revision with its parsed layout; falls back to the patch's own revision. */
+async function currentRevisionFor(
+  db: Database,
+  existing: PatchWithSynth,
+): Promise<{ id: string; number: number; layout: InstrumentLayout } | null> {
+  const currentId = existing.synthCurrentRevisionId;
+  if (currentId && currentId !== existing.patch.synthRevisionId) {
+    const revision = await findRevision(db, currentId);
+    const layout = revision ? parseSynthLayout(revision.layout) : null;
+    if (revision && layout) return { id: revision.id, number: revision.number, layout };
+  }
+  const layout = parseSynthLayout(existing.layout);
+  return layout ? { id: existing.patch.synthRevisionId, number: existing.revisionNumber, layout } : null;
 }
 
 export async function deletePatch(db: Database, actor: Actor, patchId: string): Promise<{ ok: true } | PatchFailure> {
@@ -206,7 +244,7 @@ async function sampleViewFor(db: Database, patchId: string): Promise<PatchView["
   const sample = await findSampleByPatch(db, patchId);
   if (!sample) return null;
   const asset = await findAssetById(db, sample.assetId);
-  return asset ? { url: uploadPublicUrl(asset.storageKey), title: sample.title, license: sample.license } : null;
+  return asset ? { url: storagePublicUrl(asset.storageKey), title: sample.title, license: sample.license } : null;
 }
 
 /** Full state of one of the actor's patches. Used to load the account library of a synth. */
@@ -218,17 +256,26 @@ export interface PatchState {
   visibility: Visibility;
   tags: string[];
   data: PatchData;
+  /** Number of the synth revision the patch is stored with. */
+  synthRevision: number;
+  /** Settings the synth's current revision has no control for. Empty when the patch is current or compatible. */
+  revisionLosses: RevisionLoss[];
 }
 
 export async function listOwnPatchStates(db: Database, actor: Actor, synthSlug: string): Promise<PatchState[]> {
   const rows = await listPatchesWithSynth(db, { ownerId: actor.id, synthSlug });
   const tagMap = await tagSlugsFor(db, rows.map((row) => row.patch.id));
+  // All rows belong to one synth, so its current revision is resolved once.
+  const current = rows[0] ? await currentRevisionFor(db, rows[0]) : null;
   const states: PatchState[] = [];
   for (const row of rows) {
     const layout = parseSynthLayout(row.layout);
     const data = layout ? decodePatchDocument(row.patch.data, layout) : null;
-    if (!data) continue;
+    if (!layout || !data) continue;
+    const outdated = current !== null && current.id !== row.patch.synthRevisionId;
     states.push({
+      synthRevision: row.revisionNumber,
+      revisionLosses: outdated ? findRevisionLosses(data, layout, current.layout) : [],
       id: row.patch.id,
       name: row.patch.name,
       updatedAt: row.patch.updatedAt.toISOString(),

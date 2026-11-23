@@ -13,7 +13,7 @@ const roleCapabilities: Record<AppRole, Record<Capability, boolean>> = {
   user: {
     manageSynths: true,
     importExportPatches: true,
-    adjustBuiltInLayout: true,
+    adjustBuiltInLayout: false,
   },
   admin: {
     manageSynths: true,

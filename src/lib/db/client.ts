@@ -136,7 +136,14 @@ export async function closeDatabase(handle: DatabaseHandle): Promise<void> {
 /** Shared handle per process. Stored on globalThis so Next.js dev reloads reuse it. */
 export function getDatabase(): DatabaseHandle {
   if (!globalForDatabase.__patchDatabase) {
-    const provider = process.env.PATCH_DB_PROVIDER ?? "pglite";
+    const configuredProvider = process.env.PATCH_DB_PROVIDER;
+    if (process.env.VERCEL === "1" && !configuredProvider) {
+      throw new Error("PATCH_DB_PROVIDER=postgres must be configured on Vercel");
+    }
+    const provider = configuredProvider ?? "pglite";
+    if (process.env.VERCEL === "1" && provider !== "postgres") {
+      throw new Error("PGlite is not a persistent Vercel database; set PATCH_DB_PROVIDER=postgres");
+    }
     if (provider === "pglite") {
       globalForDatabase.__patchDatabase = createDatabase(process.env.PATCH_DB_DIR ?? DEFAULT_DATA_DIRECTORY);
     } else if (provider === "postgres") {

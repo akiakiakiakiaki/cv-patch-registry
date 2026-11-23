@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { decodeInstrumentLayout } from '@/lib/adapters/instrument-layout-adapter';
 import { getInstrument } from '@/lib/instruments/registry';
-import { InstrumentLayoutRepository } from '@/lib/storage/instrument-layout-repository';
 import { requireUser } from '@/lib/auth/session';
 import { hasCapability, roleForUser } from '@/lib/auth/roles';
 import { invalidJsonResponse } from '@/lib/http/patch-responses';
@@ -13,7 +12,7 @@ export const runtime = 'nodejs';
 type RouteContext = { params: Promise<{ instrumentId: string }> };
 
 function isDebugEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_DEBUG_LAYOUT === 'true';
+  return process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_LAYOUT === 'true';
 }
 
 export async function GET(_request: Request, { params }: RouteContext) {
@@ -28,6 +27,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
   if (!instrument) return NextResponse.json({ error: 'Unknown instrument' }, { status: 404 });
 
   try {
+    const { InstrumentLayoutRepository } = await import('@/lib/storage/instrument-layout-repository');
     const repository = new InstrumentLayoutRepository(instrument);
     const layout = decodeInstrumentLayout(await repository.load(), instrument.layout);
     if (!layout) return NextResponse.json({ error: 'Incompatible layout document' }, { status: 409 });
@@ -55,6 +55,7 @@ export async function PUT(request: Request, { params }: RouteContext) {
   try {
     const layout = decodeInstrumentLayout(parsed.value, instrument.layout);
     if (!layout) return NextResponse.json({ error: 'Incompatible layout data' }, { status: 409 });
+    const { InstrumentLayoutRepository } = await import('@/lib/storage/instrument-layout-repository');
     const repository = new InstrumentLayoutRepository(instrument);
     await repository.save(layout);
     return NextResponse.json(layout);

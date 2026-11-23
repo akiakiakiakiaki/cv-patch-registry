@@ -14,7 +14,8 @@ vi.mock("@/lib/auth/session", () => ({
 
 vi.mock("@/lib/storage", async () => {
   const { LocalFsStorage } = await import("@/lib/storage/local-fs-storage");
-  return { getStorage: () => new LocalFsStorage(storageRoot.dir, storageRoot.dir) };
+  const getStorage = () => new LocalFsStorage(storageRoot.dir, storageRoot.dir);
+  return { getStorage, storagePublicUrl: (storageKey: string) => getStorage().publicUrl(storageKey) };
 });
 
 const PNG_800x400 = (() => {

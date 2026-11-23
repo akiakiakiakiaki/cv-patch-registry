@@ -7,13 +7,14 @@ import { createDatabase, ensureDatabase } from "@/lib/db/client";
 import { user } from "@/lib/db/schema";
 import { storePanelUpload } from "@/lib/assets/asset-service";
 import { LocalFsStorage } from "@/lib/storage/local-fs-storage";
-import { createSynth } from "@/lib/synths/synth-service";
+import { createSynth, createSynthRevision } from "@/lib/synths/synth-service";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
 import {
   createPatch,
   deletePatch,
   getPatchView,
   importLocalPatches,
+  listOwnPatchStates,
   listOwnPatches,
   listPublicPatches,
   updatePatch,
@@ -158,6 +159,128 @@ describe("patch lifecycle", () => {
     const view = await getPatchView(env.db, env.owner, created.id);
     expect(view?.synth.panelUrl).toMatch(/^\/assets\/uploads\//);
     expect(view?.data.knobs).toEqual({ "knob-1a2b3c4d": 40 });
+    env.cleanup();
+  });
+});
+
+describe("patches on an older synth revision", () => {
+  const KNOB_A = "knob-1a2b3c4d";
+  const KNOB_B = "knob-5e6f7a8b";
+  const OUT = "out-0a0b0c0d";
+  const IN = "in-0e0f1a1b";
+  const base = { displayName: "Mine", slug: "mine-synth" };
+
+  async function synthWithNewerRevision(env: Awaited<ReturnType<typeof setup>>) {
+    const stored = await storePanelUpload({ db: env.db, storage: env.storage }, env.owner, PNG);
+    if (!stored.ok) throw new Error("upload failed");
+    await createSynth(env.db, env.owner, {
+      ...base,
+      panelAssetId: stored.panel.id,
+      controls: [{ id: KNOB_A, kind: "knob", label: "A", x: 100, y: 100 }],
+    });
+    const created = await createPatch(env.db, env.owner, { synthSlug: base.slug, name: "Old", data: { knobs: { [KNOB_A]: 10 } } });
+    if (!created.ok) throw new Error("patch failed");
+    const revised = await createSynthRevision(env.db, env.owner, base.slug, {
+      ...base,
+      expectedRevision: 1,
+      controls: [
+        { id: KNOB_A, kind: "knob", label: "A", x: 100, y: 100 },
+        { id: KNOB_B, kind: "knob", label: "B", x: 200, y: 100 },
+        { id: OUT, kind: "out", label: "Out", x: 300, y: 200 },
+        { id: IN, kind: "in", label: "In", x: 400, y: 200 },
+      ],
+    });
+    expect(revised).toMatchObject({ ok: true, revision: 2 });
+    return created.id;
+  }
+
+  it("keeps knobs and cables of controls added after the patch was created", async () => {
+    const env = await setup();
+    const id = await synthWithNewerRevision(env);
+    const saved = await updatePatch(env.db, env.owner, id, {
+      name: "Old",
+      expectedRevision: 1,
+      data: { knobs: { [KNOB_A]: 20, [KNOB_B]: 70 }, cables: [{ from: OUT, to: IN, colorId: "red" }] },
+    });
+    expect(saved).toEqual({ ok: true, revision: 2 });
+
+    const view = await getPatchView(env.db, env.owner, id);
+    expect(view?.data.knobs).toEqual({ [KNOB_A]: 20, [KNOB_B]: 70 });
+    expect(view?.data.cables).toEqual([{ from: OUT, to: IN, colorId: "red" }]);
+    expect(view?.synth.layout.layoutVersion).toBe(2);
+    env.cleanup();
+  });
+
+  it("asks before dropping settings of controls the newer revision removed, and saves once confirmed", async () => {
+    const env = await setup();
+    const id = await synthWithNewerRevision(env);
+    await createSynthRevision(env.db, env.owner, base.slug, {
+      ...base,
+      expectedRevision: 2,
+      controls: [{ id: KNOB_B, kind: "knob", label: "B", x: 200, y: 100 }],
+    });
+    const edit = { name: "Old", expectedRevision: 1, data: { knobs: { [KNOB_A]: 33, [KNOB_B]: 70 } } };
+
+    expect(await updatePatch(env.db, env.owner, id, edit)).toEqual({
+      ok: false,
+      error: "revision-loss",
+      fromRevision: 1,
+      toRevision: 3,
+      losses: [{ kind: "knob", id: KNOB_A, label: "A", value: 33 }],
+    });
+    expect((await getPatchView(env.db, env.owner, id))?.data.knobs).toEqual({ [KNOB_A]: 10 });
+
+    expect(await updatePatch(env.db, env.owner, id, { ...edit, acceptRevisionLoss: true })).toEqual({ ok: true, revision: 2 });
+    const view = await getPatchView(env.db, env.owner, id);
+    expect(view?.data.knobs).toEqual({ [KNOB_B]: 70 });
+    expect(view?.synth.layout.layoutVersion).toBe(3);
+    env.cleanup();
+  });
+
+  it("lists the revision of each patch and what the current revision would drop", async () => {
+    const env = await setup();
+    const id = await synthWithNewerRevision(env);
+    await createSynthRevision(env.db, env.owner, base.slug, {
+      ...base,
+      expectedRevision: 2,
+      controls: [{ id: KNOB_B, kind: "knob", label: "B", x: 200, y: 100 }],
+    });
+    const fresh = await createPatch(env.db, env.owner, { synthSlug: base.slug, name: "Fresh" });
+    if (!fresh.ok) throw new Error("patch failed");
+
+    const states = await listOwnPatchStates(env.db, env.owner, base.slug);
+    expect(states.find((state) => state.id === id)).toMatchObject({
+      synthRevision: 1,
+      revisionLosses: [{ kind: "knob", id: KNOB_A, label: "A", value: 10 }],
+    });
+    expect(states.find((state) => state.id === fresh.id)).toMatchObject({ synthRevision: 3, revisionLosses: [] });
+    env.cleanup();
+  });
+
+  it("saves on the patch's own revision with keepRevision, keeping settings the current revision lacks", async () => {
+    const env = await setup();
+    const id = await synthWithNewerRevision(env);
+    await createSynthRevision(env.db, env.owner, base.slug, {
+      ...base,
+      expectedRevision: 2,
+      controls: [{ id: KNOB_B, kind: "knob", label: "B", x: 200, y: 100 }],
+    });
+
+    const saved = await updatePatch(env.db, env.owner, id, { name: "Old", expectedRevision: 1, keepRevision: true, data: { knobs: { [KNOB_A]: 55 } } });
+    expect(saved).toEqual({ ok: true, revision: 2 });
+    const view = await getPatchView(env.db, env.owner, id);
+    expect(view?.data.knobs).toEqual({ [KNOB_A]: 55 });
+    expect(view?.synth.layout.layoutVersion).toBe(1);
+    expect((await listOwnPatchStates(env.db, env.owner, base.slug))[0]).toMatchObject({ synthRevision: 1, revisionLosses: [{ id: KNOB_A, value: 55 }] });
+    env.cleanup();
+  });
+
+  it("keeps the stored settings when only the name changes", async () => {
+    const env = await setup();
+    const id = await synthWithNewerRevision(env);
+    expect(await updatePatch(env.db, env.owner, id, { name: "Renamed", expectedRevision: 1 })).toEqual({ ok: true, revision: 2 });
+    const view = await getPatchView(env.db, env.owner, id);
+    expect(view).toMatchObject({ name: "Renamed", data: { knobs: { [KNOB_A]: 10 } } });
     env.cleanup();
   });
 });

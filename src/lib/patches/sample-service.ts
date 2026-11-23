@@ -7,7 +7,6 @@ import { insertAsset } from "@/lib/repositories/assets-repository";
 import { findPatchWithSynth } from "@/lib/repositories/patches-repository";
 import { findSampleByPatch, insertSample, storedBytesForOwner } from "@/lib/repositories/samples-repository";
 import type { StorageProvider } from "@/lib/storage/storage-provider";
-import { uploadPublicUrl } from "@/lib/storage/upload-url";
 
 export type SampleFailure = {
   ok: false;
@@ -72,5 +71,5 @@ export async function attachSample(
     await deps.storage.remove(storageKey);
     throw error;
   }
-  return { ok: true, sample: { url: uploadPublicUrl(storageKey), title: parsed.data.title, license: parsed.data.license } };
+  return { ok: true, sample: { url: deps.storage.publicUrl(storageKey), title: parsed.data.title, license: parsed.data.license } };
 }

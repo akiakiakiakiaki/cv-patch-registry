@@ -12,13 +12,15 @@ export class InstrumentLayoutRepository {
   }
 
   async load(): Promise<unknown> {
-    const contents = await readFile(this.layoutPath, 'utf8');
+    const layoutPath = this.layoutPath;
+    const contents = await readFile(/* turbopackIgnore: true */ layoutPath, 'utf8');
     return JSON.parse(contents) as unknown;
   }
 
   async save(layout: InstrumentLayout): Promise<void> {
     const temporaryPath = `${this.layoutPath}.tmp`;
-    await writeFile(temporaryPath, `${JSON.stringify(encodeInstrumentLayout(layout), null, 2)}\n`, 'utf8');
-    await rename(temporaryPath, this.layoutPath);
+    const layoutPath = this.layoutPath;
+    await writeFile(/* turbopackIgnore: true */ temporaryPath, `${JSON.stringify(encodeInstrumentLayout(layout), null, 2)}\n`, 'utf8');
+    await rename(temporaryPath, /* turbopackIgnore: true */ layoutPath);
   }
 }

@@ -13,7 +13,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:set-role": "node --env-file=.env.development.local scripts/set-user-role.mjs"
+    "db:set-role": "node --env-file=.env.development.local scripts/set-user-role.mjs",
+    "storage:migrate-local": "node --env-file=.env.development.local scripts/migrate-local-uploads-to-supabase.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.10",

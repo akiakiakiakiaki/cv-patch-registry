@@ -13,7 +13,7 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { useI18n } from "@/i18n/provider";
-import { uploadPanelFile } from "@/components/synth-editor/upload-panel";
+import { panelRejectionMessage, uploadPanelFile } from "@/components/synth-editor/upload-panel";
 
 /** Lowercase URL identifier derived from a display name. */
 export function slugify(name: string): string {
@@ -63,7 +63,7 @@ export function NewSynthDialog({ open, onClose, onCreated }: { open: boolean; on
     const upload = await uploadPanelFile(file);
     if (!upload.ok) {
       setBusy(false);
-      return setError(t("synths.panelRejected", { reason: upload.reason }));
+      return setError(panelRejectionMessage(upload.reason, t));
     }
     const response = await fetch("/api/synths", {
       method: "POST",

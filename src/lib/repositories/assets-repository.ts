@@ -1,6 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { and, count, eq, lt, notExists } from "drizzle-orm";
 import type { Database } from "@/lib/db/client";
-import { assets } from "@/lib/db/schema";
+import { assets, synthRevisions } from "@/lib/db/schema";
 
 export type AssetRow = typeof assets.$inferSelect;
 
@@ -23,3 +23,27 @@ export async function insertAsset(db: Database, row: typeof assets.$inferInsert)
   await db.insert(assets).values(row);
 }
 
+export async function countAssetsForOwner(db: Database, ownerId: string, kind: string): Promise<number> {
+  const [row] = await db.select({ total: count() }).from(assets).where(and(eq(assets.ownerId, ownerId), eq(assets.kind, kind)));
+  return Number(row?.total ?? 0);
+}
+
+/** The owner's panels that no synth revision references and that were uploaded before `before`. */
+export async function findUnusedPanels(db: Database, ownerId: string, before: Date): Promise<AssetRow[]> {
+  return db
+    .select()
+    .from(assets)
+    .where(
+      and(
+        eq(assets.ownerId, ownerId),
+        eq(assets.kind, "panel"),
+        lt(assets.createdAt, before),
+        notExists(db.select({ id: synthRevisions.id }).from(synthRevisions).where(eq(synthRevisions.panelAssetId, assets.id))),
+      ),
+    );
+}
+
+/** Deletes the row; fails (foreign key) if a synth revision started using the asset meanwhile. */
+export async function deleteAsset(db: Database, assetId: string): Promise<void> {
+  await db.delete(assets).where(eq(assets.id, assetId));
+}

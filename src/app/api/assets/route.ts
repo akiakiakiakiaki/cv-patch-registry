@@ -26,7 +26,13 @@ export async function POST(request: Request) {
   const bytes = await readBodyLimited(request, SVG_MAX_BYTES);
   if (!bytes) return NextResponse.json({ error: "too-large" }, { status: 413 });
 
-  const result = await storePanelUpload({ db: await serverDatabase(), storage: getStorage() }, user, bytes);
-  if (!result.ok) return NextResponse.json({ error: result.reason }, { status: 422 });
-  return NextResponse.json({ panel: result.panel }, { status: 201 });
+  try {
+    const result = await storePanelUpload({ db: await serverDatabase(), storage: getStorage() }, user, bytes);
+    if (!result.ok) return NextResponse.json({ error: result.reason }, { status: 422 });
+    return NextResponse.json({ panel: result.panel }, { status: 201 });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "Unknown upload error";
+    console.error("[api/assets] Panel upload failed:", detail);
+    return NextResponse.json({ error: "upload-failed" }, { status: 500 });
+  }
 }

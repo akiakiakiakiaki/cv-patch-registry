@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAccountPatchLibrary } from "@/hooks/use-account-patch-library";
 import type { PatchLibrary } from "@/lib/domain/types";
+import type { RevisionLoss } from "@/lib/patches/revision-loss";
 
 const state = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -11,6 +12,8 @@ const state = {
   visibility: "private" as const,
   tags: [],
   data: { knobs: { "Tune 1": 10 }, switches: {}, leds: {}, cables: [] },
+  synthRevision: 1,
+  revisionLosses: [] as RevisionLoss[],
 };
 
 function jsonResponse(body: unknown, status = 200) {
@@ -117,5 +120,98 @@ describe("useAccountPatchLibrary", () => {
 
     await waitFor(() => expect(result.current.status).toBe("conflict"), { timeout: 2000 });
     await waitFor(() => expect(loads).toBeGreaterThan(1));
+  });
+  describe("patches on an older synth revision", () => {
+    const loss = { kind: "knob" as const, id: "knob-00000001", label: "Cutoff", value: 91 };
+    const lossBody = { error: "revision-loss", fromRevision: 5, toRevision: 7, losses: [loss] };
+    const current: typeof state = { ...state, synthRevision: 7, revisionLosses: [] };
+
+    type Decision = "upgrade" | "restore" | "keep";
+    function setupLoss(onRevisionLoss: (prompt: unknown) => Promise<Decision>, listed = current) {
+      const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === "PATCH") {
+          const body = JSON.parse(String(init.body)) as { acceptRevisionLoss?: boolean; keepRevision?: boolean };
+          return body.acceptRevisionLoss || body.keepRevision ? jsonResponse({ ok: true, revision: 5 }) : jsonResponse(lossBody, 409);
+        }
+        return jsonResponse({ patches: [listed] });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      const hook = renderHook(() => useAccountPatchLibrary("td3", true, { onRevisionLoss }));
+      const patchBodies = () => fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH").map(([, init]) => JSON.parse(String(init?.body)));
+      const loads = () => fetchMock.mock.calls.filter(([, init]) => init?.method !== "PATCH").length;
+      return { hook, patchBodies, loads };
+    }
+
+    async function edit(result: { current: ReturnType<typeof useAccountPatchLibrary> }, tune = 30) {
+      await waitFor(() => expect(result.current.library).not.toBeNull());
+      const library = result.current.library as PatchLibrary;
+      act(() => {
+        result.current.commit({ ...library, patches: [{ ...library.patches[0]!, data: { ...state.data, knobs: { "Tune 1": tune } } }] });
+      });
+    }
+
+    it("reports patches whose revision lacks controls as outdated, and saves them on their own revision", async () => {
+      const onRevisionLoss = vi.fn();
+      const { hook, patchBodies } = setupLoss(onRevisionLoss, { ...state, synthRevision: 5, revisionLosses: [loss] });
+      await waitFor(() => expect(hook.result.current.outdated).toEqual({ [state.id]: { revision: 5, losses: [loss] } }));
+      await edit(hook.result);
+
+      await waitFor(() => expect(hook.result.current.status).toBe("saved"), { timeout: 2000 });
+      expect(patchBodies()).toEqual([expect.objectContaining({ keepRevision: true, data: expect.objectContaining({ knobs: { "Tune 1": 30 } }) })]);
+      expect(onRevisionLoss).not.toHaveBeenCalled();
+    });
+
+    it("on save asks with the patch name and the losses; 'upgrade' resends with acceptRevisionLoss", async () => {
+      const onRevisionLoss = vi.fn().mockResolvedValue("upgrade");
+      const { hook, patchBodies } = setupLoss(onRevisionLoss);
+      await edit(hook.result);
+
+      await waitFor(() => expect(hook.result.current.status).toBe("saved"), { timeout: 2000 });
+      expect(onRevisionLoss).toHaveBeenCalledWith({ patchName: "Warm", fromRevision: 5, toRevision: 7, losses: [loss] });
+      expect(patchBodies()).toHaveLength(2);
+      expect(patchBodies()[1]).toMatchObject({ acceptRevisionLoss: true, expectedRevision: 4, data: { knobs: { "Tune 1": 30 } } });
+      expect(hook.result.current.outdated).toEqual({});
+    });
+
+    it("'keep' keeps the edits, saves them on the older revision and marks the patch outdated", async () => {
+      const onRevisionLoss = vi.fn().mockResolvedValue("keep");
+      const { hook, patchBodies, loads } = setupLoss(onRevisionLoss);
+      await edit(hook.result);
+
+      await waitFor(() => expect(hook.result.current.status).toBe("saved"), { timeout: 2000 });
+      expect(patchBodies()[1]).toMatchObject({ keepRevision: true, data: { knobs: { "Tune 1": 30 } } });
+      expect(hook.result.current.library?.patches[0]?.data.knobs).toEqual({ "Tune 1": 30 });
+      expect(hook.result.current.outdated).toEqual({ [state.id]: { revision: 5, losses: [loss] } });
+      expect(loads()).toBe(1);
+
+      // Later edits go straight to the older revision without asking again.
+      await edit(hook.result, 40);
+      await waitFor(() => expect(patchBodies()).toHaveLength(3), { timeout: 2000 });
+      expect(patchBodies()[2]).toMatchObject({ keepRevision: true, data: { knobs: { "Tune 1": 40 } } });
+      expect(onRevisionLoss).toHaveBeenCalledTimes(1);
+    });
+
+    it("'restore' reloads the last saved version and sends nothing more", async () => {
+      const onRevisionLoss = vi.fn().mockResolvedValue("restore");
+      const { hook, patchBodies } = setupLoss(onRevisionLoss);
+      await edit(hook.result);
+
+      await waitFor(() => expect(onRevisionLoss).toHaveBeenCalled(), { timeout: 2000 });
+      await waitFor(() => expect(hook.result.current.library?.patches[0]?.data.knobs).toEqual({ "Tune 1": 10 }));
+      expect(patchBodies()).toHaveLength(1);
+      expect(hook.result.current.status).toBe("idle");
+    });
+
+    it("upgrade() moves an outdated patch to the current revision and reloads it", async () => {
+      const onRevisionLoss = vi.fn();
+      const { hook, patchBodies, loads } = setupLoss(onRevisionLoss, { ...state, synthRevision: 5, revisionLosses: [loss] });
+      await waitFor(() => expect(hook.result.current.outdated[state.id]).toBeDefined());
+
+      await act(() => hook.result.current.upgrade(state.id));
+      expect(patchBodies()).toEqual([expect.objectContaining({ acceptRevisionLoss: true, expectedRevision: 4 })]);
+      expect(patchBodies()[0]).not.toHaveProperty("keepRevision");
+      expect(loads()).toBe(2);
+      expect(onRevisionLoss).not.toHaveBeenCalled();
+    });
   });
 });

@@ -7,11 +7,16 @@ import { getMailSender } from "./mail-sender";
 
 function createAuth() {
   const requireEmailVerification = process.env.AUTH_REQUIRE_EMAIL_VERIFICATION === "true";
+  const previewBaseUrl = process.env.VERCEL === "1"
+    && process.env.VERCEL_ENV === "preview"
+    && process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : undefined;
 
   return betterAuth({
     database: drizzleAdapter(getDatabase().db, { provider: "pg", schema: authSchema }),
     secret: process.env.BETTER_AUTH_SECRET,
-    baseURL: process.env.BETTER_AUTH_URL,
+    baseURL: previewBaseUrl ?? process.env.BETTER_AUTH_URL,
     advanced: { useSecureCookies: process.env.NODE_ENV === "production" },
     user: {
       additionalFields: {

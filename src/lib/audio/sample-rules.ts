@@ -1,6 +1,9 @@
-/** Hard limits for patch samples. Duration is only checked in the browser (see README: known gap). */
+import { STORAGE_QUOTA_BYTES } from "@/lib/assets/asset-quota";
+
+/** Hard limits for patch samples. */
 export const SAMPLE_MAX_BYTES = 1_500_000;
-export const SAMPLE_QUOTA_BYTES = 50 * 1024 * 1024;
+/** Samples share the per-user storage budget with panels. */
+export const SAMPLE_QUOTA_BYTES = STORAGE_QUOTA_BYTES;
 
 /** MP3 starts with an ID3 tag or an MPEG frame sync (11 set bits). OGG is not accepted in this phase. */
 export function isMp3(bytes: Uint8Array): boolean {

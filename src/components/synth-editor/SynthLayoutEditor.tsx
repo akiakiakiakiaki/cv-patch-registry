@@ -19,7 +19,7 @@ import type { PatchData } from "@/lib/domain/types";
 import type { FocusedLayoutElement } from "@/lib/instrument/layout";
 import { genericSwitchAdapter } from "@/lib/instruments/generic-switch-adapter";
 import type { InstrumentDefinition } from "@/lib/instruments/types";
-import { uploadPanelFile } from "@/components/synth-editor/upload-panel";
+import { panelRejectionMessage, uploadPanelFile } from "@/components/synth-editor/upload-panel";
 
 const CONTROL_KINDS: readonly ControlKind[] = ["knob", "switch", "led", "in", "out", "uni"];
 const EMPTY_DATA: PatchData = { knobs: {}, switches: {}, leds: {}, cables: [] };
@@ -102,7 +102,7 @@ export function SynthLayoutEditor({
     setUploadError(null);
     const result = await uploadPanelFile(file);
     setUploading(false);
-    if (!result.ok) return setUploadError(t("synths.panelRejected", { reason: result.reason }));
+    if (!result.ok) return setUploadError(panelRejectionMessage(result.reason, t));
     draft.replacePanel(result.panel);
   }
 

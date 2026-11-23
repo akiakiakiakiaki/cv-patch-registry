@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createEmptyPatch } from "@/lib/domain/patch-service";
 import { diffPatchLibraries } from "@/lib/patches/library-diff";
 import type { PatchLibrary, PatchRecord } from "@/lib/domain/types";
+import type { RevisionLoss } from "@/lib/patches/revision-loss";
 
 export type AccountSaveStatus = "idle" | "saving" | "saved" | "conflict" | "error";
 
@@ -20,19 +21,51 @@ interface PatchStateResponse {
   visibility: "private" | "public";
   tags: string[];
   data: PatchRecord["data"];
+  synthRevision: number;
+  revisionLosses: RevisionLoss[];
 }
 
 const SAVE_DELAY_MS = 500;
+
+/** A patch kept on an older synth revision, because the current one lacks controls it has settings for. */
+export interface OutdatedRevision {
+  revision: number;
+  losses: RevisionLoss[];
+}
+
+/** Asked when a save would move a patch to a newer synth revision and drop these settings. */
+export interface RevisionLossPrompt {
+  patchName: string;
+  fromRevision: number;
+  toRevision: number;
+  losses: RevisionLoss[];
+}
+
+/**
+ * - upgrade: save on the current revision and drop the listed settings
+ * - restore: discard local edits and reload the last saved version
+ * - keep: keep the edits and go on working (and saving) in the patch's older revision
+ */
+export type RevisionLossDecision = "upgrade" | "restore" | "keep";
+
+export interface AccountPatchLibraryOptions {
+  /** Without it, the patch is kept on its older revision, so nothing is lost. */
+  onRevisionLoss?: (prompt: RevisionLossPrompt) => Promise<RevisionLossDecision>;
+}
 
 /**
  * The signed-in user's patches for one synth, as a PatchLibrary. Local edits are diffed against the
  * last snapshot and sent in order: creates, then updates (debounced per save), then deletes.
  * Each update carries the revision it was based on, so a concurrent change from another tab is detected (409).
  */
-export function useAccountPatchLibrary(synthSlug: string, enabled: boolean) {
+export function useAccountPatchLibrary(synthSlug: string, enabled: boolean, options: AccountPatchLibraryOptions = {}) {
+  const onRevisionLoss = useRef(options.onRevisionLoss);
+  onRevisionLoss.current = options.onRevisionLoss;
   const [library, setLibrary] = useState<PatchLibrary | null>(null);
   const [meta, setMeta] = useState<Record<string, PatchMeta>>({});
   const [status, setStatus] = useState<AccountSaveStatus>("idle");
+  const [outdated, setOutdated] = useState<Record<string, OutdatedRevision>>({});
+  const outdatedRef = useRef<Record<string, OutdatedRevision>>({});
   const libraryRef = useRef<PatchLibrary | null>(null);
   const revisions = useRef(new Map<string, number>());
   const dirtyIds = useRef(new Set<string>());
@@ -46,14 +79,28 @@ export function useAccountPatchLibrary(synthSlug: string, enabled: boolean) {
 
   const applyStates = useCallback((states: PatchStateResponse[]) => {
     revisions.current = new Map(states.map((state) => [state.id, state.revision]));
+    // A reload (after a conflict or a declined save) keeps the patch the user is on.
+    const previousActive = libraryRef.current?.activeId;
     const next: PatchLibrary = {
-      activeId: states[0]?.id ?? "",
+      activeId: states.some((state) => state.id === previousActive) ? previousActive! : (states[0]?.id ?? ""),
       patches: states.map((state) => ({ id: state.id, name: state.name, updatedAt: state.updatedAt, data: state.data })),
     };
     libraryRef.current = next;
     setLibrary(next);
     setMeta(Object.fromEntries(states.map((state) => [state.id, { visibility: state.visibility, tags: state.tags }])));
+    setOutdatedState(
+      Object.fromEntries(
+        states
+          .filter((state) => state.revisionLosses.length > 0)
+          .map((state) => [state.id, { revision: state.synthRevision, losses: state.revisionLosses }]),
+      ),
+    );
   }, []);
+
+  function setOutdatedState(next: Record<string, OutdatedRevision>) {
+    outdatedRef.current = next;
+    setOutdated(next);
+  }
 
   const load = useCallback(async () => {
     const response = await fetch(`/api/patches?synth=${encodeURIComponent(synthSlug)}`, { cache: "no-store" });
@@ -78,12 +125,39 @@ export function useAccountPatchLibrary(synthSlug: string, enabled: boolean) {
       const expectedRevision = revisions.current.get(id);
       if (expectedRevision === undefined) return;
       setStatus("saving");
-      const response = await fetch(`/api/patches/${encodeURIComponent(id)}`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...body, expectedRevision }),
-      });
+      const send = (extra: Record<string, unknown> = {}) =>
+        fetch(`/api/patches/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ ...body, ...extra, expectedRevision }),
+        });
+      // A patch kept on its older revision is saved there; an explicit upgrade (acceptRevisionLoss) moves it.
+      const keep = outdatedRef.current[id] && body.acceptRevisionLoss !== true;
+      let response = await send(keep ? { keepRevision: true } : {});
       // Runs inside the queue already, so reload directly instead of re-queueing (that would wait for itself).
+      // The queue waits while the user decides, so later edits are saved after the answer, in order.
+      if (response.status === 409) {
+        const failure = (await response.json().catch(() => ({}))) as Partial<RevisionLossPrompt> & { error?: string };
+        if (failure.error === "revision-loss") {
+          const prompt: RevisionLossPrompt = {
+            patchName: libraryRef.current?.patches.find((item) => item.id === id)?.name ?? "",
+            fromRevision: failure.fromRevision ?? 0,
+            toRevision: failure.toRevision ?? 0,
+            losses: failure.losses ?? [],
+          };
+          const decision = (await onRevisionLoss.current?.(prompt)) ?? "keep";
+          if (decision === "restore") {
+            setStatus("idle");
+            return load();
+          }
+          if (decision === "keep") {
+            setOutdatedState({ ...outdatedRef.current, [id]: { revision: prompt.fromRevision, losses: prompt.losses } });
+            response = await send({ keepRevision: true });
+          } else {
+            response = await send({ acceptRevisionLoss: true });
+          }
+        }
+      }
       if (response.status === 409) {
         setStatus("conflict");
         return load();
@@ -167,9 +241,26 @@ export function useAccountPatchLibrary(synthSlug: string, enabled: boolean) {
     [enqueue, putPatch],
   );
 
+  /**
+   * Moves a patch kept on an older revision to the current one. Settings without a control there are dropped,
+   * so the caller asks first. The patch is reloaded afterwards to show what remains.
+   */
+  const upgrade = useCallback(
+    (id: string) => {
+      flush();
+      return enqueue(async () => {
+        const patch = libraryRef.current?.patches.find((item) => item.id === id);
+        if (!patch) return;
+        await putPatch(id, { name: patch.name, data: patch.data, acceptRevisionLoss: true });
+        await load();
+      });
+    },
+    [enqueue, flush, load, putPatch],
+  );
+
   const reload = useCallback(() => void enqueue(load), [enqueue, load]);
   return useMemo(
-    () => ({ library, meta, status, commit, updateMeta, reload }),
-    [library, meta, status, commit, updateMeta, reload],
+    () => ({ library, meta, status, outdated, commit, updateMeta, upgrade, reload }),
+    [library, meta, status, outdated, commit, updateMeta, upgrade, reload],
   );
 }

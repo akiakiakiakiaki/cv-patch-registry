@@ -48,6 +48,9 @@ import {
 import { LocalPatchRepository } from "@/lib/storage/local-patch-repository";
 import { layoutElementPosition } from "@/lib/instrument/layout-editor";
 import { useI18n } from "@/i18n/provider";
+import { useConfirmDialog } from "@/components/confirm-dialog/ConfirmDialog";
+import { RevisionLossDetails } from "@/components/patch-sheet/RevisionLossDetails";
+import type { OutdatedRevision, RevisionLossDecision, RevisionLossPrompt } from "@/hooks/use-account-patch-library";
 import type { Locale } from "@/i18n/config";
 import { isMessageKey } from "@/i18n/messages";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
@@ -163,7 +166,24 @@ export function PatchSheet() {
     if (repository) setLocalLibrary(repository.load(t("patch.new")));
   }, [repository, t]);
 
-  const account = useAccountPatchLibrary(selectedSlug, accountMode && instrument !== null);
+  const { confirm, choose, dialog: confirmDialog } = useConfirmDialog();
+  const synthName = instrument?.displayName ?? selectedSlug;
+  // A save ran into a synth revision that lacks controls: save (upgrade), restore the saved version, or keep working.
+  const decideRevisionLoss = useCallback(
+    async (prompt: RevisionLossPrompt): Promise<RevisionLossDecision> => {
+      const choice = await choose({
+        tone: "warning",
+        title: t("revisionLoss.title"),
+        content: <RevisionLossDetails prompt={prompt} synthName={synthName} mode="save" />,
+        confirmLabel: t("revisionLoss.confirm"),
+        alternativeLabel: t("revisionLoss.restore"),
+        cancelLabel: t("revisionLoss.cancel"),
+      });
+      return choice === "confirm" ? "upgrade" : choice === "alternative" ? "restore" : "keep";
+    },
+    [choose, synthName, t],
+  );
+  const account = useAccountPatchLibrary(selectedSlug, accountMode && instrument !== null, { onRevisionLoss: decideRevisionLoss });
   const layoutEditor = useInstrumentLayoutEditor(instrument ?? behringerProton, debugActive);
   const debugLayoutMode = debugActive && debugEditing;
 
@@ -171,18 +191,44 @@ export function PatchSheet() {
   const status = accountMode ? accountStatusText(account.status, t) : localStatus;
   const activePatch: PatchRecord | undefined = currentLibrary?.patches.find((patch) => patch.id === currentLibrary.activeId) ?? currentLibrary?.patches[0];
   const panelData = shared?.data ?? activePatch?.data;
-  const panelLayout = debugActive ? layoutEditor.layout : (instrument?.layout ?? null);
   const activeMeta = activePatch && accountMode ? account.meta[activePatch.id] : undefined;
   const ownsActivePatch = Boolean(activePatch && accountMode && !shared);
+  // A patch kept on an older synth revision is shown and edited with that revision's panel and controls.
+  const outdated = ownsActivePatch && activePatch ? account.outdated[activePatch.id] : undefined;
+  const [activeView, setActiveView] = useState<PatchView | null>(null);
+  const outdatedInstrument = useMemo(
+    () => (outdated && activeView && activeView.id === activePatch?.id ? instrumentFromSynth(activeView.synth) : null),
+    [outdated, activeView, activePatch?.id],
+  );
+  const panelInstrument = outdatedInstrument ?? instrument;
+  const panelLayout = debugActive ? layoutEditor.layout : (panelInstrument?.layout ?? null);
 
-  // The sample of the active patch is loaded on demand, since the library only holds the patch data.
+  // Sample and own-revision panel of the active patch are loaded on demand; the library only holds the patch data.
   useEffect(() => {
     setSample(null);
     if (!activePatch || !accountMode || shared) return;
     void fetch(`/api/patches/${encodeURIComponent(activePatch.id)}`, { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
-      .then((body: PatchView | null) => setSample(body?.sample ?? null));
-  }, [activePatch?.id, accountMode, shared]); // eslint-disable-line
+      .then((body: PatchView | null) => {
+        setSample(body?.sample ?? null);
+        setActiveView(body);
+      });
+  }, [activePatch?.id, accountMode, shared, outdated?.revision]); // eslint-disable-line
+
+  const askUpgrade = useCallback(
+    async (patch: PatchRecord, info: OutdatedRevision) => {
+      const toRevision = view?.revision ?? info.revision;
+      const prompt = { patchName: patch.name, fromRevision: info.revision, toRevision, losses: info.losses };
+      const confirmed = await confirm({
+        tone: "warning",
+        title: t("revisionLoss.upgradeTitle", { to: toRevision }),
+        content: <RevisionLossDetails prompt={prompt} synthName={synthName} mode="upgrade" />,
+        confirmLabel: t("revisionLoss.upgradeConfirm"),
+      });
+      if (confirmed) void account.upgrade(patch.id);
+    },
+    [account, confirm, synthName, t, view?.revision],
+  );
 
   const commitLibrary = useCallback(
     (next: PatchLibrary, message = t("status.saved")) => {
@@ -385,11 +431,29 @@ export function PatchSheet() {
           </Stack>
         </Paper>
 
+        {outdated && !editing ? (
+          <Alert
+            severity="warning"
+            square
+            action={
+              <Button color="inherit" size="small" onClick={() => void askUpgrade(patch, outdated)}>
+                {t("revisionLoss.upgradeAction")}
+              </Button>
+            }
+          >
+            {t("revisionLoss.outdated", { from: outdated.revision, synth: synthName, to: view?.revision ?? outdated.revision })}
+          </Alert>
+        ) : null}
+
         {editing && view && isOwner && !isBuiltIn ? (
           <SynthLayoutEditor
             key={`${view.slug}-${view.revision}`}
             source={view}
-            onSaved={() => void loadView(view.slug)}
+            onSaved={() => {
+              void loadView(view.slug);
+              // A new revision can make patches outdated; reload to show which.
+              if (accountMode) account.reload();
+            }}
             onClose={() => setEditing(false)}
             onDeleted={() => {
               setEditing(false);
@@ -402,7 +466,7 @@ export function PatchSheet() {
             <InstrumentPanel
               readOnly={Boolean(shared)}
               data={panelData ?? { knobs: {}, switches: {}, leds: {}, cables: [] }}
-              instrument={instrument}
+              instrument={panelInstrument ?? instrument}
               layout={panelLayout ?? instrument.layout}
               layoutEditMode={debugLayoutMode}
               focusedElement={layoutEditor.focusedElement}
@@ -431,6 +495,7 @@ export function PatchSheet() {
         </Box>
       </Box>
 
+      {confirmDialog}
       {canManageSynths ? (
         <NewSynthDialog
           open={creating}
@@ -452,6 +517,7 @@ function accountStatusText(status: "idle" | "saving" | "saved" | "conflict" | "e
   if (status === "saving") return t("status.saving");
   if (status === "conflict") return t("status.conflictReload");
   if (status === "error") return t("status.saveError");
-  return t("status.saved");
+  // Signed-in users' patches live on the server only; "status.saved" is the browser-storage message for guests.
+  return t("status.savedAccount");
 }
 

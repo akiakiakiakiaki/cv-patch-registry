@@ -30,6 +30,7 @@ export function ImportLocalPatches({ synthSlug }: { synthSlug: string }) {
 
   const [pending, setPending] = useState(false);
   if (!session || !patches?.length) return null;
+  const importablePatches = patches;
 
   async function importAll() {
     if (pendingRef.current) return;
@@ -40,7 +41,7 @@ export function ImportLocalPatches({ synthSlug }: { synthSlug: string }) {
       const response = await fetch("/api/patches/import", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ synthSlug, patches: patches.map(({ id, name, data }) => ({ id, name, data })) }),
+        body: JSON.stringify({ synthSlug, patches: importablePatches.map(({ id, name, data }) => ({ id, name, data })) }),
       });
       if (!response.ok) {
         setStatus(t("patches.importFailed"));

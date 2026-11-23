@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { draftToLayout, parseSynthDraft, parseSynthLayout } from "@/lib/adapters/synth-layout-adapter";
 import type { Database } from "@/lib/db/client";
 import { canEditSynth, type Actor } from "@/lib/domain/policy";
-import { uploadPublicUrl } from "@/lib/storage/upload-files";
+import { storagePublicUrl } from "@/lib/storage";
 import type { InstrumentLayout } from "@/lib/instrument/layout";
 import { findActiveOwnedAsset, findAssetById } from "@/lib/repositories/assets-repository";
 import {
@@ -148,7 +148,7 @@ async function viewOf(db: Database, synth: SynthRow): Promise<SynthView | null> 
   if (revision.panelSource === "asset" && revision.panelAssetId) {
     const asset = await findAssetById(db, revision.panelAssetId);
     if (!asset) return null;
-    panelUrl = uploadPublicUrl(asset.storageKey);
+    panelUrl = storagePublicUrl(asset.storageKey);
   }
   return {
     slug: synth.slug,
