@@ -88,7 +88,7 @@ Everything happens on the start page:
 - Patches are private or public. Public patches are listed in `/explore` and readable without signing in. Only the owner can edit them.
 - Data lives in an embedded Postgres (PGlite) in `.data/pglite`. Uploaded panels and samples live in `public/assets/uploads/`. Both paths are gitignored.
 - Each user has 50 MB of storage, shared by panel images and audio samples, and at most 50 panels. Uploaded panels that no synth uses are removed after 24 hours, at the owner's next panel upload.
-- Audio samples (MP3, up to 30 s, 1.5 MB, counted against the 50 MB) are behind `FEATURE_AUDIO`. Off by default.
+- Audio samples (MP3 or M4A/AAC, up to 30 s, 1.5 MB, counted against the 50 MB) are behind `FEATURE_AUDIO`. Off by default. The file type is detected from the content. A patch's owner can replace its sample; the previous file is removed.
 
 ### Environment
 

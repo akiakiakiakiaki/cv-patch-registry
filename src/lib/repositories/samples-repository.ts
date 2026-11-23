@@ -13,6 +13,12 @@ export async function insertSample(db: Database, row: typeof patchSamples.$infer
   await db.insert(patchSamples).values(row);
 }
 
+/** Points the patch's sample at another asset; the previous asset is left for the caller to remove. */
+export async function replaceSample(db: Database, row: typeof patchSamples.$inferInsert): Promise<void> {
+  const { patchId, ...set } = row;
+  await db.update(patchSamples).set(set).where(eq(patchSamples.patchId, patchId));
+}
+
 /** Bytes the owner has stored across all active assets (panels and samples). */
 export async function storedBytesForOwner(db: Database, ownerId: string): Promise<number> {
   const [row] = await db

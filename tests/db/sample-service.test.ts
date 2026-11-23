@@ -10,6 +10,10 @@ import { LocalFsStorage } from "@/lib/storage/local-fs-storage";
 import { attachSample } from "@/lib/patches/sample-service";
 import { createPatch, getPatchView } from "@/lib/patches/patch-service";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
+import { eq } from "drizzle-orm";
+import { existsSync } from "node:fs";
+import { assets } from "@/lib/db/schema";
+import { M4A, MP4_VIDEO } from "../fixtures/audio";
 
 const PROTON = behringerProton.layout.id;
 const MP3 = new Uint8Array([0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02]);
@@ -21,6 +25,7 @@ let storage: LocalFsStorage;
 let owner: { id: string };
 let stranger: { id: string };
 let patchId: string;
+let uploadRoot: string;
 
 async function setupDatabase() {
   const handle = createDatabase("memory://");
@@ -33,7 +38,8 @@ beforeEach(async () => {
   const setup = await setupDatabase();
   db = setup.db;
   handleClose = async () => setup.close();
-  storage = new LocalFsStorage(mkdtempSync(path.join(tmpdir(), "sample-up-")), mkdtempSync(path.join(tmpdir(), "sample-tmp-")));
+  uploadRoot = mkdtempSync(path.join(tmpdir(), "sample-up-"));
+  storage = new LocalFsStorage(uploadRoot, mkdtempSync(path.join(tmpdir(), "sample-tmp-")));
   owner = { id: randomUUID() };
   stranger = { id: randomUUID() };
   await db.insert(user).values([
@@ -62,6 +68,51 @@ describe("patch samples", () => {
     expect(await attachSample({ db, storage }, owner, patchId, MP3, META)).toEqual({ ok: false, error: "sample-exists" });
   });
 
+  it("stores an M4A sample as audio/mp4 with an .m4a key", async () => {
+    const result = await attachSample({ db, storage }, owner, patchId, M4A, META);
+    expect(result).toMatchObject({ ok: true, sample: { url: expect.stringMatching(/\.m4a$/) } });
+    const [asset] = await db.select().from(assets).where(eq(assets.kind, "sample"));
+    expect(asset).toMatchObject({ mime: "audio/mp4", storageKey: expect.stringMatching(/\.m4a$/) });
+  });
+
+  it("refuses MP4 videos", async () => {
+    expect(await attachSample({ db, storage }, owner, patchId, MP4_VIDEO, META)).toEqual({ ok: false, error: "unsupported-type" });
+  });
+
+  it("replaces the sample on request and removes the old file and asset", async () => {
+    await attachSample({ db, storage }, owner, patchId, MP3, META);
+    const [old] = await db.select().from(assets).where(eq(assets.kind, "sample"));
+    expect(existsSync(path.join(uploadRoot, old!.storageKey))).toBe(true);
+
+    const replaced = await attachSample({ db, storage }, owner, patchId, M4A, { ...META, title: "New take" }, { replace: true });
+    expect(replaced).toMatchObject({ ok: true, sample: { title: "New take", url: expect.stringMatching(/\.m4a$/) } });
+    expect((await getPatchView(db, null, patchId))?.sample).toMatchObject({ title: "New take", url: expect.stringMatching(/\.m4a$/) });
+    const samples = await db.select().from(assets).where(eq(assets.kind, "sample"));
+    expect(samples.map((asset) => asset.id)).not.toContain(old!.id);
+    expect(samples).toHaveLength(1);
+    expect(existsSync(path.join(uploadRoot, old!.storageKey))).toBe(false);
+  });
+
+  it("does not count the replaced file against the quota", async () => {
+    await attachSample({ db, storage }, owner, patchId, MP3, META);
+    await insertAsset(db, {
+      id: randomUUID(),
+      ownerId: owner.id,
+      kind: "panel",
+      mime: "image/png",
+      byteSize: 50 * 1024 * 1024 - MP3.byteLength,
+      sha256: "0".repeat(64),
+      storageKey: `${randomUUID()}.png`,
+      status: "active",
+    });
+    expect(await attachSample({ db, storage }, owner, patchId, MP3, META, { replace: true })).toMatchObject({ ok: true });
+  });
+
+  it("lets only the owner replace a sample", async () => {
+    await attachSample({ db, storage }, owner, patchId, MP3, META);
+    expect(await attachSample({ db, storage }, stranger, patchId, M4A, META, { replace: true })).toEqual({ ok: false, error: "not-found" });
+  });
+
   it("answers not-found for anyone but the owner", async () => {
     expect(await attachSample({ db, storage }, stranger, patchId, MP3, META)).toEqual({ ok: false, error: "not-found" });
   });
@@ -70,7 +121,7 @@ describe("patch samples", () => {
     expect(await attachSample({ db, storage }, owner, patchId, MP3, { ...META, rightsConfirmed: false })).toEqual({ ok: false, error: "invalid" });
   });
 
-  it("refuses files that are not MP3", async () => {
+  it("refuses files that are neither MP3 nor M4A", async () => {
     expect(await attachSample({ db, storage }, owner, patchId, new TextEncoder().encode("RIFF....WAVE"), META)).toEqual({
       ok: false,
       error: "unsupported-type",

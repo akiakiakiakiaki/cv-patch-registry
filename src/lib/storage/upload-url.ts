@@ -1,13 +1,14 @@
 /** Client-safe: no Node imports. Used by components to tell uploaded panels from bundled assets. */
 export const UPLOAD_URL_PREFIX = "/assets/uploads";
 
-const UPLOAD_KEY_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(svg|png|jpg|mp3)$/;
+const UPLOAD_KEY_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(svg|png|jpg|mp3|m4a)$/;
 
 const CONTENT_TYPES: Readonly<Record<string, string>> = {
   svg: "image/svg+xml",
   png: "image/png",
   jpg: "image/jpeg",
   mp3: "audio/mpeg",
+  m4a: "audio/mp4",
 };
 
 export function uploadPublicUrl(key: string): string {

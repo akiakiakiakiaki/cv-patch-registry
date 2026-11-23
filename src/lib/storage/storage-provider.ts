@@ -1,4 +1,4 @@
-export type UploadExtension = "svg" | "png" | "jpg" | "mp3";
+export type UploadExtension = "svg" | "png" | "jpg" | "mp3" | "m4a";
 
 /**
  * Stores uploaded bytes and returns a provider-neutral key. The database keeps only the key.

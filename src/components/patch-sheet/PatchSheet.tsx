@@ -480,7 +480,7 @@ export function PatchSheet() {
             />
             {ownsActivePatch ? (
               <Box sx={{ px: { xs: 2, md: 3 } }}>
-                <SampleSection patchId={patch.id} sample={sample} isOwner />
+                <SampleSection patchId={patch.id} sample={sample} isOwner onChange={setSample} />
               </Box>
             ) : null}
           </>

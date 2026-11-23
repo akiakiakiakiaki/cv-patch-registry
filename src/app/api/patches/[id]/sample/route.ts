@@ -21,7 +21,10 @@ const STATUS: Record<SampleFailure["error"], number> = {
   quota: 422,
 };
 
-/** Raw MP3 body. Title, license and the rights confirmation travel in the query string. */
+/**
+ * Raw MP3 or M4A body. Title, license and the rights confirmation travel in the query string;
+ * `replace=true` swaps an existing sample.
+ */
 export async function POST(request: Request, { params }: RouteContext) {
   const originFailure = rejectCrossOriginMutation(request);
   if (originFailure) return originFailure;
@@ -44,6 +47,7 @@ export async function POST(request: Request, { params }: RouteContext) {
       license: query.get("license") ?? "",
       rightsConfirmed: query.get("rights") === "true",
     },
+    { replace: query.get("replace") === "true" },
   );
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: STATUS[result.error] });
   return NextResponse.json(result, { status: 201 });

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -12,10 +11,23 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { useI18n } from "@/i18n/provider";
+import type { MessageKey } from "@/i18n/messages";
 
 const MAX_SECONDS = 30;
 
-/** Browser-side duration check. The server checks size and format, not duration (known gap). */
+/** Error codes of POST /api/patches/:id/sample, mapped to their messages. */
+const UPLOAD_ERRORS: Readonly<Record<string, MessageKey>> = {
+  disabled: "sample.disabled",
+  "not-found": "sample.notFound",
+  unauthorized: "sample.unauthorized",
+  "sample-exists": "sample.exists",
+  invalid: "sample.invalidMeta",
+  "unsupported-type": "sample.unsupportedType",
+  "too-large": "sample.tooLarge",
+  quota: "sample.quota",
+};
+
+/** Reads the duration in the browser before uploading. */
 async function durationOf(file: File): Promise<number> {
   const url = URL.createObjectURL(file);
   try {
@@ -38,10 +50,24 @@ export interface SampleInfo {
   license: string;
 }
 
-export function SampleSection({ patchId, sample, isOwner }: { patchId: string; sample: SampleInfo | null; isOwner: boolean }) {
+/**
+ * Plays a patch's sample. The owner can upload one, or replace the existing one (rights are confirmed again).
+ * `onChange` receives the stored sample so the caller can show it without reloading.
+ */
+export function SampleSection({
+  patchId,
+  sample,
+  isOwner,
+  onChange,
+}: {
+  patchId: string;
+  sample: SampleInfo | null;
+  isOwner: boolean;
+  onChange?: (sample: SampleInfo) => void;
+}) {
   const { t } = useI18n();
-  const router = useRouter();
   const enabled = process.env.NEXT_PUBLIC_FEATURE_AUDIO === "true";
+  const [replacing, setReplacing] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [license, setLicense] = useState("");
@@ -50,6 +76,17 @@ export function SampleSection({ patchId, sample, isOwner }: { patchId: string; s
   const [message, setMessage] = useState<{ severity: "success" | "error"; text: string } | null>(null);
 
   if (!enabled) return null;
+
+  const replace = sample !== null;
+
+  function startReplacing(current: SampleInfo) {
+    setTitle(current.title);
+    setLicense(current.license);
+    setRights(false);
+    setFile(null);
+    setMessage(null);
+    setReplacing(true);
+  }
 
   async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -61,23 +98,31 @@ export function SampleSection({ patchId, sample, isOwner }: { patchId: string; s
       setMessage({ severity: "error", text: t("sample.tooLong") });
       return;
     }
-    const query = new URLSearchParams({ title, license, rights: String(rights) });
-    const response = await fetch(`/api/patches/${encodeURIComponent(patchId)}/sample?${query.toString()}`, {
-      method: "POST",
-      body: file,
-    });
-    setBusy(false);
-    if (response.ok) {
-      setMessage({ severity: "success", text: t("sample.uploaded") });
-      router.refresh();
+    const query = new URLSearchParams({ title, license, rights: String(rights), ...(replace ? { replace: "true" } : {}) });
+    let response: Response;
+    try {
+      response = await fetch(`/api/patches/${encodeURIComponent(patchId)}/sample?${query.toString()}`, {
+        method: "POST",
+        body: file,
+      });
+    } catch {
+      setBusy(false);
+      setMessage({ severity: "error", text: t("sample.failed") });
       return;
     }
-    const errors: Record<number, string> = {
-      409: t("sample.exists"),
-      413: t("sample.tooLarge"),
-      422: t("sample.invalid"),
-    };
-    setMessage({ severity: "error", text: errors[response.status] ?? t("sample.invalid") });
+    setBusy(false);
+    if (response.ok) {
+      const stored = (await response.json().catch(() => ({}))) as { sample?: SampleInfo };
+      setMessage({ severity: "success", text: t(replace ? "sample.replaced" : "sample.uploaded") });
+      setReplacing(false);
+      setFile(null);
+      setRights(false);
+      if (stored.sample) onChange?.(stored.sample);
+      return;
+    }
+    const body = (await response.json().catch(() => ({}))) as { error?: unknown };
+    const key = typeof body.error === "string" ? UPLOAD_ERRORS[body.error] : undefined;
+    setMessage({ severity: "error", text: t(key ?? "sample.failed") });
   }
 
   return (
@@ -85,21 +130,26 @@ export function SampleSection({ patchId, sample, isOwner }: { patchId: string; s
       <Typography id="sample-heading" variant="subtitle1" component="h2">{t("sample.title")}</Typography>
       {sample ? (
         <Box>
-          <audio controls preload="none" src={sample.url} aria-label={sample.title} style={{ width: "100%", maxWidth: 480 }} />
+          <audio key={sample.url} controls preload="none" src={sample.url} aria-label={sample.title} style={{ width: "100%", maxWidth: 480 }} />
           <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
             {sample.title} · {t("sample.license")}: {sample.license}
           </Typography>
+          {isOwner && !replacing ? (
+            <Button size="small" sx={{ mt: 1 }} onClick={() => startReplacing(sample)}>
+              {t("sample.replace")}
+            </Button>
+          ) : null}
         </Box>
       ) : (
         <Typography variant="body2" color="text.secondary">{t("sample.none")}</Typography>
       )}
 
-      {isOwner && !sample ? (
+      {isOwner && (!sample || replacing) ? (
         <Box component="form" onSubmit={upload} noValidate sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, maxWidth: 720 }}>
           <TextField
             type="file"
             label={t("sample.file")}
-            slotProps={{ inputLabel: { shrink: true }, htmlInput: { accept: "audio/mpeg,.mp3" } }}
+            slotProps={{ inputLabel: { shrink: true }, htmlInput: { accept: "audio/mpeg,.mp3,audio/mp4,audio/x-m4a,.m4a" } }}
             onChange={(event: ChangeEvent<HTMLInputElement>) => setFile(event.target.files?.[0] ?? null)}
             required
           />
@@ -109,11 +159,16 @@ export function SampleSection({ patchId, sample, isOwner }: { patchId: string; s
             control={<Checkbox checked={rights} onChange={(event) => setRights(event.target.checked)} />}
             label={t("sample.rights")}
           />
-          <Box>
+          <Stack direction="row" spacing={1}>
             <Button type="submit" variant="outlined" disabled={busy || !file || !rights || !title || !license}>
-              {busy ? t("sample.uploading") : t("sample.submit")}
+              {busy ? t("sample.uploading") : t(replace ? "sample.replaceSubmit" : "sample.submit")}
             </Button>
-          </Box>
+            {replacing ? (
+              <Button onClick={() => setReplacing(false)} disabled={busy}>
+                {t("confirm.cancel")}
+              </Button>
+            ) : null}
+          </Stack>
         </Box>
       ) : null}
 

@@ -7,12 +7,13 @@ const uploadsDirectory = path.resolve(scriptDirectory, "../public/assets/uploads
 const projectUrl = process.env.SUPABASE_URL?.trim().replace(/\/+$/, "");
 const bucket = process.env.SUPABASE_STORAGE_BUCKET?.trim();
 const secret = process.env.SUPABASE_SECRET_KEY?.trim() || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-const uploadKeyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(svg|png|jpg|mp3)$/;
+const uploadKeyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(svg|png|jpg|mp3|m4a)$/;
 const contentTypes = {
   svg: "image/svg+xml",
   png: "image/png",
   jpg: "image/jpeg",
   mp3: "audio/mpeg",
+  m4a: "audio/mp4",
 };
 
 if (!projectUrl || !bucket || !secret) {

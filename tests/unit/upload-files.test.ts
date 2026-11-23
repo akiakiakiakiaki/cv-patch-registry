@@ -15,6 +15,8 @@ describe("upload file rules", () => {
     expect(isValidUploadKey(`${KEY}.png`)).toBe(true);
     expect(isValidUploadKey(`${KEY}.jpg`)).toBe(true);
     expect(isValidUploadKey(`${KEY}.mp3`)).toBe(true);
+    expect(isValidUploadKey(`${KEY}.m4a`)).toBe(true);
+    expect(isValidUploadKey(`${KEY}.mp4`)).toBe(false);
   });
 
   it("rejects traversal, foreign names and unknown extensions", () => {
@@ -27,6 +29,7 @@ describe("upload file rules", () => {
   it("maps extensions to content types", () => {
     expect(contentTypeForKey(`${KEY}.svg`)).toBe("image/svg+xml");
     expect(contentTypeForKey(`${KEY}.mp3`)).toBe("audio/mpeg");
+    expect(contentTypeForKey(`${KEY}.m4a`)).toBe("audio/mp4");
   });
 
   it("derives the public URL from the storage key only", () => {
