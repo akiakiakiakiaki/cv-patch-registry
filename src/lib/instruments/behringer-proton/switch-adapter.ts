@@ -28,9 +28,9 @@ export const protonSwitchAdapter: InstrumentSwitchAdapter = {
   },
   toggle(switches: PatchData['switches'], id: string) {
     if (id === SHIFT_ID) {
-      return { id: SHIFT_CHANNEL_KEY, value: selectedChannel(switches) !== 'blue' };
+      return { [SHIFT_CHANNEL_KEY]: selectedChannel(switches) !== 'blue' };
     }
     const state = this.getState(switches, id);
-    return { id: state.stateKey, value: !state.active };
+    return { [state.stateKey]: !state.active };
   }
 };

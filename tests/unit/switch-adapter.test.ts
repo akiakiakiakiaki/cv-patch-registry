@@ -8,23 +8,17 @@ describe("Proton switch adapter", () => {
       color: "red",
       stateKey: "Shift::blue",
     });
-    expect(protonSwitchAdapter.toggle({}, "Shift")).toEqual({
-      id: "Shift::blue",
-      value: true,
-    });
+    expect(protonSwitchAdapter.toggle({}, "Shift")).toEqual({ "Shift::blue": true });
     expect(protonSwitchAdapter.getState({ "Shift::blue": true }, "Shift")).toMatchObject({
       active: true,
       color: "blue",
     });
-    expect(protonSwitchAdapter.toggle({ "Shift::blue": true }, "Shift")).toEqual({
-      id: "Shift::blue",
-      value: false,
-    });
+    expect(protonSwitchAdapter.toggle({ "Shift::blue": true }, "Shift")).toEqual({ "Shift::blue": false });
   });
 
   it("maintains independent red and blue values for dual-channel switches", () => {
     const redUpdate = protonSwitchAdapter.toggle({}, "1 shot");
-    expect(redUpdate).toEqual({ id: "1 shot", value: true });
+    expect(redUpdate).toEqual({ "1 shot": true });
 
     const blueSwitches = { "Shift::blue": true, "1 shot": true };
     expect(protonSwitchAdapter.getState(blueSwitches, "1 shot")).toMatchObject({
@@ -32,10 +26,7 @@ describe("Proton switch adapter", () => {
       color: "blue",
       stateKey: "1 shot::blue",
     });
-    expect(protonSwitchAdapter.toggle(blueSwitches, "1 shot")).toEqual({
-      id: "1 shot::blue",
-      value: true,
-    });
+    expect(protonSwitchAdapter.toggle(blueSwitches, "1 shot")).toEqual({ "1 shot::blue": true });
   });
 
   it("uses blue styling and a shared state for ordinary switches", () => {

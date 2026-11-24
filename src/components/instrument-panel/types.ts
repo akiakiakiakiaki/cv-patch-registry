@@ -29,7 +29,8 @@ export interface InstrumentPanelProps {
   /** Ghost shape shown while placing a new control from the editor palette. */
   placementPreview?: { kind: ControlKind; point: Point } | null;
   onKnobChange: (id: string, value: number) => void;
-  onSwitchChange: (id: string, value: boolean) => void;
+  /** All switch states one click changes. */
+  onSwitchChange: (updates: Readonly<Record<string, boolean>>) => void;
   onLedChange: (id: string, value: boolean) => void;
   onCableChange: (cables: PatchCable[]) => void;
 }

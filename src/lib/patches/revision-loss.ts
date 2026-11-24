@@ -1,7 +1,8 @@
 import { normalizeSubmittedData } from "@/lib/adapters/patch-document-adapter";
 import type { InstrumentLayout } from "@/lib/instrument/layout";
+import { categoryStateKey, switchStateKeys } from "@/lib/domain/switch-categories";
 
-type LayoutControls = Pick<InstrumentLayout, "knobs" | "switches" | "leds" | "ports">;
+type LayoutControls = Pick<InstrumentLayout, "knobs" | "switches" | "leds" | "ports" | "categories">;
 
 /** A setting of a patch that the newer synth revision has no control for. Labels come from the older revision. */
 export type RevisionLoss =
@@ -22,8 +23,12 @@ export function findRevisionLosses(data: unknown, from: LayoutControls, to: Layo
   for (const [id, value] of Object.entries(previous.knobs)) {
     if (!has(to.knobs, id)) losses.push({ kind: "knob", id, label: labelOf(from.knobs, id), value });
   }
-  for (const [id, value] of Object.entries(previous.switches)) {
-    if (!has(to.switches, id)) losses.push({ kind: "switch", id, label: labelOf(from.switches, id), value });
+  // Selectors and dependents store `<id>::<categoryId>`; such a state is lost when the newer layout
+  // drops the switch, its role, or that category from the selector.
+  const keptSwitchKeys = switchStateKeys(to.switches);
+  for (const [key, value] of Object.entries(previous.switches)) {
+    if (keptSwitchKeys.has(key)) continue;
+    losses.push({ kind: "switch", id: key, label: switchLabel(from, key, labelOf), value });
   }
   for (const [id, value] of Object.entries(previous.leds)) {
     if (!has(to.leds, id)) losses.push({ kind: "led", id, label: labelOf(from.leds, id), value });
@@ -33,4 +38,19 @@ export function findRevisionLosses(data: unknown, from: LayoutControls, to: Layo
     losses.push({ kind: "cable", id: `${cable.from}:${cable.to}`, label: `${labelOf(from.ports, cable.from)} → ${labelOf(from.ports, cable.to)}` });
   }
   return losses;
+}
+
+/** "Loop" for a plain switch, "Loop (Shift)" for the state a switch keeps in category "Shift". */
+function switchLabel(
+  layout: LayoutControls,
+  key: string,
+  labelOf: (items: readonly { id: string; label?: string }[], id: string) => string,
+): string {
+  for (const control of layout.switches) {
+    if (control.id === key) return labelOf(layout.switches, key);
+    for (const category of layout.categories ?? []) {
+      if (categoryStateKey(control.id, category.id) === key) return `${labelOf(layout.switches, control.id)} (${category.name})`;
+    }
+  }
+  return key;
 }

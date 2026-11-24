@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { LAYOUT_SCHEMA_MINOR, encodeInstrumentLayout } from "@/lib/adapters/instrument-layout-adapter";
 import type { ControlKind } from "@/lib/domain/control-ids";
-import type { InstrumentLayout, PatchPort } from "@/lib/instrument/layout";
+import type { ControlCategory, InstrumentLayout, KnobDefinition, PatchPort, SwitchDefinition } from "@/lib/instrument/layout";
+import { CATEGORY_COLOR_PATTERN, CATEGORY_ID_PATTERN, categoryIssues, usesCategories } from "@/lib/domain/switch-categories";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
 
 /** Geometry and knob angles are shared defaults for user-built synths (same hardware language as Proton). */
@@ -11,6 +12,21 @@ export const CONTROL_KINDS = ["knob", "switch", "led", "in", "out", "uni"] as co
 export const CONTROL_ID_PATTERN = /^(knob|switch|led|in|out|uni)-[a-f0-9]{8}$/;
 export const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 
+const MAX_CATEGORIES = 32;
+
+const categorySchema = z.object({
+  id: z.string().regex(CATEGORY_ID_PATTERN),
+  name: z.string().trim().min(1).max(40),
+  color: z.string().regex(CATEGORY_COLOR_PATTERN),
+});
+
+/** Category references and switch roles shared by the editor draft and the stored layout. */
+const categoryFields = {
+  category: z.string().regex(CATEGORY_ID_PATTERN).optional(),
+  selects: z.array(z.string().regex(CATEGORY_ID_PATTERN)).max(MAX_CATEGORIES).optional(),
+  dependsOn: z.string().min(1).optional(),
+};
+
 const controlSchema = z.object({
   id: z.string().regex(CONTROL_ID_PATTERN),
   kind: z.enum(CONTROL_KINDS),
@@ -18,6 +34,7 @@ const controlSchema = z.object({
   x: z.number().finite(),
   y: z.number().finite(),
   color: z.enum(["red", "blue", "amber"]).optional(),
+  ...categoryFields,
 });
 
 /** Input from the editor. Validated here, mapped to a layout document in one place. */
@@ -27,6 +44,7 @@ export const synthDraftSchema = z.object({
   manufacturer: z.string().trim().max(80).optional(),
   panelAssetId: z.string().min(1).optional(),
   expectedRevision: z.number().int().min(0).optional(),
+  categories: z.array(categorySchema).max(MAX_CATEGORIES).optional(),
   controls: z.array(controlSchema).max(200),
 });
 
@@ -64,7 +82,15 @@ export function draftToLayout(
   if (outside) return { ok: false, issues: [`controls.${outside.id}.position`] };
 
   const at = (control: DraftControl) => ({ id: control.id, label: control.label, x: control.x, y: control.y });
+  const knobOf = (control: DraftControl): KnobDefinition => ({ ...at(control), ...(control.category ? { category: control.category } : {}) });
+  const switchOf = (control: DraftControl): SwitchDefinition => ({
+    ...at(control),
+    ...(control.category ? { category: control.category } : {}),
+    ...(control.selects ? { selects: control.selects } : {}),
+    ...(control.dependsOn ? { dependsOn: control.dependsOn } : {}),
+  });
   const controls = draft.controls;
+  const categories: ControlCategory[] = draft.categories ?? [];
   const ports: PatchPort[] = controls
     .filter((control) => control.kind === "in" || control.kind === "out" || control.kind === "uni")
     .map((control) => ({ ...at(control), kind: control.kind as "in" | "out" | "uni", label: control.label }));
@@ -78,13 +104,16 @@ export function draftToLayout(
     geometry: DEFAULTS.geometry,
     knobStartAngle: DEFAULTS.knobStartAngle,
     knobSweepAngle: DEFAULTS.knobSweepAngle,
-    knobs: controls.filter((control) => control.kind === "knob").map(at),
-    switches: controls.filter((control) => control.kind === "switch").map(at),
+    ...(categories.length ? { categories } : {}),
+    knobs: controls.filter((control) => control.kind === "knob").map(knobOf),
+    switches: controls.filter((control) => control.kind === "switch").map(switchOf),
     leds: controls
       .filter((control) => control.kind === "led")
       .map((control) => ({ ...at(control), color: control.color ?? "red" })),
     ports,
   };
+  const issues = categoryIssues(layout);
+  if (issues.length > 0) return { ok: false, issues: issues.map((issue) => `categories.${issue.code}`) };
   return { ok: true, layout: encodeInstrumentLayout(layout) };
 }
 
@@ -109,8 +138,9 @@ const layoutDocumentSchema = z.object({
   }),
   knobStartAngle: z.number(),
   knobSweepAngle: z.number(),
-  knobs: z.array(pointSchema),
-  switches: z.array(pointSchema),
+  categories: z.array(categorySchema).max(MAX_CATEGORIES).optional(),
+  knobs: z.array(pointSchema.extend({ category: categoryFields.category })),
+  switches: z.array(pointSchema.extend(categoryFields)),
   leds: z.array(pointSchema.extend({ color: z.enum(["red", "blue", "amber"]) })),
   ports: z.array(portSchema),
 });
@@ -130,7 +160,10 @@ export function parseSynthLayout(value: unknown): InstrumentLayout | null {
   if (points.some((point) => point.x < 0 || point.y < 0 || point.x > width || point.y > height)) return null;
   const hasUni = layout.ports.some((port) => port.kind === "uni");
   if (hasUni && (layout.schemaMinor ?? 0) < 1) return null;
-  return layout as unknown as InstrumentLayout;
+  const typed = layout as unknown as InstrumentLayout;
+  if (usesCategories(typed) && (layout.schemaMinor ?? 0) < 2) return null;
+  if (categoryIssues(typed).length > 0) return null;
+  return typed;
 }
 
 export function controlKindOf(id: string): ControlKind | null {

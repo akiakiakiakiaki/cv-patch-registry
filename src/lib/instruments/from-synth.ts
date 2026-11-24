@@ -1,4 +1,4 @@
-import { genericSwitchAdapter } from "@/lib/instruments/generic-switch-adapter";
+import { createLayoutSwitchAdapter } from "@/lib/instruments/generic-switch-adapter";
 import type { InstrumentLayout } from "@/lib/instrument/layout";
 import type { InstrumentDefinition } from "@/lib/instruments/types";
 
@@ -10,6 +10,6 @@ export function instrumentFromSynth(synth: { slug: string; displayName: string; 
     imageSrc: synth.panelUrl,
     layoutFile: "",
     layout: synth.layout,
-    switchAdapter: genericSwitchAdapter,
+    switchAdapter: createLayoutSwitchAdapter(synth.layout),
   };
 }

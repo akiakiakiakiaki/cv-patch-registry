@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
 import { InstrumentArtwork } from "@/components/instrument-artwork/InstrumentArtwork";
 import { useI18n } from "@/i18n/provider";
+import { categoryStyleSheet } from "@/components/instrument-panel/category-styles";
 import type { FocusedLayoutElement, Point } from "@/lib/instrument/layout";
 import { layoutElementPosition } from "@/lib/instrument/layout-editor";
 import { normalizePixelPosition } from "@/lib/instrument/pixel-position";
@@ -43,6 +44,8 @@ export function InstrumentPanel({
   onCableChange,
 }: InstrumentPanelProps) {
   const { t } = useI18n();
+  const categoryScope = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const categoryCss = categoryStyleSheet(categoryScope, layout.categories);
   const layoutDrag = useRef<LayoutDrag | null>(null);
   // Read-only panels ignore every change, even if a gesture slips through the inert attribute.
   const guard = <Args extends unknown[]>(handler: (...args: Args) => void) =>
@@ -151,6 +154,7 @@ export function InstrumentPanel({
         <svg
           ref={interactions.svgRef}
           className={styles.boardOverlay}
+          data-category-scope={categoryScope}
           viewBox={`0 0 ${layout.viewBox.width} ${layout.viewBox.height}`}
           preserveAspectRatio="none"
           aria-label={t("instrument.controlsAria")}
@@ -168,6 +172,7 @@ export function InstrumentPanel({
             interactions.finishCableDrag(event);
           }}
         >
+          {categoryCss ? <style>{categoryCss}</style> : null}
           <PatchCableLayer
             data={data}
             layout={layout}

@@ -73,6 +73,16 @@ export function updateSwitch(
   value: boolean,
   now = new Date(),
 ): PatchLibrary {
+  return updateSwitches(library, patchId, { [switchId]: value }, now);
+}
+
+/** Applies all switch states one click changes, in a single library update. */
+export function updateSwitches(
+  library: PatchLibrary,
+  patchId: string,
+  updates: Readonly<Record<string, boolean>>,
+  now = new Date(),
+): PatchLibrary {
   const patch = library.patches.find((item) => item.id === patchId);
   if (!patch) return library;
   return updatePatch(
@@ -81,7 +91,7 @@ export function updateSwitch(
     {
       data: {
         ...patch.data,
-        switches: { ...patch.data.switches, [switchId]: value },
+        switches: { ...patch.data.switches, ...updates },
       },
     },
     now,

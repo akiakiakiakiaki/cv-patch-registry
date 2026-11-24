@@ -9,6 +9,7 @@ import { storePanelUpload } from "@/lib/assets/asset-service";
 import { LocalFsStorage } from "@/lib/storage/local-fs-storage";
 import { createSynth, createSynthRevision } from "@/lib/synths/synth-service";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
+import { categoryStateKey } from "@/lib/domain/switch-categories";
 import {
   createPatch,
   deletePatch,
@@ -312,3 +313,60 @@ describe("local import", () => {
     env.cleanup();
   });
 });
+
+describe("patches on a synth with switch categories", () => {
+  it("stores and reads per-category switch states through the services", async () => {
+    const env = await setup();
+    const stored = await storePanelUpload({ db: env.db, storage: env.storage }, env.owner, PNG);
+    if (!stored.ok) throw new Error("upload failed");
+    const normal = "cat-0000000a";
+    const shift = "cat-0000000b";
+    const created = await createSynth(env.db, env.owner, {
+      displayName: "Shifty",
+      slug: "shifty-synth",
+      panelAssetId: stored.panel.id,
+      categories: [
+        { id: normal, name: "Normal", color: "#e53935" },
+        { id: shift, name: "Shift", color: "#1e88e5" },
+      ],
+      controls: [
+        { id: "switch-00000001", kind: "switch", label: "Shift", x: 100, y: 100, selects: [normal, shift] },
+        { id: "switch-00000002", kind: "switch", label: "Loop", x: 200, y: 100, dependsOn: "switch-00000001" },
+      ],
+    });
+    expect(created.ok).toBe(true);
+
+    const switches = {
+      [categoryStateKey("switch-00000001", shift)]: true,
+      [categoryStateKey("switch-00000002", shift)]: true,
+      [categoryStateKey("switch-00000002", normal)]: false,
+      "switch-00000002": true,
+    };
+    const patch = await createPatch(env.db, env.owner, { synthSlug: "shifty-synth", name: "Shifted", data: { switches } });
+    if (!patch.ok) throw new Error("patch failed");
+    const view = await getPatchView(env.db, env.owner, patch.id);
+    expect(view?.synth.layout.categories).toHaveLength(2);
+    expect(view?.data.switches).toEqual({
+      [categoryStateKey("switch-00000001", shift)]: true,
+      [categoryStateKey("switch-00000002", shift)]: true,
+      [categoryStateKey("switch-00000002", normal)]: false,
+    });
+    env.cleanup();
+  });
+
+  it("rejects a synth whose switch roles are inconsistent", async () => {
+    const env = await setup();
+    const stored = await storePanelUpload({ db: env.db, storage: env.storage }, env.owner, PNG);
+    if (!stored.ok) throw new Error("upload failed");
+    const result = await createSynth(env.db, env.owner, {
+      displayName: "Broken",
+      slug: "broken-synth",
+      panelAssetId: stored.panel.id,
+      categories: [{ id: "cat-0000000a", name: "Only", color: "#e53935" }],
+      controls: [{ id: "switch-00000001", kind: "switch", label: "Shift", x: 100, y: 100, selects: ["cat-0000000a"] }],
+    });
+    expect(result).toMatchObject({ ok: false, error: "invalid" });
+    env.cleanup();
+  });
+});
+

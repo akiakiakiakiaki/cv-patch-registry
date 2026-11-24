@@ -17,7 +17,7 @@ import { useI18n } from "@/i18n/provider";
 import type { ControlKind } from "@/lib/domain/control-ids";
 import type { PatchData } from "@/lib/domain/types";
 import type { FocusedLayoutElement } from "@/lib/instrument/layout";
-import { genericSwitchAdapter } from "@/lib/instruments/generic-switch-adapter";
+import { createLayoutSwitchAdapter } from "@/lib/instruments/generic-switch-adapter";
 import type { InstrumentDefinition } from "@/lib/instruments/types";
 import { panelRejectionMessage, uploadPanelFile } from "@/components/synth-editor/upload-panel";
 
@@ -112,7 +112,7 @@ export function SynthLayoutEditor({
     imageSrc: draft.panel.url,
     layoutFile: "",
     layout: draft.layout,
-    switchAdapter: genericSwitchAdapter,
+    switchAdapter: createLayoutSwitchAdapter(draft.layout),
   };
   const focusedControl = draft.focused ? draft.controls.find((control) => control.id === draft.focused?.id) : undefined;
 

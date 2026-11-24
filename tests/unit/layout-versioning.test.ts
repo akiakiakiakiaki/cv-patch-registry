@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import protonLayoutJson from "@/lib/instrument/behringer-proton/behringer-proton-layout.json";
-import { decodeInstrumentLayout, encodeInstrumentLayout } from "@/lib/adapters/instrument-layout-adapter";
+import { LAYOUT_SCHEMA_MINOR, decodeInstrumentLayout, encodeInstrumentLayout } from "@/lib/adapters/instrument-layout-adapter";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
 import { readSchemaMinor } from "@/lib/domain/schema-version";
 import type { InstrumentLayout } from "@/lib/instrument/layout";
@@ -55,7 +55,7 @@ describe("layout decoder versioning", () => {
   });
 
   it("rejects a document with a newer schemaMinor than supported", () => {
-    const document = { ...protonLayoutJson, schemaMinor: 2 };
+    const document = { ...protonLayoutJson, schemaMinor: LAYOUT_SCHEMA_MINOR + 1 };
     expect(decodeInstrumentLayout(document, reference)).toBeNull();
   });
 

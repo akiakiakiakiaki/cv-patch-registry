@@ -4,6 +4,7 @@ import { SLUG_PATTERN } from "@/lib/adapters/synth-layout-adapter";
 import { readSchemaMinor } from "@/lib/domain/schema-version";
 import type { PatchData } from "@/lib/domain/types";
 import type { InstrumentLayout } from "@/lib/instrument/layout";
+import { restrictSwitchStates } from "@/lib/domain/switch-categories";
 
 /** Patch documents: version 1, minor 1 when a cable uses a uni port. Same rule as the library exports. */
 export const PATCH_DOCUMENT_SCHEMA_VERSION = 1;
@@ -17,7 +18,8 @@ export function restrictToLayout(data: PatchData, layout: LayoutControls): Patch
     Object.fromEntries(Object.entries(values).filter(([id]) => ids.includes(id)));
   return {
     knobs: pick(data.knobs, layout.knobs.map((knob) => knob.id)) as Record<string, number>,
-    switches: pick(data.switches, layout.switches.map((item) => item.id)) as Record<string, boolean>,
+    // Selectors and dependent switches store one state per category (`<id>::<categoryId>`).
+    switches: restrictSwitchStates(data.switches, layout.switches),
     leds: pick(data.leds, layout.leds.map((led) => led.id)) as Record<string, boolean>,
     cables: data.cables,
   };

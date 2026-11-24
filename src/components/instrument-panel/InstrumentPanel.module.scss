@@ -47,7 +47,7 @@
 }
 
 .knobTick {
-  stroke: var(--color-knob-tick);
+  stroke: var(--category-color, var(--color-knob-tick));
   stroke-linecap: round;
   pointer-events: none;
   filter: drop-shadow(0 0 1px var(--color-white));
@@ -79,6 +79,18 @@
 .toggleBlue.active {
   fill: var(--color-led-blue);
   stroke: var(--color-led-blue-stroke);
+  stroke-width: var(--active-control-stroke-width);
+}
+
+/* Color from the switch's category (see category-styles.ts). */
+.toggleCategory {
+  fill: color-mix(in srgb, var(--category-color) 14%, transparent);
+  stroke: var(--category-color);
+}
+
+.toggleCategory.active {
+  fill: var(--category-color);
+  stroke: color-mix(in srgb, var(--category-color) 70%, black);
   stroke-width: var(--active-control-stroke-width);
 }
 

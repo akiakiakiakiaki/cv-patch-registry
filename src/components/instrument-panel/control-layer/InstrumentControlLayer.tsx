@@ -11,6 +11,7 @@ import type {
 import type { ControlKind } from "@/lib/domain/control-ids";
 import type { InstrumentDefinition } from "@/lib/instruments/types";
 import { InstrumentHitArea } from "@/components/instrument-hit-area/InstrumentHitArea";
+import { categoryClass } from "@/components/instrument-panel/category-styles";
 import styles from "../InstrumentPanel.module.scss";
 import type { useInstrumentPanelInteractions } from "../useInstrumentPanelInteractions";
 import { handleKeyboardToggle } from "../utils";
@@ -32,7 +33,8 @@ interface InstrumentControlLayerProps {
   onFocusLayoutElement: (target: FocusedLayoutElement) => void;
   onBeginLayoutDrag: (target: FocusedLayoutElement, event: PointerEvent<SVGElement>) => void;
   onKnobChange: (id: string, value: number) => void;
-  onSwitchChange: (id: string, value: boolean) => void;
+  /** All switch states one click changes. */
+  onSwitchChange: (updates: Readonly<Record<string, boolean>>) => void;
   onLedChange: (id: string, value: boolean) => void;
 }
 
@@ -141,7 +143,7 @@ export function InstrumentControlLayer({
               onKeyDown={(event) => updateKnobFromKey(event, knob.id, value)}
             />
             <line
-              className={styles.knobTick}
+              className={`${styles.knobTick} ${categoryClass(knob.category)}`.trim()}
               x1={knob.x}
               y1={knob.y}
               x2={
@@ -164,11 +166,7 @@ export function InstrumentControlLayer({
           control.id,
         );
         const toggle = () => {
-          const update = instrument.switchAdapter.toggle(
-            data.switches,
-            control.id,
-          );
-          onSwitchChange(update.id, update.value);
+          onSwitchChange(instrument.switchAdapter.toggle(data.switches, control.id));
         };
         return (
           <InstrumentHitArea
@@ -179,7 +177,7 @@ export function InstrumentControlLayer({
             width={layout.geometry.switch.width}
             height={layout.geometry.switch.height}
             cornerRadius={layout.geometry.switch.cornerRadius}
-            className={`${styles.toggleHit} ${state.color === "red" ? styles.toggleRed : styles.toggleBlue}${state.active && !layoutEditMode ? ` ${styles.active}` : ""}${layoutEditMode && focusedElement?.kind === "switch" && focusedElement.id === control.id ? ` ${styles.layoutEditFocus}` : ""}`}
+            className={`${styles.toggleHit} ${state.categoryId ? `${styles.toggleCategory} ${categoryClass(state.categoryId)}` : state.color === "red" ? styles.toggleRed : styles.toggleBlue}${state.active && !layoutEditMode ? ` ${styles.active}` : ""}${layoutEditMode && focusedElement?.kind === "switch" && focusedElement.id === control.id ? ` ${styles.layoutEditFocus}` : ""}`}
             tabIndex={0}
             role="button"
             ariaLabel={control.id}

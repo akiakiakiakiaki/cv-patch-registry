@@ -2,9 +2,10 @@ import type { PortKind } from "@/lib/domain/port-rules";
 import { readSchemaMinor } from "@/lib/domain/schema-version";
 import type { InstrumentLayout, PatchPort, Point } from "@/lib/instrument/layout";
 import { normalizePixelPosition } from "@/lib/instrument/pixel-position";
+import { usesCategories } from "@/lib/domain/switch-categories";
 
-/** Highest layout minor this app can read. Minor 1 adds the `uni` port kind. */
-export const LAYOUT_SCHEMA_MINOR = 1;
+/** Highest layout minor this app can read. Minor 1 adds the `uni` port kind, minor 2 color categories and switch roles. */
+export const LAYOUT_SCHEMA_MINOR = 2;
 
 const PORT_KINDS: readonly PortKind[] = ["in", "out", "uni"];
 
@@ -117,12 +118,13 @@ export function decodeInstrumentLayout(
 }
 
 /**
- * Writer: the lowest schemaMinor the content needs. A layout without uni ports is written
+ * Writer: the lowest schemaMinor the content needs. A layout without uni ports or categories is written
  * without schemaMinor, so it stays byte-identical to legacy 1.0 documents.
  */
 export function encodeInstrumentLayout(layout: InstrumentLayout): InstrumentLayout {
   const document: InstrumentLayout = { ...layout };
   delete document.schemaMinor;
-  const minor = layout.ports.some((port) => port.kind === "uni") ? 1 : 0;
+  if (!document.categories?.length) delete document.categories;
+  const minor = usesCategories(layout) ? 2 : layout.ports.some((port) => port.kind === "uni") ? 1 : 0;
   return minor > 0 ? { ...document, schemaMinor: minor } : document;
 }

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { draftToLayout } from "@/lib/adapters/synth-layout-adapter";
-import type { FocusedLayoutElement, InstrumentLayout } from "@/lib/instrument/layout";
+import type { ControlCategory, FocusedLayoutElement, InstrumentLayout } from "@/lib/instrument/layout";
 import { useI18n } from "@/i18n/provider";
 import {
   addControl,
@@ -36,6 +36,8 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
   const [displayName, setDisplayName] = useState(source.displayName);
   const [manufacturer, setManufacturer] = useState(source.manufacturer ?? "");
   const [controls, setControls] = useState<EditorControl[]>(() => controlsFromLayout(source.layout));
+  // Kept as loaded until the category editor exists, so saving never drops them.
+  const [categories] = useState<ControlCategory[]>(() => [...(source.layout.categories ?? [])]);
   const [panel, setPanel] = useState<PanelDraft>(() => ({
     url: source.panelUrl,
     width: source.layout.viewBox.width,
@@ -52,12 +54,12 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
 
   const layout = useMemo(() => {
     const built = draftToLayout(
-      { displayName, slug: source.slug, manufacturer, controls },
+      { displayName, slug: source.slug, manufacturer, controls, categories },
       bounds,
       source.layout.layoutVersion,
     );
     return built.ok ? built.layout : source.layout;
-  }, [displayName, manufacturer, controls, panel.width, panel.height, source]);
+  }, [displayName, manufacturer, controls, categories, panel.width, panel.height, source]);
 
   function change<T>(apply: () => T) {
     setDirty(true);
@@ -130,6 +132,7 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
         slug: source.slug,
         manufacturer,
         controls,
+        ...(categories.length ? { categories } : {}),
         expectedRevision: revision,
         ...(panel.assetId ? { panelAssetId: panel.assetId } : {}),
       }),

@@ -57,8 +57,20 @@ export function removeControl(controls: readonly EditorControl[], id: string): E
 
 /** Editor state from a stored layout. Labels fall back to the ID for legacy controls. */
 export function controlsFromLayout(layout: InstrumentLayout): EditorControl[] {
-  const fromPoints = (kind: ControlKind, points: readonly { id: string; label?: string; x: number; y: number }[]) =>
-    points.map((point) => ({ id: point.id, kind, label: point.label ?? point.id, x: point.x, y: point.y }));
+  const fromPoints = (
+    kind: ControlKind,
+    points: readonly { id: string; label?: string; x: number; y: number; category?: string; selects?: readonly string[]; dependsOn?: string }[],
+  ) =>
+    points.map((point) => ({
+      id: point.id,
+      kind,
+      label: point.label ?? point.id,
+      x: point.x,
+      y: point.y,
+      ...(point.category ? { category: point.category } : {}),
+      ...(point.selects ? { selects: [...point.selects] } : {}),
+      ...(point.dependsOn ? { dependsOn: point.dependsOn } : {}),
+    }));
   return [
     ...fromPoints("knob", layout.knobs),
     ...fromPoints("switch", layout.switches),

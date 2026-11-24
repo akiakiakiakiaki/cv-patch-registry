@@ -16,5 +16,7 @@ export default defineConfig({
     exclude: ["node_modules", ".next"],
     restoreMocks: true,
     clearMocks: true,
+    // Database tests start a fresh PGlite instance; under the full parallel suite that can exceed the 5 s default.
+    testTimeout: 15_000,
   },
 });

@@ -10,6 +10,7 @@ import {
   updateLed,
   updatePatch,
   updateSwitch,
+  updateSwitches,
 } from "@/lib/domain/patch-service";
 
 const firstPatch: PatchRecord = {
@@ -129,3 +130,14 @@ describe("patch service", () => {
     expect(mergePatchLibrary(library, [changed], {}).patches[0]).toBe(firstPatch);
   });
 });
+
+describe("updateSwitches", () => {
+  it("applies all states of one click in a single update", () => {
+    const library = { activeId: "p1", patches: [{ id: "p1", name: "P", updatedAt: "2026-01-01T00:00:00.000Z", data: { knobs: {}, switches: { a: true }, leds: {}, cables: [] } }] };
+    const next = updateSwitches(library, "p1", { "s::x": false, "s::y": true }, new Date("2026-02-01T00:00:00.000Z"));
+    expect(next.patches[0]!.data.switches).toEqual({ a: true, "s::x": false, "s::y": true });
+    expect(next.patches[0]!.updatedAt).toBe("2026-02-01T00:00:00.000Z");
+    expect(updateSwitches(library, "missing", { a: false })).toBe(library);
+  });
+});
+

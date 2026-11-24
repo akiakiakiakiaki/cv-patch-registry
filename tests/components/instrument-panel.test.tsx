@@ -95,7 +95,7 @@ describe("InstrumentPanel", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "Test LED" }));
 
     expect(props.onKnobChange).toHaveBeenCalledWith("Test knob", 65);
-    expect(props.onSwitchChange).toHaveBeenCalledWith("Test switch", true);
+    expect(props.onSwitchChange).toHaveBeenCalledWith({ "Test switch": true });
     expect(props.onLedChange).toHaveBeenCalledWith("Test LED", true);
   });
 

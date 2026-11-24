@@ -5,15 +5,39 @@ export interface Point {
   y: number;
 }
 
+/**
+ * A named color of a synth. Controls refer to a category instead of carrying their own color,
+ * so changing the category's color recolors all of its controls.
+ */
+export interface ControlCategory {
+  id: string;
+  name: string;
+  /** Lowercase `#rrggbb`. */
+  color: string;
+}
+
 /** Labels are editable and optional. Without a label the control ID is shown. */
 export interface KnobDefinition extends Point {
   id: string;
   label?: string;
+  /** Color category; without one the default knob color is used. */
+  category?: string;
 }
 
+/**
+ * A switch is one of three things:
+ * - plain: one on/off state, colored by its optional `category` (default blue);
+ * - selector: `selects` lists at least two categories in cycling order; a click activates the next one;
+ * - dependent: `dependsOn` names a selector; the switch keeps one state per category of that selector
+ *   and shows the state and color of the selector's active category.
+ * A selector cannot depend on another switch, and a dependent cannot be a selector.
+ */
 export interface SwitchDefinition extends Point {
   id: string;
   label?: string;
+  category?: string;
+  selects?: readonly string[];
+  dependsOn?: string;
 }
 
 export interface LedDefinition extends Point {
@@ -47,6 +71,8 @@ export interface InstrumentLayout {
   geometry: InstrumentGeometry;
   knobStartAngle: number;
   knobSweepAngle: number;
+  /** Optional color categories, in display order. */
+  categories?: readonly ControlCategory[];
   knobs: readonly KnobDefinition[];
   switches: readonly SwitchDefinition[];
   leds: readonly LedDefinition[];

@@ -43,7 +43,7 @@ import {
   updateKnob,
   updateLed,
   updatePatch,
-  updateSwitch,
+  updateSwitches,
 } from "@/lib/domain/patch-service";
 import { LocalPatchRepository } from "@/lib/storage/local-patch-repository";
 import { layoutElementPosition } from "@/lib/instrument/layout-editor";
@@ -295,8 +295,8 @@ export function PatchSheet() {
   function changeKnob(id: string, value: number) {
     commitLibrary(updateKnob(library, patch.id, id, value));
   }
-  function changeSwitch(id: string, value: boolean) {
-    commitLibrary(updateSwitch(library, patch.id, id, value));
+  function changeSwitch(updates: Readonly<Record<string, boolean>>) {
+    commitLibrary(updateSwitches(library, patch.id, updates));
   }
   function changeLed(id: string, value: boolean) {
     commitLibrary(updateLed(library, patch.id, id, value));
