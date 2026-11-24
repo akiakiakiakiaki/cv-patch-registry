@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
@@ -22,7 +22,7 @@ import {
 } from "@/lib/adapters/patch-adapter";
 import { InstrumentPanel } from "@/components/instrument-panel/InstrumentPanel";
 import { PatchManager } from "@/components/patch-manager/PatchManager";
-import { SynthLayoutEditor } from "@/components/synth-editor/SynthLayoutEditor";
+import { SynthLayoutEditor, type SynthLayoutEditorHandle } from "@/components/synth-editor/SynthLayoutEditor";
 import { NewSynthDialog } from "@/components/synth-editor/NewSynthDialog";
 import { ImportLocalPatches } from "@/components/patch-views/ImportLocalPatches";
 import { SampleSection } from "@/components/patch-editor/SampleSection";
@@ -53,6 +53,7 @@ import { layoutElementPosition } from "@/lib/instrument/layout-editor";
 import { useI18n } from "@/i18n/provider";
 import { useConfirmDialog } from "@/components/confirm-dialog/ConfirmDialog";
 import { RevisionLossDetails } from "@/components/patch-sheet/RevisionLossDetails";
+import { TagInput } from "@/components/patch-sheet/TagInput";
 import type { OutdatedRevision, RevisionLossDecision, RevisionLossPrompt } from "@/hooks/use-account-patch-library";
 import type { Locale } from "@/i18n/config";
 import { isMessageKey } from "@/i18n/messages";
@@ -62,6 +63,7 @@ import type { PatchView } from "@/lib/patches/patch-service";
 
 const BUILT_IN_SYNTH = behringerProton.id;
 const NOOP = () => {};
+export const EDITOR_FULL_HEIGHT_CLASS = "editor-full-height";
 
 function dateLocale(locale: Locale): string {
   return locale === "de" ? "de-DE" : "en-US";
@@ -195,6 +197,14 @@ export function PatchSheet() {
   }, [repository, instrument, t]);
 
   const { confirm, choose, dialog: confirmDialog } = useConfirmDialog();
+  const editorRef = useRef<SynthLayoutEditorHandle>(null);
+  const editorOpen = editing && view !== null && isOwner && !isBuiltIn;
+  // While the editor is open, wide screens show the app at window height (see .editor-full-height in globals.scss).
+  useEffect(() => {
+    if (!editorOpen) return;
+    document.documentElement.classList.add(EDITOR_FULL_HEIGHT_CLASS);
+    return () => document.documentElement.classList.remove(EDITOR_FULL_HEIGHT_CLASS);
+  }, [editorOpen]);
   const synthName = instrument?.displayName ?? selectedSlug;
   // A save ran into a synth revision that lacks controls: save (upgrade), restore the saved version, or keep working.
   const decideRevisionLoss = useCallback(
@@ -279,10 +289,9 @@ export function PatchSheet() {
   }, [linkedPatchId, currentLibrary, commitLibrary]);
 
   if (!instrument || !currentLibrary || !activePatch) {
+    // Same structure as the loaded page: the control bar stays at the top, only the content area shows the loader.
     return (
-      <Box component="main" sx={{ minHeight: "100vh", display: "grid", placeContent: "center", justifyItems: "center", gap: 2 }}>
-        <CircularProgress color="primary" />
-        <Typography color="text.secondary">{t("loading.library")}</Typography>
+      <>
         <PatchManager
           role={role}
           instruments={instrumentOptions}
@@ -291,9 +300,7 @@ export function PatchSheet() {
           onInstrumentChange={setSelectedSlug}
           patches={[]}
           activeId=""
-          activeName=""
           status={status}
-          onNameChange={NOOP}
           onSelect={NOOP}
           onCreate={NOOP}
           onRename={NOOP}
@@ -301,6 +308,10 @@ export function PatchSheet() {
           onExport={NOOP}
           onImport={NOOP}
         />
+        <Box component="main" aria-busy="true" sx={{ minHeight: "50vh", display: "grid", placeContent: "center", justifyItems: "center", gap: 2 }}>
+          <CircularProgress color="primary" />
+          <Typography color="text.secondary">{t("loading.library")}</Typography>
+        </Box>
         {canManageSynths ? (
           <NewSynthDialog
             open={creating}
@@ -312,7 +323,7 @@ export function PatchSheet() {
             }}
           />
         ) : null}
-      </Box>
+      </>
     );
   }
 
@@ -410,9 +421,18 @@ export function PatchSheet() {
         onInstrumentChange={selectInstrument}
         patches={library.patches}
         activeId={library.activeId}
-        activeName={patch.name}
         status={status}
-        onNameChange={(name) => renamePatch(patch.id, name)}
+        synthAction={
+          ownerCanEdit ? (
+            <Button
+              // Same size as the other buttons of the bar. "Done" behaves exactly like the editor's own "Done" button.
+              variant={editing ? "contained" : "outlined"}
+              onClick={() => (editing ? void editorRef.current?.requestClose() : setEditing(true))}
+            >
+              {editing ? t("synths.doneEditing") : t("synths.edit")}
+            </Button>
+          ) : null
+        }
         onSelect={selectPatch}
         onCreate={createPatch}
         onRename={renamePatch}
@@ -421,19 +441,26 @@ export function PatchSheet() {
         onImport={(file) => void importFile(file)}
       />
 
-      <Box component="main">
+      <Box
+        component="main"
+        sx={editorOpen ? { display: { lg: "flex" }, flexDirection: "column", flex: { lg: "1 1 auto" }, minHeight: { lg: 0 } } : undefined}
+      >
+        {/* Patch settings; hidden while the synth editor is open, where they have no effect. */}
+        {!editorOpen ? (
         <Paper component="section" square variant="outlined" sx={{ px: { xs: 2, md: 3 }, py: 1, borderTop: 0, borderLeft: 0, borderRight: 0 }}>
           <Stack direction="row" useFlexGap sx={{ alignItems: "center", flexWrap: "wrap", gap: 1.5 }}>
             {shared ? (
               <Chip size="small" label={t("patches.sharedReadOnly", { name: shared.name })} />
             ) : (
-              <Typography variant="caption"><strong>{t("hint.encoder")}</strong> {t("hint.encoderHelp")}</Typography>
+              <TextField
+                size="small"
+                label={t("patch.active")}
+                value={patch.name}
+                slotProps={{ htmlInput: { maxLength: 60, "aria-label": t("patch.nameAria") } }}
+                onChange={(event) => renamePatch(patch.id, event.currentTarget.value)}
+                sx={{ width: { xs: "100%", sm: 210 } }}
+              />
             )}
-            {ownerCanEdit ? (
-              <Button size="small" variant={editing ? "contained" : "outlined"} onClick={() => setEditing((value) => !value)}>
-                {editing ? t("synths.doneEditing") : t("synths.edit")}
-              </Button>
-            ) : null}
             {debugActive ? (
               <FormControlLabel
                 control={<Switch checked={debugEditing} onChange={() => { setDebugEditing((value) => !value); layoutEditor.clearFocus(); }} />}
@@ -446,14 +473,7 @@ export function PatchSheet() {
                   control={<Switch checked={activeMeta?.visibility === "public"} onChange={(event) => account.updateMeta(patch.id, { visibility: event.target.checked ? "public" : "private" })} />}
                   label={t("patches.publicPatch")}
                 />
-                <TextField
-                  size="small"
-                  label={t("patches.tags")}
-                  defaultValue={(activeMeta?.tags ?? []).join(", ")}
-                  key={`${patch.id}-${(activeMeta?.tags ?? []).join(",")}`}
-                  onBlur={(event) => account.updateMeta(patch.id, { tags: event.target.value.split(",").map((tag) => tag.trim()).filter(Boolean).slice(0, 10) })}
-                  sx={{ width: 220 }}
-                />
+                <TagInput key={patch.id} value={activeMeta?.tags ?? []} onChange={(tags) => account.updateMeta(patch.id, { tags })} />
               </>
             ) : null}
             <Alert severity={status.startsWith(t("status.importFailed")) ? "error" : "success"} variant="standard" role="status" sx={{ ml: "auto", py: 0, alignItems: "center", "& .MuiAlert-message": { typography: "caption" } }}>
@@ -462,6 +482,7 @@ export function PatchSheet() {
             {isBuiltIn && accountMode ? <ImportLocalPatches synthSlug={selectedSlug} /> : null}
           </Stack>
         </Paper>
+        ) : null}
 
         {outdated && !editing ? (
           <Alert
@@ -477,8 +498,9 @@ export function PatchSheet() {
           </Alert>
         ) : null}
 
-        {editing && view && isOwner && !isBuiltIn ? (
+        {editorOpen && view ? (
           <SynthLayoutEditor
+            ref={editorRef}
             key={`${view.slug}-${view.revision}`}
             source={view}
             onSaved={() => {

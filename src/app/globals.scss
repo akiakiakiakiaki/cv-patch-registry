@@ -78,3 +78,20 @@ body {
 .appContent {
   flex: 1 0 auto;
 }
+
+/* While the synth editor is open on wide screens (MUI lg), the app fills the window exactly: header and footers
+   stay visible and only the editor's panel area and sidebar scroll. The class is set by PatchSheet. */
+@media (min-width: 1200px) {
+  html.editor-full-height .appShell {
+    height: 100dvh;
+    min-height: 0;
+  }
+
+  html.editor-full-height .appContent {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+}

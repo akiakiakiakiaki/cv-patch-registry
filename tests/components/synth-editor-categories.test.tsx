@@ -46,7 +46,15 @@ async function choose(user: ReturnType<typeof userEvent.setup>, field: string, o
   await user.click(await screen.findByRole("option", { name: option }));
 }
 
+/** Opens every collapsed control group of the editor's control list. */
+async function openGroups(user: ReturnType<typeof userEvent.setup>) {
+  for (const summary of document.querySelectorAll<HTMLElement>('[id^="controls-"][id$="-header"][aria-expanded="false"]')) {
+    await user.click(summary);
+  }
+}
+
 async function focusControl(user: ReturnType<typeof userEvent.setup>, name: RegExp) {
+  await openGroups(user);
   await user.click(screen.getByRole("button", { name }));
 }
 
@@ -164,7 +172,7 @@ describe("SynthLayoutEditor categories", () => {
     await focusControl(user, /Test switch · Switch/);
     expect(screen.getByText("Dependent switches need a selector switch first.")).toBeInTheDocument();
     await choose(user, "Function", "Selector switch");
-    expect(screen.getByRole("status")).toHaveTextContent("Add at least two categories first.");
+    expect(screen.getByText("Add at least two categories first.")).toHaveAttribute("role", "status");
   });
 
   it("has no axe violations with categories and a selector", async () => {
@@ -176,3 +184,56 @@ describe("SynthLayoutEditor categories", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+describe("SynthLayoutEditor LED categories and list dots", () => {
+  it("assigns a category to an LED, hides its fixed color and saves the category", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    await addTwoCategories(user);
+    await focusControl(user, /Test LED · LED/);
+    expect(screen.getByRole("combobox", { name: "Colour" })).toBeInTheDocument();
+    await choose(user, "Category", "Category 2");
+    expect(screen.queryByRole("combobox", { name: "Colour" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(saved).toHaveLength(1));
+    const second = saved[0]!.categories![1]!.id;
+    expect(saved[0]!.controls.find((control) => control.kind === "led")).toMatchObject({ category: second });
+  });
+
+  it("shows the categories of each control as dots in the control list", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    await addTwoCategories(user);
+    await focusControl(user, /Test knob · Knob/);
+    await choose(user, "Category", "Category 1");
+    await focusControl(user, /Test switch · Switch/);
+    await choose(user, "Function", "Selector switch");
+
+    await openGroups(user);
+    const dotsOf = (name: RegExp) =>
+      [...screen.getByRole("button", { name }).querySelectorAll("[data-category-dot]")].map((dot) => dot.getAttribute("data-category-dot"));
+    expect(dotsOf(/Test knob · Knob/)).toHaveLength(1);
+    expect(dotsOf(/Test switch · Switch/)).toHaveLength(2);
+    expect(dotsOf(/Test LED · LED/)).toHaveLength(0);
+  });
+});
+
+describe("SynthLayoutEditor fixed color dots", () => {
+  it("shows plain switches and LEDs without category in their own color, and the category once assigned", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    await openGroups(user);
+    const fixedOf = (name: RegExp) => screen.getByRole("button", { name }).querySelector("[data-fixed-color]")?.getAttribute("data-fixed-color");
+    expect(fixedOf(/Test switch · Switch/)).toBe("var(--color-switch-stroke)");
+    expect(fixedOf(/Test LED · LED/)).toBe("var(--color-led-red)");
+    expect(fixedOf(/Test knob · Knob/)).toBeUndefined();
+
+    await addTwoCategories(user);
+    await focusControl(user, /Test LED · LED/);
+    await choose(user, "Category", "Category 1");
+    expect(fixedOf(/Test LED · LED/)).toBeUndefined();
+    expect(screen.getByRole("button", { name: /Test LED · LED/ }).querySelectorAll("[data-category-dot]")).toHaveLength(1);
+  });
+});
+

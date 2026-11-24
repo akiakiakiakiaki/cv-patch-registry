@@ -58,7 +58,7 @@ export function ExploreView({ patches, activeTag, activeSynth, synths }: Props) 
                 {patch.name}
               </Link>
               <Typography variant="body2" color="text.secondary">{patch.synth.displayName}</Typography>
-              {patch.tags.map((tag) => <Chip key={tag} size="small" label={tag} />)}
+              {patch.tags.map((tag, index) => <Chip key={tag} size="small" label={patch.tagLabels?.[index] ?? tag} />)}
             </Box>
           ))}
         </Stack>

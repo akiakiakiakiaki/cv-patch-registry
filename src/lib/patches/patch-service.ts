@@ -10,7 +10,7 @@ import {
 } from "@/lib/adapters/patch-document-adapter";
 import type { Database } from "@/lib/db/client";
 import { canEditPatch, canViewPatch, type Actor, type Visibility } from "@/lib/domain/policy";
-import { normalizeTags } from "@/lib/domain/tags";
+import { normalizeTags, type TagEntry } from "@/lib/domain/tags";
 import type { PatchData } from "@/lib/domain/types";
 import type { InstrumentLayout } from "@/lib/instrument/layout";
 import { findAssetById } from "@/lib/repositories/assets-repository";
@@ -25,6 +25,7 @@ import {
   listPatchesWithSynth,
   replacePatchTags,
   tagSlugsFor,
+  tagsFor,
   updatePatchIfRevision,
   type PatchWithSynth,
 } from "@/lib/repositories/patches-repository";
@@ -53,7 +54,10 @@ export interface PatchSummary {
   revision: number;
   updatedAt: string;
   synth: { slug: string; displayName: string };
+  /** Tag slugs (identity). */
   tags: string[];
+  /** Tag labels in the same order, for display. */
+  tagLabels: string[];
 }
 
 export interface PatchView {
@@ -65,6 +69,7 @@ export interface PatchView {
   ownerId: string;
   isOwner: boolean;
   tags: string[];
+  tagLabels: string[];
   updatedAt: string;
   synth: { slug: string; displayName: string; panelUrl: string; layout: InstrumentLayout };
   data: PatchData;
@@ -86,7 +91,7 @@ async function panelUrlFor(db: Database, patch: PatchWithSynth): Promise<string>
   return asset ? storagePublicUrl(asset.storageKey) : "";
 }
 
-function summaryOf(row: PatchWithSynth, tags: string[]): PatchSummary {
+function summaryOf(row: PatchWithSynth, tags: readonly TagEntry[]): PatchSummary {
   return {
     id: row.patch.id,
     name: row.patch.name,
@@ -94,12 +99,17 @@ function summaryOf(row: PatchWithSynth, tags: string[]): PatchSummary {
     revision: row.patch.revision,
     updatedAt: row.patch.updatedAt.toISOString(),
     synth: { slug: row.synthSlug, displayName: row.synthDisplayName },
-    tags,
+    ...tagFields(tags),
   };
 }
 
+/** The tag fields of patch responses: slugs as `tags`, labels as `tagLabels` in the same order. */
+function tagFields(entries: readonly TagEntry[]): { tags: string[]; tagLabels: string[] } {
+  return { tags: entries.map((entry) => entry.slug), tagLabels: entries.map((entry) => entry.label) };
+}
+
 async function summaries(db: Database, rows: PatchWithSynth[]): Promise<PatchSummary[]> {
-  const tagMap = await tagSlugsFor(db, rows.map((row) => row.patch.id));
+  const tagMap = await tagsFor(db, rows.map((row) => row.patch.id));
   return rows.map((row) => summaryOf(row, tagMap.get(row.patch.id) ?? []));
 }
 
@@ -133,7 +143,7 @@ export async function createPatch(
     revision: 1,
     data: encodePatchDocument(normalizeSubmittedData(body.data ?? {}, layout), layout),
   });
-  await replacePatchTags(db, id, await ensureTagIds(db, tags.tags));
+  await replacePatchTags(db, id, await ensureTagIds(db, tags.entries));
   return { ok: true, id, revision: 1 };
 }
 
@@ -186,7 +196,7 @@ export async function updatePatch(
     },
   });
   if (!advanced) return { ok: false, error: "conflict" };
-  await replacePatchTags(db, patchId, await ensureTagIds(db, tags.tags));
+  await replacePatchTags(db, patchId, await ensureTagIds(db, tags.entries));
   return { ok: true, revision: body.expectedRevision + 1 };
 }
 
@@ -217,7 +227,7 @@ export async function getPatchView(db: Database, actor: Actor | null, patchId: s
   const layout = parseSynthLayout(row.layout);
   const data = layout ? decodePatchDocument(row.patch.data, layout) : null;
   if (!layout || !data) return null;
-  const tags = (await tagSlugsFor(db, [patchId])).get(patchId) ?? [];
+  const tags = (await tagsFor(db, [patchId])).get(patchId) ?? [];
   return {
     sample: await sampleViewFor(db, patchId),
     id: row.patch.id,
@@ -227,7 +237,7 @@ export async function getPatchView(db: Database, actor: Actor | null, patchId: s
     revision: row.patch.revision,
     ownerId: row.patch.ownerId,
     isOwner: actor?.id === row.patch.ownerId,
-    tags,
+    ...tagFields(tags),
     updatedAt: row.patch.updatedAt.toISOString(),
     synth: {
       slug: row.synthSlug,
@@ -260,11 +270,12 @@ export interface PatchState {
   synthRevision: number;
   /** Settings the synth's current revision has no control for. Empty when the patch is current or compatible. */
   revisionLosses: RevisionLoss[];
+  tagLabels: string[];
 }
 
 export async function listOwnPatchStates(db: Database, actor: Actor, synthSlug: string): Promise<PatchState[]> {
   const rows = await listPatchesWithSynth(db, { ownerId: actor.id, synthSlug });
-  const tagMap = await tagSlugsFor(db, rows.map((row) => row.patch.id));
+  const tagMap = await tagsFor(db, rows.map((row) => row.patch.id));
   // All rows belong to one synth, so its current revision is resolved once.
   const current = rows[0] ? await currentRevisionFor(db, rows[0]) : null;
   const states: PatchState[] = [];
@@ -281,7 +292,7 @@ export async function listOwnPatchStates(db: Database, actor: Actor, synthSlug: 
       updatedAt: row.patch.updatedAt.toISOString(),
       revision: row.patch.revision,
       visibility: row.patch.visibility,
-      tags: tagMap.get(row.patch.id) ?? [],
+      ...tagFields(tagMap.get(row.patch.id) ?? []),
       data,
     });
   }

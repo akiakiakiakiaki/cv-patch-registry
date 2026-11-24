@@ -112,7 +112,7 @@ export function ControlCategoryFields({
   onSetDependsOn: (id: string, parentId: string) => void;
 }) {
   const { t } = useI18n();
-  if (control.kind !== "knob" && control.kind !== "switch") return null;
+  if (control.kind !== "knob" && control.kind !== "switch" && control.kind !== "led") return null;
 
   const categorySelect = (
     <TextField
@@ -131,7 +131,7 @@ export function ControlCategoryFields({
       ))}
     </TextField>
   );
-  if (control.kind === "knob") return categorySelect;
+  if (control.kind === "knob" || control.kind === "led") return categorySelect;
 
   const role = switchRole(control);
   const selectors = controls.filter((item) => item.id !== control.id && item.kind === "switch" && item.selects);
@@ -263,8 +263,9 @@ function SelectorCategories({
   );
 }
 
-function ColorDot({ color }: { color: string | undefined }) {
-  return <Box component="span" aria-hidden sx={{ display: "inline-block", width: 12, height: 12, borderRadius: "50%", bgcolor: color ?? "transparent", border: 1, borderColor: "divider", mr: 1, flexShrink: 0 }} />;
+/** Small decorative swatch of a category color; the category name is always shown or labelled elsewhere. */
+export function ColorDot({ color, categoryId, fixed }: { color: string | undefined; categoryId?: string; fixed?: boolean }) {
+  return <Box component="span" aria-hidden data-category-dot={categoryId} data-fixed-color={fixed ? color : undefined} sx={{ display: "inline-block", width: 12, height: 12, borderRadius: "50%", bgcolor: color ?? "transparent", border: 1, borderColor: "divider", mr: 1, flexShrink: 0 }} />;
 }
 
 /** Readable sentence for a configuration problem, naming controls and categories by their labels. */

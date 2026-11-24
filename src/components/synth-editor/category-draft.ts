@@ -127,6 +127,7 @@ export function draftCategoryIssues(categories: readonly ControlCategory[], cont
     categories,
     knobs: controls.filter((control) => control.kind === "knob"),
     switches: controls.filter((control) => control.kind === "switch"),
+    leds: controls.filter((control) => control.kind === "led").map((control) => ({ ...control, color: control.color ?? "red" })),
   });
 }
 
@@ -164,3 +165,27 @@ export function repairCategoryRoles(
   });
   return { categories: uniqueCategories, controls: next };
 }
+
+/**
+ * Categories a control shows, for the editor's control list: its own color category, the categories a selector
+ * cycles through, or those of a dependent switch's selector.
+ */
+export function shownCategoryIds(control: EditorControl, controls: readonly EditorControl[]): readonly string[] {
+  if (control.category) return [control.category];
+  if (control.selects) return control.selects;
+  if (control.dependsOn) return controls.find((item) => item.id === control.dependsOn)?.selects ?? [];
+  return [];
+}
+
+/**
+ * The color a control shows without a category, as the panel's CSS variable: LEDs their fixed color,
+ * plain switches the default switch color. Undefined where the list shows category dots instead, or no color applies.
+ */
+export function fixedColorOf(control: EditorControl): string | undefined {
+  if (control.category || control.selects || control.dependsOn) return undefined;
+  // Same rule as the panel: red LEDs are drawn red, all others blue.
+  if (control.kind === "led") return (control.color ?? "red") === "red" ? "var(--color-led-red)" : "var(--color-led-blue)";
+  if (control.kind === "switch") return "var(--color-switch-stroke)";
+  return undefined;
+}
+

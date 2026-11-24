@@ -126,6 +126,19 @@
   filter: drop-shadow(0 0 2px var(--color-led-blue-shadow));
 }
 
+/* Color from the LED's category (see category-styles.ts). */
+.ledCategory {
+  fill: color-mix(in srgb, var(--category-color) 14%, transparent);
+  stroke: var(--category-color);
+}
+
+.ledCategoryActive {
+  fill: var(--category-color);
+  stroke: color-mix(in srgb, var(--category-color) 70%, black);
+  stroke-width: var(--active-control-stroke-width);
+  filter: drop-shadow(0 0 2px var(--category-color));
+}
+
 .portHit {
   fill: var(--color-transparent);
   stroke: var(--color-transparent);

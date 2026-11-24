@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { encodeInstrumentLayout } from "@/lib/adapters/instrument-layout-adapter";
 import { decodePatchDocument, encodePatchDocument, normalizeSubmittedData } from "@/lib/adapters/patch-document-adapter";
-import { draftToLayout, parseSynthLayout } from "@/lib/adapters/synth-layout-adapter";
+import { draftControlsFromLayout, draftToLayout, parseSynthLayout } from "@/lib/adapters/synth-layout-adapter";
 import { categoryClass, categoryStyleSheet } from "@/components/instrument-panel/category-styles";
 import { categoryStateKey } from "@/lib/domain/switch-categories";
 import { createLayoutSwitchAdapter } from "@/lib/instruments/generic-switch-adapter";
@@ -111,3 +111,23 @@ describe("category style sheet", () => {
     expect(categoryClass(SHIFT)).toBe(SHIFT);
   });
 });
+
+describe("LED categories", () => {
+  const withLed = { ...categoryLayout, leds: [{ id: "led-00000001", label: "Gate", x: 500, y: 100, color: "red" as const, category: SHIFT }] };
+
+  it("are stored with schema minor 2 and read back", () => {
+    const encoded = { ...encodeInstrumentLayout({ ...testLayout, categories: categoryLayout.categories, leds: withLed.leds }), id: "test-synth" };
+    expect(encoded.schemaMinor).toBe(2);
+    expect(parseSynthLayout(encoded)?.leds).toEqual(withLed.leds);
+    expect(parseSynthLayout({ ...encoded, leds: [{ ...withLed.leds[0]!, category: "cat-ffffffff" }] })).toBeNull();
+  });
+
+  it("go through the editor unchanged and keep the fixed color as fallback", () => {
+    const layout = { ...encodeInstrumentLayout(withLed), id: "mine-synth" };
+    const draft = { displayName: layout.displayName, slug: layout.id, categories: [...layout.categories!], controls: draftControlsFromLayout(layout) };
+    expect(draft.controls.find((control) => control.kind === "led")).toMatchObject({ color: "red", category: SHIFT });
+    const built = draftToLayout(draft, layout.viewBox, layout.layoutVersion);
+    expect(built.ok && built.layout.leds).toEqual(withLed.leds);
+  });
+});
+

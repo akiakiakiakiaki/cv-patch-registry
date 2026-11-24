@@ -109,7 +109,7 @@ export function draftToLayout(
     switches: controls.filter((control) => control.kind === "switch").map(switchOf),
     leds: controls
       .filter((control) => control.kind === "led")
-      .map((control) => ({ ...at(control), color: control.color ?? "red" })),
+      .map((control) => ({ ...at(control), color: control.color ?? "red", ...(control.category ? { category: control.category } : {}) })),
     ports,
   };
   const issues = categoryIssues(layout);
@@ -141,7 +141,7 @@ const layoutDocumentSchema = z.object({
   categories: z.array(categorySchema).max(MAX_CATEGORIES).optional(),
   knobs: z.array(pointSchema.extend({ category: categoryFields.category })),
   switches: z.array(pointSchema.extend(categoryFields)),
-  leds: z.array(pointSchema.extend({ color: z.enum(["red", "blue", "amber"]) })),
+  leds: z.array(pointSchema.extend({ color: z.enum(["red", "blue", "amber"]), category: categoryFields.category })),
   ports: z.array(portSchema),
 });
 
@@ -190,7 +190,15 @@ export function draftControlsFromLayout(layout: InstrumentLayout): DraftControl[
   return [
     ...fromPoints("knob", layout.knobs),
     ...fromPoints("switch", layout.switches),
-    ...layout.leds.map((led) => ({ id: led.id, kind: "led" as const, label: led.label ?? led.id, x: led.x, y: led.y, color: led.color })),
+    ...layout.leds.map((led) => ({
+      id: led.id,
+      kind: "led" as const,
+      label: led.label ?? led.id,
+      x: led.x,
+      y: led.y,
+      color: led.color,
+      ...(led.category ? { category: led.category } : {}),
+    })),
     ...layout.ports.map((port) => ({ id: port.id, kind: port.kind, label: port.label, x: port.x, y: port.y })),
   ];
 }

@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { Database } from "@/lib/db/client";
 import { patchTags, patches, synthRevisions, synths, tags } from "@/lib/db/schema";
 import { visibleSynthCondition } from "@/lib/repositories/synths-repository";
+import type { TagEntry } from "@/lib/domain/tags";
 
 export type PatchRow = typeof patches.$inferSelect;
 
@@ -72,16 +73,23 @@ export async function listPatchesWithSynth(db: Database, filter: PatchListFilter
   return filtered.orderBy(desc(patches.updatedAt));
 }
 
-export async function tagSlugsFor(db: Database, patchIds: readonly string[]): Promise<Map<string, string[]>> {
-  const map = new Map<string, string[]>();
+/** Tags of each patch with slug and label, ordered by label (the database keeps no order). */
+export async function tagsFor(db: Database, patchIds: readonly string[]): Promise<Map<string, TagEntry[]>> {
+  const map = new Map<string, TagEntry[]>();
   if (patchIds.length === 0) return map;
   const rows = await db
-    .select({ patchId: patchTags.patchId, slug: tags.slug })
+    .select({ patchId: patchTags.patchId, slug: tags.slug, label: tags.label })
     .from(patchTags)
     .innerJoin(tags, eq(tags.id, patchTags.tagId))
     .where(inArray(patchTags.patchId, [...patchIds]));
-  for (const row of rows) map.set(row.patchId, [...(map.get(row.patchId) ?? []), row.slug]);
+  for (const row of rows) map.set(row.patchId, [...(map.get(row.patchId) ?? []), { slug: row.slug, label: row.label }]);
+  for (const entries of map.values()) entries.sort((left, right) => left.label.localeCompare(right.label));
   return map;
+}
+
+export async function tagSlugsFor(db: Database, patchIds: readonly string[]): Promise<Map<string, string[]>> {
+  const entries = await tagsFor(db, patchIds);
+  return new Map([...entries].map(([patchId, list]) => [patchId, list.map((entry) => entry.slug)]));
 }
 
 export async function insertPatch(db: Database, row: typeof patches.$inferInsert): Promise<void> {

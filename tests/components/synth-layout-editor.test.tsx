@@ -37,6 +37,7 @@ describe("SynthLayoutEditor", () => {
   it("renames the focused control and removes it again", async () => {
     const user = userEvent.setup();
     renderEditor();
+    await user.click(screen.getByRole("button", { name: "Knobs (1)" }));
     await user.click(screen.getByRole("button", { name: /Test knob · Knob/ }));
     const label = screen.getByRole("textbox", { name: "Label" });
     await user.clear(label);

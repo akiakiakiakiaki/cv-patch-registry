@@ -124,3 +124,12 @@ describe("usesCategories", () => {
     expect(usesCategories(categoryLayout)).toBe(true);
   });
 });
+
+describe("LED categories in checks", () => {
+  it("report unknown categories on LEDs and count as category use", () => {
+    const led = { id: "led-00000001", x: 1, y: 1, color: "red" as const, category: "cat-ffffffff" };
+    expect(categoryIssues({ ...categoryLayout, leds: [led] })).toEqual([{ code: "unknown-category", controlId: led.id, categoryId: "cat-ffffffff" }]);
+    expect(usesCategories({ ...testLayout, leds: [{ ...led, category: SHIFT }] })).toBe(true);
+  });
+});
+

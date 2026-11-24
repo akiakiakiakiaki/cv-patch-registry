@@ -10,6 +10,7 @@ export type AccountSaveStatus = "idle" | "saving" | "saved" | "conflict" | "erro
 
 export interface PatchMeta {
   visibility: "private" | "public";
+  /** Tag labels as shown; the server derives the slugs. */
   tags: string[];
 }
 
@@ -20,6 +21,7 @@ interface PatchStateResponse {
   revision: number;
   visibility: "private" | "public";
   tags: string[];
+  tagLabels?: string[];
   data: PatchRecord["data"];
   synthRevision: number;
   revisionLosses: RevisionLoss[];
@@ -87,7 +89,7 @@ export function useAccountPatchLibrary(synthSlug: string, enabled: boolean, opti
     };
     libraryRef.current = next;
     setLibrary(next);
-    setMeta(Object.fromEntries(states.map((state) => [state.id, { visibility: state.visibility, tags: state.tags }])));
+    setMeta(Object.fromEntries(states.map((state) => [state.id, { visibility: state.visibility, tags: state.tagLabels ?? state.tags }])));
     setOutdatedState(
       Object.fromEntries(
         states

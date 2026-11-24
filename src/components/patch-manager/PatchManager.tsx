@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import Button from "@mui/material/Button";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import Box from "@mui/material/Box";
@@ -13,7 +13,6 @@ import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
-import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import type { PatchRecord } from "@/lib/domain/types";
 import type { AppRole } from "@/lib/auth/roles";
@@ -27,6 +26,8 @@ export interface InstrumentOption {
 }
 
 const CREATE_SYNTH = "__create_synth__";
+/** Height of MUI's small outlined input (the synth selector); every button of the bar matches it. */
+export const BAR_CONTROL_HEIGHT = 40;
 
 interface PatchManagerProps {
   role: AppRole;
@@ -36,9 +37,9 @@ interface PatchManagerProps {
   onInstrumentChange: (instrumentId: string) => void;
   patches: readonly PatchRecord[];
   activeId: string;
-  activeName: string;
   status: string;
-  onNameChange: (name: string) => void;
+  /** Shown right of the synth selector, e.g. the synth's Edit/Done button. */
+  synthAction?: ReactNode;
   onSelect: (id: string) => void;
   onCreate: () => void;
   onRename: (id: string, name: string) => void;
@@ -97,7 +98,7 @@ export function PatchManager(props: PatchManagerProps) {
         <Stack
           direction="row"
           useFlexGap
-          sx={{ alignItems: "center", flexWrap: "wrap", gap: 1.5 }}
+          sx={{ alignItems: "center", flexWrap: "wrap", gap: 1.5, "& .MuiButton-root": { height: BAR_CONTROL_HEIGHT } }}
         >
           <FormControl
             size="small"
@@ -130,16 +131,7 @@ export function PatchManager(props: PatchManagerProps) {
             </Select>
           </FormControl>
 
-          <TextField
-            size="small"
-            label={t("patch.active")}
-            value={props.activeName}
-            slotProps={{
-              htmlInput: { maxLength: 60, "aria-label": t("patch.nameAria") },
-            }}
-            onChange={(event) => props.onNameChange(event.currentTarget.value)}
-            sx={{ width: { xs: "100%", sm: 210 } }}
-          />
+          {props.synthAction}
 
           <Stack
             direction="row"

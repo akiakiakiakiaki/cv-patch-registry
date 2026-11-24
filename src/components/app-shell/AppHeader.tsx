@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
@@ -9,11 +10,28 @@ import { AccountLinks } from "@/components/account-links/AccountLinks";
 import { InlineSvgAsset } from "@/components/inline-svg-asset/InlineSvgAsset";
 import { useI18n } from "@/i18n/provider";
 
+/** Height of the sticky header, for content that sticks right below it (e.g. the synth editor). */
+export const APP_HEADER_HEIGHT_VARIABLE = "--app-header-height";
+
 export function AppHeader() {
   const { t } = useI18n();
+  const headerRef = useRef<HTMLElement>(null);
+
+  // The header wraps on narrow screens, so its height is measured instead of assumed.
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const publish = () => document.documentElement.style.setProperty(APP_HEADER_HEIGHT_VARIABLE, `${header.offsetHeight}px`);
+    publish();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(publish);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <Paper
+      ref={headerRef}
       component="header"
       square
       elevation={1}

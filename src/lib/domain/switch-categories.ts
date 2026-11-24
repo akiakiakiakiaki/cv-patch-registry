@@ -118,7 +118,7 @@ export type CategoryIssue =
   | { code: "parent-not-selector"; controlId: string; parentId: string };
 
 /** Problems that make a layout's categories or switch roles inconsistent. Empty when everything fits. */
-export function categoryIssues(layout: Pick<InstrumentLayout, "categories" | "knobs" | "switches">): CategoryIssue[] {
+export function categoryIssues(layout: Pick<InstrumentLayout, "categories" | "knobs" | "switches"> & Partial<Pick<InstrumentLayout, "leds">>): CategoryIssue[] {
   const issues: CategoryIssue[] = [];
   const categories: readonly ControlCategory[] = layout.categories ?? [];
   const known = new Set<string>();
@@ -126,8 +126,8 @@ export function categoryIssues(layout: Pick<InstrumentLayout, "categories" | "kn
     if (known.has(category.id)) issues.push({ code: "duplicate-category", categoryId: category.id });
     known.add(category.id);
   }
-  for (const knob of layout.knobs) {
-    if (knob.category && !known.has(knob.category)) issues.push({ code: "unknown-category", controlId: knob.id, categoryId: knob.category });
+  for (const control of [...layout.knobs, ...(layout.leds ?? [])]) {
+    if (control.category && !known.has(control.category)) issues.push({ code: "unknown-category", controlId: control.id, categoryId: control.category });
   }
   for (const control of layout.switches) {
     if (control.category && !known.has(control.category)) {
@@ -155,10 +155,11 @@ export function categoryIssues(layout: Pick<InstrumentLayout, "categories" | "kn
 }
 
 /** Whether the layout uses categories or switch roles, which need layout schema minor 2. */
-export function usesCategories(layout: Pick<InstrumentLayout, "categories" | "knobs" | "switches">): boolean {
+export function usesCategories(layout: Pick<InstrumentLayout, "categories" | "knobs" | "switches"> & Partial<Pick<InstrumentLayout, "leds">>): boolean {
   return (
     (layout.categories?.length ?? 0) > 0 ||
     layout.knobs.some((knob) => knob.category !== undefined) ||
+    (layout.leds ?? []).some((led) => led.category !== undefined) ||
     layout.switches.some((control) => control.category !== undefined || control.selects !== undefined || control.dependsOn !== undefined)
   );
 }

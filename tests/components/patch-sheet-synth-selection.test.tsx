@@ -187,3 +187,28 @@ describe("PatchSheet importing a legacy Proton export into the clone", () => {
   });
 });
 
+describe("PatchSheet control bar while a synth loads", () => {
+  it("stays at the top, outside the loading area, and is the same element once loaded", async () => {
+    const pending: Array<() => void> = [];
+    const base = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (String(input) === "/api/synths/td3") await new Promise<void>((resolve) => pending.push(resolve));
+      return base(input, init);
+    });
+    renderSheet();
+    // Hold the synth's view until the page is clearly in its loading state.
+    await waitFor(() => expect(pending.length).toBeGreaterThan(0));
+
+    const loading = await screen.findByText(/Opening local patch library/);
+    const main = loading.closest("main")!;
+    const selector = await screen.findByRole("combobox", { name: "Synthesizer" });
+    expect(main).toHaveAttribute("aria-busy", "true");
+    expect(main.contains(selector)).toBe(false);
+    expect(selector.compareDocumentPosition(main) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    for (const release of pending) release();
+    expect(await screen.findByRole("region", { name: /TD3/ })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Synthesizer" })).toBe(selector);
+  });
+});
+

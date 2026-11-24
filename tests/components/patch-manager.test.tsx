@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import Button from "@mui/material/Button";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProviders } from "@/components/app-providers/AppProviders";
 import { AppFooter } from "@/components/app-shell/AppFooter";
-import { PatchManager } from "@/components/patch-manager/PatchManager";
+import { BAR_CONTROL_HEIGHT, PatchManager } from "@/components/patch-manager/PatchManager";
 import { I18nProvider } from "@/i18n/provider";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
 import type { PatchRecord } from "@/lib/domain/types";
@@ -33,9 +34,7 @@ function renderManager(overrides: Partial<ComponentProps<typeof PatchManager>> =
     onInstrumentChange: vi.fn(),
     patches,
     activeId: "active",
-    activeName: "Active patch",
     status: "Saved",
-    onNameChange: vi.fn(),
     onSelect: vi.fn(),
     onCreate: vi.fn(),
     onRename: vi.fn(),
@@ -148,3 +147,24 @@ describe("PatchManager", () => {
     expect(screen.getByRole("button", { name: "DE" })).toHaveAttribute("aria-pressed", "true");
   });
 });
+
+describe("PatchManager synth action", () => {
+  it("shows the given action right of the synth selector", () => {
+    renderManager({ synthAction: <button type="button">Edit</button> });
+    const selector = screen.getByRole("combobox", { name: "Synthesizer" });
+    const action = screen.getByRole("button", { name: "Edit" });
+    expect(selector.compareDocumentPosition(action) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole("textbox", { name: "Active patch name" })).not.toBeInTheDocument();
+  });
+});
+
+describe("PatchManager bar height", () => {
+  it("gives every button of the bar the height of the synth selector", () => {
+    renderManager({ synthAction: <Button variant="outlined">Edit</Button> });
+    const bar = screen.getByRole("combobox", { name: "Synthesizer" }).closest("section")!;
+    const buttons = within(bar).getAllByRole("button").filter((button) => button.classList.contains("MuiButton-root"));
+    expect(buttons.length).toBeGreaterThanOrEqual(3);
+    for (const button of buttons) expect(getComputedStyle(button).height).toBe(`${BAR_CONTROL_HEIGHT}px`);
+  });
+});
+

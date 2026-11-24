@@ -19,15 +19,35 @@ export function normalizeTag(raw: string): string | null {
   return slug;
 }
 
-export type TagNormalization = { ok: true; tags: string[] } | { ok: false; reason: "invalid" | "too-many" };
+/**
+ * How a tag is shown: single spaces and an uppercase first letter, the rest as typed ("acid house" → "Acid house",
+ * "TB-303" stays). The slug (see normalizeTag) stays the tag's identity, so case never creates a second tag.
+ */
+export function formatTagLabel(raw: string): string | null {
+  if (!normalizeTag(raw)) return null;
+  const label = raw.trim().replace(/\s+/g, " ");
+  const [first = "", ...rest] = Array.from(label);
+  return first.toLocaleUpperCase() + rest.join("");
+}
 
+export interface TagEntry {
+  slug: string;
+  label: string;
+}
+
+export type TagNormalization =
+  | { ok: true; tags: string[]; entries: TagEntry[] }
+  | { ok: false; reason: "invalid" | "too-many" };
+
+/** Validates typed tags; duplicates by slug are dropped, the first spelling wins. */
 export function normalizeTags(raw: readonly string[]): TagNormalization {
-  const normalized: string[] = [];
+  const entries: TagEntry[] = [];
   for (const entry of raw) {
-    const tag = normalizeTag(entry);
-    if (!tag) return { ok: false, reason: "invalid" };
-    if (!normalized.includes(tag)) normalized.push(tag);
+    const slug = normalizeTag(entry);
+    const label = formatTagLabel(entry);
+    if (!slug || !label) return { ok: false, reason: "invalid" };
+    if (!entries.some((existing) => existing.slug === slug)) entries.push({ slug, label });
   }
-  if (normalized.length > MAX_TAGS_PER_PATCH) return { ok: false, reason: "too-many" };
-  return { ok: true, tags: normalized };
+  if (entries.length > MAX_TAGS_PER_PATCH) return { ok: false, reason: "too-many" };
+  return { ok: true, tags: entries.map((entry) => entry.slug), entries };
 }

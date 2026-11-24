@@ -70,3 +70,34 @@ describe("InstrumentPanel with color categories", () => {
     });
   });
 });
+
+describe("InstrumentPanel LEDs with a category", () => {
+  const layout = { ...categoryLayout, leds: [{ id: "led-00000001", x: 500, y: 100, color: "red" as const, category: THIRD }, { id: "led-00000002", x: 600, y: 100, color: "red" as const }] };
+  const ledInstrument = instrumentFromSynth({ slug: "test-synth", displayName: "Test Synth", panelUrl: "/x.png", layout });
+
+  it("use the category class instead of their fixed color, lit or not", () => {
+    render(
+      <I18nProvider locale="en">
+        <InstrumentPanel
+          data={{ knobs: {}, switches: {}, leds: { "led-00000001": true }, cables: [] }}
+          instrument={ledInstrument}
+          layout={layout}
+          layoutEditMode={false}
+          focusedElement={null}
+          onFocusLayoutElement={vi.fn()}
+          onClearLayoutFocus={vi.fn()}
+          onMoveFocusedLayoutElement={vi.fn()}
+          onKnobChange={vi.fn()}
+          onSwitchChange={vi.fn()}
+          onLedChange={vi.fn()}
+          onCableChange={vi.fn()}
+        />
+      </I18nProvider>,
+    );
+    const categorized = screen.getByRole("checkbox", { name: "led-00000001" });
+    expect(categorized).toHaveClass(THIRD);
+    expect(categorized.getAttribute("class")).toMatch(/ledCategoryActive/);
+    expect(categorized.getAttribute("class")).not.toMatch(/ledRed/);
+    expect(screen.getByRole("checkbox", { name: "led-00000002" }).getAttribute("class")).toMatch(/ledRed/);
+  });
+});

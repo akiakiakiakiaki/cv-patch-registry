@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { draftToLayout } from "@/lib/adapters/synth-layout-adapter";
 import type { ControlCategory, FocusedLayoutElement, InstrumentLayout } from "@/lib/instrument/layout";
 import { useI18n } from "@/i18n/provider";
@@ -20,6 +20,7 @@ import {
   moveItem,
   type SwitchRole,
 } from "@/components/synth-editor/category-draft";
+import { emptyHistory, recordChange, redoStep, undoStep, type History } from "@/components/synth-editor/control-history";
 import {
   addControl,
   clampToPanel,
@@ -86,9 +87,44 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
     return apply();
   }
 
+  // Undo/redo covers every change of the controls. The latest controls are kept in a ref, so a change is
+  // computed and recorded once, outside of React's state updaters (which may run twice in development).
+  const controlsRef = useRef(controls);
+  controlsRef.current = controls;
+  const history = useRef<History<EditorControl[]>>(emptyHistory());
+
+  /** Applies a change of the controls and records it; `key` merges follow-up changes of the same kind (see control-history). */
+  function updateControls(apply: (previous: EditorControl[]) => EditorControl[], key?: string) {
+    const previous = controlsRef.current;
+    const next = apply(previous);
+    if (next === previous) return;
+    history.current = recordChange(history.current, previous, key, Date.now());
+    controlsRef.current = next;
+    change(() => setControls(next));
+  }
+
+  /** Sets the controls without a history step and forgets the history (it could restore invalid states). */
+  function replaceControls(next: EditorControl[]) {
+    history.current = emptyHistory();
+    controlsRef.current = next;
+    setControls(next);
+  }
+
+  function restore(step: { history: History<EditorControl[]>; value: EditorControl[] } | null): boolean {
+    if (!step) return false;
+    history.current = step.history;
+    controlsRef.current = step.value;
+    change(() => setControls(step.value));
+    setFocused((current) => (current && step.value.some((control) => control.id === current.id) ? current : null));
+    return true;
+  }
+
+  const undo = () => restore(undoStep(history.current, controlsRef.current));
+  const redo = () => restore(redoStep(history.current, controlsRef.current));
+
   function addAt(kind: ControlKind, point: { x: number; y: number }): FocusedLayoutElement {
     const id = generateControlId(kind);
-    change(() => setControls((previous) => addControl(previous, kind, point, bounds, id)));
+    updateControls((previous) => addControl(previous, kind, point, bounds, id));
     const target: FocusedLayoutElement = {
       kind: kind === "knob" || kind === "switch" || kind === "led" ? kind : "port",
       id,
@@ -104,29 +140,27 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
   /** Keyboard and mouse both move the focused control in half-unit steps. */
   function moveFocused(delta: { x: number; y: number }) {
     if (!focused) return;
-    const current = controls.find((control) => control.id === focused.id);
-    if (!current) return;
-    change(() =>
-      setControls((previous) =>
-        updateControl(previous, focused.id, { x: current.x + delta.x, y: current.y + delta.y }, bounds),
-      ),
-    );
+    const id = focused.id;
+    updateControls((previous) => {
+      const current = previous.find((control) => control.id === id);
+      return current ? updateControl(previous, id, { x: current.x + delta.x, y: current.y + delta.y }, bounds) : previous;
+    }, `move:${id}`);
   }
 
   function setPosition(id: string, position: { x?: number; y?: number }) {
-    change(() => setControls((previous) => updateControl(previous, id, position, bounds)));
+    updateControls((previous) => updateControl(previous, id, position, bounds), `position:${id}`);
   }
 
-  function setColor(id: string, color: "red" | "blue" | "amber") {
-    change(() => setControls((previous) => updateControl(previous, id, { color }, bounds)));
+  function setColor(id: string, color: "red" | "blue") {
+    updateControls((previous) => updateControl(previous, id, { color }, bounds));
   }
 
   function rename(id: string, label: string) {
-    change(() => setControls((previous) => updateControl(previous, id, { label }, bounds)));
+    updateControls((previous) => updateControl(previous, id, { label }, bounds), `rename:${id}`);
   }
 
   function remove(id: string) {
-    change(() => setControls((previous) => removeControl(previous, id)));
+    updateControls((previous) => removeControl(previous, id));
     setFocused((current) => (current?.id === id ? null : current));
   }
 
@@ -150,48 +184,52 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
 
   function removeCategory(id: string) {
     change(() => {
-      const next = removeCategoryFrom(categories, controls, id);
+      const next = removeCategoryFrom(categories, controlsRef.current, id);
       setCategories(next.categories);
-      setControls(next.controls);
+      replaceControls(next.controls);
     });
   }
 
   function setCategory(id: string, categoryId: string | undefined) {
-    change(() => setControls((previous) => setControlCategory(previous, id, categoryId)));
+    updateControls((previous) => setControlCategory(previous, id, categoryId));
   }
 
   function setSwitchRole(id: string, role: SwitchRole) {
-    change(() => setControls((previous) => setSwitchRoleIn(previous, categories, id, role)));
+    updateControls((previous) => setSwitchRoleIn(previous, categories, id, role));
   }
 
   function setSelectorCategories(id: string, selects: readonly string[]) {
-    change(() => setControls((previous) => setSelectorCategoriesIn(previous, id, selects)));
+    updateControls((previous) => setSelectorCategoriesIn(previous, id, selects));
   }
 
   function setDependsOn(id: string, parentId: string) {
-    change(() => setControls((previous) => setDependsOnIn(previous, id, parentId)));
+    updateControls((previous) => setDependsOnIn(previous, id, parentId));
   }
 
   /** New panel image. Controls that would sit outside the new panel are pulled back onto it. */
   function replacePanel(next: { url: string; width: number; height: number; assetId: string }) {
     change(() => {
       setPanel(next);
-      setControls((previous) =>
-        previous.map((control) => ({ ...control, ...clampToPanel(control, { width: next.width, height: next.height }) })),
-      );
+      replaceControls(controlsRef.current.map((control) => ({ ...control, ...clampToPanel(control, { width: next.width, height: next.height }) })));
     });
   }
 
-  /** With `repair`, inconsistent categories and switch roles are corrected first (see repairCategoryRoles). */
-  async function save(options: { repair?: boolean } = {}): Promise<void> {
-    const repaired = options.repair ? repairCategoryRoles(categories, controls) : { categories, controls };
+  /**
+   * With `repair`, inconsistent categories and switch roles are corrected first (see repairCategoryRoles).
+   * Resolves true when a new revision was saved.
+   */
+  async function save(options: { repair?: boolean } = {}): Promise<boolean> {
+    const repaired = options.repair ? repairCategoryRoles(categories, controlsRef.current) : { categories, controls: controlsRef.current };
     if (options.repair) {
       setCategories(repaired.categories);
+      controlsRef.current = repaired.controls;
       setControls(repaired.controls);
     }
     setSaving(true);
     setMessage(null);
-    const response = await fetch(`/api/synths/${encodeURIComponent(source.slug)}/revisions`, {
+    let response: Response;
+    try {
+      response = await fetch(`/api/synths/${encodeURIComponent(source.slug)}/revisions`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -203,7 +241,12 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
         expectedRevision: revision,
         ...(panel.assetId ? { panelAssetId: panel.assetId } : {}),
       }),
-    });
+      });
+    } catch {
+      setSaving(false);
+      setMessage({ severity: "error", text: t("synths.invalid") });
+      return false;
+    }
     const body = (await response.json().catch(() => ({}))) as { revision?: number };
     setSaving(false);
     if (response.ok) {
@@ -212,9 +255,10 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
       setPanel((current) => ({ ...current, assetId: null }));
       setMessage({ severity: "success", text: t("synths.saved") });
       onSaved();
-      return;
+      return true;
     }
     setMessage({ severity: "error", text: response.status === 409 ? t("synths.conflict") : t("synths.invalid") });
+    return false;
   }
 
   return {
@@ -238,6 +282,8 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
     setColor,
     remove,
     replacePanel,
+    undo,
+    redo,
     addCategory,
     renameCategory,
     recolorCategory,

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   categoryUsage,
   draftCategoryIssues,
+  fixedColorOf,
   generateCategoryId,
   moveItem,
   nextCategoryColor,
@@ -11,6 +12,7 @@ import {
   setControlCategory,
   setDependsOn,
   setSwitchRole,
+  shownCategoryIds,
   switchRole,
 } from "@/components/synth-editor/category-draft";
 import type { EditorControl } from "@/components/synth-editor/draft-state";
@@ -105,3 +107,41 @@ describe("repairCategoryRoles", () => {
     expect(repairCategoryRoles(categories, controls)).toEqual({ categories, controls });
   });
 });
+
+describe("shownCategoryIds", () => {
+  const controls = [knob, sw("selector", { selects: [NORMAL, SHIFT, THIRD] }), sw("child", { dependsOn: "selector" }), sw("plain")];
+
+  it("lists a control's own category, a selector's categories, and its dependents' selector categories", () => {
+    expect(shownCategoryIds(knob, controls)).toEqual([SHIFT]);
+    expect(shownCategoryIds(controls[1]!, controls)).toEqual([NORMAL, SHIFT, THIRD]);
+    expect(shownCategoryIds(controls[2]!, controls)).toEqual([NORMAL, SHIFT, THIRD]);
+    expect(shownCategoryIds(controls[3]!, controls)).toEqual([]);
+  });
+});
+
+describe("LED categories in the editor", () => {
+  const led: EditorControl = { id: "led-00000001", kind: "led", label: "Gate", x: 1, y: 1, color: "blue", category: "cat-ffffffff" };
+
+  it("are checked and repaired like other controls", () => {
+    expect(draftCategoryIssues(categories, [led]).map((issue) => issue.code)).toEqual(["unknown-category"]);
+    expect(repairCategoryRoles(categories, [led]).controls).toEqual([{ id: "led-00000001", kind: "led", label: "Gate", x: 1, y: 1, color: "blue" }]);
+  });
+});
+
+describe("fixedColorOf", () => {
+  it("gives LEDs their fixed color and plain switches the default switch color", () => {
+    const led = (color: "red" | "blue" | "amber"): EditorControl => ({ id: "led", kind: "led", label: "L", x: 1, y: 1, color });
+    expect(fixedColorOf(led("amber"))).toBe("var(--color-led-blue)");
+    expect(fixedColorOf(led("blue"))).toBe("var(--color-led-blue)");
+    expect(fixedColorOf(sw("plain"))).toBe("var(--color-switch-stroke)");
+  });
+
+  it("leaves categorized and role switches to their category dots, and knobs without a dot", () => {
+    expect(fixedColorOf(sw("s", { category: NORMAL }))).toBeUndefined();
+    expect(fixedColorOf(sw("s", { selects: [NORMAL, SHIFT] }))).toBeUndefined();
+    expect(fixedColorOf(sw("s", { dependsOn: "x" }))).toBeUndefined();
+    expect(fixedColorOf({ id: "led", kind: "led", label: "L", x: 1, y: 1, color: "red", category: NORMAL })).toBeUndefined();
+    expect(fixedColorOf({ ...knob, category: undefined })).toBeUndefined();
+  });
+});
+

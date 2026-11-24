@@ -43,7 +43,10 @@ export interface SwitchDefinition extends Point {
 export interface LedDefinition extends Point {
   id: string;
   label?: string;
+  /** Fixed color, used when the LED has no category. */
   color: 'red' | 'blue' | 'amber';
+  /** Color category; takes precedence over `color`. */
+  category?: string;
 }
 
 export interface PatchPort extends Point {

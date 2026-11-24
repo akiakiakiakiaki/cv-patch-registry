@@ -203,6 +203,7 @@ export function InstrumentControlLayer({
       {layout.leds.map((led) => {
         const active = data.leds[led.id] ?? false;
         const toggle = () => onLedChange(led.id, !active);
+        const ledCategory = categoryClass(led.category);
         return (
           <InstrumentHitArea
             key={led.id}
@@ -215,12 +216,14 @@ export function InstrumentControlLayer({
             layoutElement={{ kind: "led", id: led.id }}
             className={[
               styles.ledHit,
-              led.color === "red" ? styles.ledRed : styles.ledBlue,
+              // A category's color takes precedence over the LED's fixed color.
+              ledCategory ? `${styles.ledCategory} ${ledCategory}` : led.color === "red" ? styles.ledRed : styles.ledBlue,
               active && !layoutEditMode ? styles.active : "",
-              active && !layoutEditMode && led.color === "red"
+              active && !layoutEditMode && ledCategory ? styles.ledCategoryActive : "",
+              active && !layoutEditMode && !ledCategory && led.color === "red"
                 ? styles.ledRedActive
                 : "",
-              active && !layoutEditMode && led.color === "blue"
+              active && !layoutEditMode && !ledCategory && led.color === "blue"
                 ? styles.ledBlueActive
                 : "",
               layoutEditMode &&
