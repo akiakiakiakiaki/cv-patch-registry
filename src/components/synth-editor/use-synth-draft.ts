@@ -5,6 +5,22 @@ import { draftToLayout } from "@/lib/adapters/synth-layout-adapter";
 import type { ControlCategory, FocusedLayoutElement, InstrumentLayout } from "@/lib/instrument/layout";
 import { useI18n } from "@/i18n/provider";
 import {
+  addCategory as addCategoryTo,
+  draftCategoryIssues,
+  generateCategoryId,
+  nextCategoryColor,
+  recolorCategory as recolorCategoryIn,
+  removeCategory as removeCategoryFrom,
+  renameCategory as renameCategoryIn,
+  repairCategoryRoles,
+  setControlCategory,
+  setDependsOn as setDependsOnIn,
+  setSelectorCategories as setSelectorCategoriesIn,
+  setSwitchRole as setSwitchRoleIn,
+  moveItem,
+  type SwitchRole,
+} from "@/components/synth-editor/category-draft";
+import {
   addControl,
   clampToPanel,
   controlsFromLayout,
@@ -36,8 +52,7 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
   const [displayName, setDisplayName] = useState(source.displayName);
   const [manufacturer, setManufacturer] = useState(source.manufacturer ?? "");
   const [controls, setControls] = useState<EditorControl[]>(() => controlsFromLayout(source.layout));
-  // Kept as loaded until the category editor exists, so saving never drops them.
-  const [categories] = useState<ControlCategory[]>(() => [...(source.layout.categories ?? [])]);
+  const [categories, setCategories] = useState<ControlCategory[]>(() => [...(source.layout.categories ?? [])]);
   const [panel, setPanel] = useState<PanelDraft>(() => ({
     url: source.panelUrl,
     width: source.layout.viewBox.width,
@@ -52,9 +67,13 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
 
   const bounds = { width: panel.width, height: panel.height };
 
+  const issues = useMemo(() => draftCategoryIssues(categories, controls), [categories, controls]);
+
+  // The preview always shows a consistent configuration; unresolved issues are reported on save.
   const layout = useMemo(() => {
+    const repaired = repairCategoryRoles(categories, controls);
     const built = draftToLayout(
-      { displayName, slug: source.slug, manufacturer, controls, categories },
+      { displayName, slug: source.slug, manufacturer, controls: repaired.controls, categories: repaired.categories },
       bounds,
       source.layout.layoutVersion,
     );
@@ -111,6 +130,48 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
     setFocused((current) => (current?.id === id ? null : current));
   }
 
+  function addCategory(name: string): string {
+    const id = generateCategoryId();
+    change(() => setCategories((previous) => addCategoryTo(previous, { id, name, color: nextCategoryColor(previous) })));
+    return id;
+  }
+
+  function renameCategory(id: string, name: string) {
+    change(() => setCategories((previous) => renameCategoryIn(previous, id, name)));
+  }
+
+  function recolorCategory(id: string, color: string) {
+    change(() => setCategories((previous) => recolorCategoryIn(previous, id, color)));
+  }
+
+  function moveCategory(id: string, delta: -1 | 1) {
+    change(() => setCategories((previous) => moveItem(previous, previous.findIndex((category) => category.id === id), delta)));
+  }
+
+  function removeCategory(id: string) {
+    change(() => {
+      const next = removeCategoryFrom(categories, controls, id);
+      setCategories(next.categories);
+      setControls(next.controls);
+    });
+  }
+
+  function setCategory(id: string, categoryId: string | undefined) {
+    change(() => setControls((previous) => setControlCategory(previous, id, categoryId)));
+  }
+
+  function setSwitchRole(id: string, role: SwitchRole) {
+    change(() => setControls((previous) => setSwitchRoleIn(previous, categories, id, role)));
+  }
+
+  function setSelectorCategories(id: string, selects: readonly string[]) {
+    change(() => setControls((previous) => setSelectorCategoriesIn(previous, id, selects)));
+  }
+
+  function setDependsOn(id: string, parentId: string) {
+    change(() => setControls((previous) => setDependsOnIn(previous, id, parentId)));
+  }
+
   /** New panel image. Controls that would sit outside the new panel are pulled back onto it. */
   function replacePanel(next: { url: string; width: number; height: number; assetId: string }) {
     change(() => {
@@ -121,7 +182,13 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
     });
   }
 
-  async function save(): Promise<void> {
+  /** With `repair`, inconsistent categories and switch roles are corrected first (see repairCategoryRoles). */
+  async function save(options: { repair?: boolean } = {}): Promise<void> {
+    const repaired = options.repair ? repairCategoryRoles(categories, controls) : { categories, controls };
+    if (options.repair) {
+      setCategories(repaired.categories);
+      setControls(repaired.controls);
+    }
     setSaving(true);
     setMessage(null);
     const response = await fetch(`/api/synths/${encodeURIComponent(source.slug)}/revisions`, {
@@ -131,8 +198,8 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
         displayName,
         slug: source.slug,
         manufacturer,
-        controls,
-        ...(categories.length ? { categories } : {}),
+        controls: repaired.controls,
+        ...(repaired.categories.length ? { categories: repaired.categories } : {}),
         expectedRevision: revision,
         ...(panel.assetId ? { panelAssetId: panel.assetId } : {}),
       }),
@@ -156,6 +223,8 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
     manufacturer,
     setManufacturer: (value: string) => change(() => setManufacturer(value)),
     controls,
+    categories,
+    issues,
     layout,
     panel,
     focused,
@@ -169,6 +238,15 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
     setColor,
     remove,
     replacePanel,
+    addCategory,
+    renameCategory,
+    recolorCategory,
+    moveCategory,
+    removeCategory,
+    setCategory,
+    setSwitchRole,
+    setSelectorCategories,
+    setDependsOn,
     dirty,
     saving,
     message,

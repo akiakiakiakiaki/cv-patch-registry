@@ -20,6 +20,10 @@ import type { FocusedLayoutElement } from "@/lib/instrument/layout";
 import { createLayoutSwitchAdapter } from "@/lib/instruments/generic-switch-adapter";
 import type { InstrumentDefinition } from "@/lib/instruments/types";
 import { panelRejectionMessage, uploadPanelFile } from "@/components/synth-editor/upload-panel";
+import { CategoryList, ControlCategoryFields, categoryIssueText } from "@/components/synth-editor/CategorySettings";
+import { categoryUsage } from "@/components/synth-editor/category-draft";
+import { useConfirmDialog } from "@/components/confirm-dialog/ConfirmDialog";
+import type { ControlCategory } from "@/lib/instrument/layout";
 
 const CONTROL_KINDS: readonly ControlKind[] = ["knob", "switch", "led", "in", "out", "uni"];
 const EMPTY_DATA: PatchData = { knobs: {}, switches: {}, leds: {}, cables: [] };
@@ -49,6 +53,45 @@ export function SynthLayoutEditor({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [focusRequestedElement, setFocusRequestedElement] = useState<FocusedLayoutElement | null>(null);
   const clearFocusRequest = useCallback(() => setFocusRequestedElement(null), []);
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
+  const missingCategoryName = draft.categories.some((category) => !category.name.trim());
+
+  async function removeCategory(category: ControlCategory) {
+    const count = categoryUsage(draft.controls, category.id);
+    if (count > 0) {
+      const confirmed = await confirm({
+        tone: "warning",
+        title: t("synths.categoryRemoveTitle"),
+        content: t("synths.categoryRemoveText", { name: category.name, count }),
+        confirmLabel: t("synths.categoryRemoveConfirm"),
+      });
+      if (!confirmed) return;
+    }
+    draft.removeCategory(category.id);
+  }
+
+  /** Inconsistent categories or switch roles are listed first; saving then corrects them. */
+  async function save() {
+    if (draft.issues.length === 0) return draft.save();
+    const confirmed = await confirm({
+      tone: "warning",
+      title: t("synths.issuesTitle"),
+      content: (
+        <>
+          <Typography gutterBottom>{t("synths.issuesIntro")}</Typography>
+          <Box component="ul" sx={{ pl: 3, my: 1 }}>
+            {draft.issues.map((issue, index) => (
+              <li key={index}>{categoryIssueText(issue, draft.controls, draft.categories, t)}</li>
+            ))}
+          </Box>
+          <Typography variant="body2" color="text.secondary">{t("synths.issuesOutro")}</Typography>
+        </>
+      ),
+      confirmLabel: t("synths.issuesConfirm"),
+      cancelLabel: t("synths.issuesCancel"),
+    });
+    if (confirmed) await draft.save({ repair: true });
+  }
 
   async function deleteSynthNow() {
     if (!window.confirm(t("synths.deleteConfirm", { name: draft.displayName }))) return;
@@ -170,6 +213,15 @@ export function SynthLayoutEditor({
           </Box>
         </Box>
 
+        <CategoryList
+          categories={draft.categories}
+          onAdd={() => draft.addCategory(t("synths.categoryDefaultName", { number: draft.categories.length + 1 }))}
+          onRename={draft.renameCategory}
+          onRecolor={draft.recolorCategory}
+          onMove={draft.moveCategory}
+          onRemove={(category) => void removeCategory(category)}
+        />
+
         {focusedControl ? (
           <Box sx={{ border: 1, borderColor: "primary.main", borderRadius: 1, p: 1.5 }}>
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
@@ -186,6 +238,15 @@ export function SynthLayoutEditor({
                   {(["red", "blue", "amber"] as const).map((color) => <MenuItem key={color} value={color}>{t(`synths.colorName.${color}`)}</MenuItem>)}
                 </TextField>
               ) : null}
+              <ControlCategoryFields
+                control={focusedControl}
+                controls={draft.controls}
+                categories={draft.categories}
+                onSetCategory={draft.setCategory}
+                onSetRole={draft.setSwitchRole}
+                onSetSelectorCategories={draft.setSelectorCategories}
+                onSetDependsOn={draft.setDependsOn}
+              />
               <Box>
                 <Button color="error" size="small" startIcon={<DeleteIcon />} onClick={() => draft.remove(focusedControl.id)}>
                   {t("synths.removeAria", { label: focusedControl.label })}
@@ -232,11 +293,13 @@ export function SynthLayoutEditor({
         </Button>
         {deleteError ? <Alert severity="error" role="alert">{deleteError}</Alert> : null}
 
-        <Button variant="contained" onClick={() => void draft.save()} disabled={draft.saving || !draft.dirty}>
+        {missingCategoryName ? <Alert severity="warning">{t("synths.categoryNameMissing")}</Alert> : null}
+        <Button variant="contained" onClick={() => void save()} disabled={draft.saving || !draft.dirty || missingCategoryName}>
           {draft.saving ? t("synths.saving") : t("synths.save")}
         </Button>
         {draft.message ? <Alert severity={draft.message.severity} role={draft.message.severity === "error" ? "alert" : "status"}>{draft.message.text}</Alert> : null}
       </Stack>
+      {confirmDialog}
     </Box>
   );
 }
