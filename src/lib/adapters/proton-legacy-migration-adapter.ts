@@ -1,6 +1,7 @@
 import type { ControlKind } from "@/lib/domain/control-ids";
 import { categoryStateKey } from "@/lib/domain/switch-categories";
-import type { PatchCable, PatchData } from "@/lib/domain/types";
+import type { PatchCable, PatchData, PatchLibrary } from "@/lib/domain/types";
+import { decodeImport, type DecodedImport } from "@/lib/adapters/patch-adapter";
 import { encodeInstrumentLayout } from "@/lib/adapters/instrument-layout-adapter";
 import type { ControlCategory, InstrumentLayout, KnobDefinition, LedDefinition, PatchPort, SwitchDefinition } from "@/lib/instrument/layout";
 import { normalizePixelPosition } from "@/lib/instrument/pixel-position";
@@ -152,3 +153,29 @@ export function migrateLegacyPatchData(data: PatchData): PatchData {
     cables,
   };
 }
+
+/** A legacy library with every patch migrated; IDs, names, timestamps and the active patch stay. */
+export function migrateLegacyLibrary(library: PatchLibrary): PatchLibrary {
+  return { ...library, patches: library.patches.map((patch) => ({ ...patch, data: migrateLegacyPatchData(patch.data) })) };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Exports of the legacy Proton: current exports with its instrument ID, and the older Proton formats. */
+export function isLegacyProtonExport(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (value.format === "synth-patch-library") return value.instrumentId === LEGACY_PROTON_SLUG;
+  return value.format === "proton-patch-library" || value.format === undefined;
+}
+
+/**
+ * Reads a legacy Proton export for the clone. Patch IDs are not kept: the clone's patches were copied
+ * under new IDs, so the import matches them by name instead (like older exports without stable IDs).
+ */
+export function decodeLegacyProtonExportForClone(value: unknown): DecodedImport {
+  const decoded = decodeImport(value, behringerProton);
+  return { hasStableIds: false, patches: decoded.patches.map((patch) => ({ ...patch, data: migrateLegacyPatchData(patch.data) })) };
+}
+

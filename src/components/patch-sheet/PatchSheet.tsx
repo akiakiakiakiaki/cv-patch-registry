@@ -46,6 +46,9 @@ import {
   updateSwitches,
 } from "@/lib/domain/patch-service";
 import { LocalPatchRepository } from "@/lib/storage/local-patch-repository";
+import { loadLocalLibrary } from "@/lib/storage/legacy-proton-local";
+import { initialSynthSlug, readLastSynth, writeLastSynth } from "@/lib/storage/last-synth";
+import { LEGACY_PROTON_SLUG, PROTON_CLONE_SLUG, decodeLegacyProtonExportForClone, isLegacyProtonExport } from "@/lib/adapters/proton-legacy-migration-adapter";
 import { layoutElementPosition } from "@/lib/instrument/layout-editor";
 import { useI18n } from "@/i18n/provider";
 import { useConfirmDialog } from "@/components/confirm-dialog/ConfirmDialog";
@@ -96,8 +99,9 @@ export function PatchSheet() {
   const accountUserId = session?.user?.id ?? null;
   const role = roleForUser(session?.user);
 
-  const [catalog, setCatalog] = useState<CatalogItem[]>([]);
-  const [selectedSlug, setSelectedSlug] = useState(searchParams.get("synth") ?? BUILT_IN_SYNTH);
+  const [catalog, setCatalog] = useState<CatalogItem[] | null>(null);
+  // Empty until known: the URL names a synth, or the catalog decides (last opened, else first).
+  const [selectedSlug, setSelectedSlug] = useState(searchParams.get("synth") ?? "");
   const [view, setView] = useState<SynthView | null>(null);
   const [editing, setEditing] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -111,10 +115,20 @@ export function PatchSheet() {
   const isBuiltIn = selectedSlug === BUILT_IN_SYNTH;
   // The selector must always offer the selected synth, even before the catalog has loaded (MUI warns otherwise).
   const selectorOptions = useMemo(() => {
-    if (catalog.some((item) => item.slug === selectedSlug)) return catalog;
+    const items = catalog ?? [];
+    if (!selectedSlug || items.some((item) => item.slug === selectedSlug)) return items;
     const fallbackName = selectedSlug === BUILT_IN_SYNTH ? behringerProton.displayName : selectedSlug;
-    return [...catalog, { slug: selectedSlug, displayName: fallbackName, isBuiltIn: selectedSlug === BUILT_IN_SYNTH }];
+    return [...items, { slug: selectedSlug, displayName: fallbackName, isBuiltIn: selectedSlug === BUILT_IN_SYNTH }];
   }, [catalog, selectedSlug]);
+  // The built-in Proton is kept next to its editable clone until removed; the list marks it as legacy.
+  const instrumentOptions = useMemo(
+    () =>
+      selectorOptions.map((item) => ({
+        id: item.slug,
+        displayName: item.slug === LEGACY_PROTON_SLUG ? t("instrument.legacyName", { name: item.displayName }) : item.displayName,
+      })),
+    [selectorOptions, t],
+  );
   // Memoized: the instrument identity drives effects (layout and library loading); a new object per render would loop.
   const instrument: InstrumentDefinition | null = useMemo(
     () => (isBuiltIn ? behringerProton : view ? instrumentFromSynth(view) : null),
@@ -133,7 +147,7 @@ export function PatchSheet() {
   }, []);
 
   const loadView = useCallback(async (slug: string) => {
-    if (slug === BUILT_IN_SYNTH) return setView(null);
+    if (!slug || slug === BUILT_IN_SYNTH) return setView(null);
     const response = await fetch(`/api/synths/${encodeURIComponent(slug)}`, { cache: "no-store" });
     setView(response.ok ? ((await response.json()) as SynthView) : null);
   }, []);
@@ -141,6 +155,14 @@ export function PatchSheet() {
   useEffect(() => {
     void loadCatalog();
   }, [loadCatalog]);
+
+  useEffect(() => {
+    if (!selectedSlug && catalog) setSelectedSlug(initialSynthSlug(readLastSynth(), catalog) ?? "");
+  }, [catalog, selectedSlug]);
+
+  useEffect(() => {
+    if (selectedSlug) writeLastSynth(selectedSlug);
+  }, [selectedSlug]);
 
   useEffect(() => {
     setEditing(false);
@@ -163,8 +185,8 @@ export function PatchSheet() {
 
   const repository = useMemo(() => (instrument ? new LocalPatchRepository(instrument) : null), [instrument]);
   useEffect(() => {
-    if (repository) setLocalLibrary(repository.load(t("patch.new")));
-  }, [repository, t]);
+    if (repository && instrument) setLocalLibrary(loadLocalLibrary(repository, instrument.id, t("patch.new")));
+  }, [repository, instrument, t]);
 
   const { confirm, choose, dialog: confirmDialog } = useConfirmDialog();
   const synthName = instrument?.displayName ?? selectedSlug;
@@ -257,7 +279,7 @@ export function PatchSheet() {
         <Typography color="text.secondary">{t("loading.library")}</Typography>
         <PatchManager
           role={role}
-          instruments={selectorOptions.map((item) => ({ id: item.slug, displayName: item.displayName }))}
+          instruments={instrumentOptions}
           onCreateSynth={() => setCreating(true)}
           instrumentId={selectedSlug}
           onInstrumentChange={setSelectedSlug}
@@ -335,7 +357,11 @@ export function PatchSheet() {
   async function importFile(file: File) {
     try {
       const decoded = parseJson(await file.text());
-      const imported = decodeImport(decoded, instrument!);
+      // A legacy Proton export is migrated when imported into the editable clone.
+      const imported =
+        instrument!.id === PROTON_CLONE_SLUG && isLegacyProtonExport(decoded)
+          ? decodeLegacyProtonExportForClone(decoded)
+          : decodeImport(decoded, instrument!);
       const incoming = imported.hasStableIds ? imported.patches : associateLegacyPatches(imported.patches, library.patches);
       const choices: Record<string, "local" | "incoming"> = {};
       for (const incomingPatch of incoming) {
@@ -372,7 +398,7 @@ export function PatchSheet() {
     <>
       <PatchManager
         role={role}
-        instruments={selectorOptions.map((item) => ({ id: item.slug, displayName: item.displayName }))}
+        instruments={instrumentOptions}
         onCreateSynth={() => setCreating(true)}
         instrumentId={selectedSlug}
         onInstrumentChange={selectInstrument}
@@ -458,7 +484,8 @@ export function PatchSheet() {
             onDeleted={() => {
               setEditing(false);
               void loadCatalog();
-              setSelectedSlug(BUILT_IN_SYNTH);
+              // Continue with the next synth of the list.
+              setSelectedSlug((catalog ?? []).find((item) => item.slug !== view.slug)?.slug ?? "");
             }}
           />
         ) : (

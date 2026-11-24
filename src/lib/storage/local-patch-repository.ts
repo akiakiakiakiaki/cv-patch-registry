@@ -42,6 +42,23 @@ export class LocalPatchRepository {
     return emptyLibrary;
   }
 
+  /** Whether this browser holds a library for the instrument, including the older Proton keys. */
+  hasStoredLibrary(): boolean {
+    if (typeof window === 'undefined') return false;
+    if (decodeLibrary(this.readValue(this.storageKey()), this.instrument)) return true;
+    return (
+      this.instrument.id === 'behringer-proton' &&
+      (window.localStorage.getItem(PREVIOUS_LIBRARY_KEY) !== null || window.localStorage.getItem(PREVIOUS_SINGLE_PATCH_KEY) !== null)
+    );
+  }
+
+  /** Saves a library whose knob values already use the MIDI range, so loading it never converts them again. */
+  saveCurrent(library: PatchLibrary): void {
+    if (typeof window === 'undefined') return;
+    this.save(library);
+    this.markMidiRangeCurrent();
+  }
+
   save(library: PatchLibrary): void {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(this.storageKey(), JSON.stringify(encodeLibrary(library, this.instrument.id)));

@@ -58,7 +58,9 @@ describe("PatchSheet", () => {
 
   beforeEach(() => {
     window.localStorage.clear();
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ synths: [] }), { status: 200 })));
+    // The catalog lists the built-in Proton, which the sheet then opens as the first synth.
+    const catalog = { synths: [{ slug: behringerProton.id, displayName: behringerProton.displayName, isBuiltIn: true }] };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(catalog), { status: 200 })));
   });
 
   it("tells guests that patches are saved locally in the browser", async () => {

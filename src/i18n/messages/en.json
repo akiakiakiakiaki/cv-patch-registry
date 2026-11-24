@@ -4,6 +4,7 @@
   "brand.subtitle": "Patch sheets for analog synthesis",
   "instrument.select": "Synthesizer",
   "instrument.selectAria": "Select synthesizer",
+  "instrument.legacyName": "{name} (Legacy)",
   "language.label": "Language",
   "theme.switchToLight": "Switch to light theme",
   "theme.switchToDark": "Switch to dark theme",
