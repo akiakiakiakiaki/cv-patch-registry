@@ -170,3 +170,27 @@ export function controlKindOf(id: string): ControlKind | null {
   const match = CONTROL_ID_PATTERN.exec(id);
   return match ? (match[1] as ControlKind) : null;
 }
+
+/** Draft controls from a stored layout, the inverse of draftToLayout. Labels fall back to the ID for legacy controls. */
+export function draftControlsFromLayout(layout: InstrumentLayout): DraftControl[] {
+  const fromPoints = (
+    kind: ControlKind,
+    points: readonly { id: string; label?: string; x: number; y: number; category?: string; selects?: readonly string[]; dependsOn?: string }[],
+  ) =>
+    points.map((point) => ({
+      id: point.id,
+      kind,
+      label: point.label ?? point.id,
+      x: point.x,
+      y: point.y,
+      ...(point.category ? { category: point.category } : {}),
+      ...(point.selects ? { selects: [...point.selects] } : {}),
+      ...(point.dependsOn ? { dependsOn: point.dependsOn } : {}),
+    }));
+  return [
+    ...fromPoints("knob", layout.knobs),
+    ...fromPoints("switch", layout.switches),
+    ...layout.leds.map((led) => ({ id: led.id, kind: "led" as const, label: led.label ?? led.id, x: led.x, y: led.y, color: led.color })),
+    ...layout.ports.map((port) => ({ id: port.id, kind: port.kind, label: port.label, x: port.x, y: port.y })),
+  ];
+}

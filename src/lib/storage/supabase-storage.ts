@@ -60,6 +60,18 @@ export class SupabaseStorage implements StorageProvider {
     return storageKey;
   }
 
+  async read(storageKey: string): Promise<Uint8Array> {
+    if (!isValidUploadKey(storageKey)) throw new Error("Invalid storage key");
+    const response = await fetch(objectUrl(this.projectUrl, this.bucket, storageKey), {
+      headers: apiKeyHeaders(this.secret),
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      await throwStorageError("download", response);
+    }
+    return new Uint8Array(await response.arrayBuffer());
+  }
+
   async remove(storageKey: string): Promise<void> {
     if (!isValidUploadKey(storageKey)) return;
     const response = await fetch(`${this.projectUrl}/storage/v1/object/${encodeURIComponent(this.bucket)}`, {

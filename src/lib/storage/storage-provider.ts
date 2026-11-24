@@ -6,6 +6,8 @@ export type UploadExtension = "svg" | "png" | "jpg" | "mp3" | "m4a";
  */
 export interface StorageProvider {
   put(bytes: Uint8Array, extension: UploadExtension): Promise<string>;
+  /** The stored bytes; rejects for unknown or invalid keys. */
+  read(storageKey: string): Promise<Uint8Array>;
   remove(storageKey: string): Promise<void>;
   publicUrl(storageKey: string): string;
 }

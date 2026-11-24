@@ -18,6 +18,13 @@ afterEach(() => {
 });
 
 describe("LocalFsStorage", () => {
+  it("reads stored bytes back and refuses invalid keys", async () => {
+    const storage = new LocalFsStorage(root, temporary);
+    const key = await storage.put(new Uint8Array([4, 5, 6]), "mp3");
+    expect(await storage.read(key)).toEqual(new Uint8Array([4, 5, 6]));
+    await expect(storage.read("../secret.png")).rejects.toThrow("Invalid storage key");
+  });
+
   it("writes under a generated key and returns only that key", async () => {
     const storage = new LocalFsStorage(root, temporary);
     const key = await storage.put(new Uint8Array([1, 2, 3]), "png");

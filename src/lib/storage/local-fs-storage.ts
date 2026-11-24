@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { UPLOAD_DIRECTORY, isValidUploadKey, uploadPublicUrl } from "@/lib/storage/upload-files";
 import type { StorageProvider, UploadExtension } from "@/lib/storage/storage-provider";
@@ -25,6 +25,11 @@ export class LocalFsStorage implements StorageProvider {
     await writeFile(/* turbopackIgnore: true */ temporaryPath, bytes, { flag: "wx" });
     await rename(temporaryPath, /* turbopackIgnore: true */ destinationPath);
     return storageKey;
+  }
+
+  async read(storageKey: string): Promise<Uint8Array> {
+    if (!isValidUploadKey(storageKey)) throw new Error("Invalid storage key");
+    return new Uint8Array(await readFile(/* turbopackIgnore: true */ path.join(this.root, storageKey)));
   }
 
   async remove(storageKey: string): Promise<void> {

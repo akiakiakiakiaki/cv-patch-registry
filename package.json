@@ -14,7 +14,8 @@
     "test:run": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:set-role": "node --env-file=.env.development.local scripts/set-user-role.mjs",
-    "storage:migrate-local": "node --env-file=.env.development.local scripts/migrate-local-uploads-to-supabase.mjs"
+    "storage:migrate-local": "node --env-file=.env.development.local scripts/migrate-local-uploads-to-supabase.mjs",
+    "proton:clone": "node --env-file=.env.development.local node_modules/.bin/tsx --tsconfig tsconfig.json scripts/clone-proton.mts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.10",
