@@ -112,11 +112,14 @@ export function PatchSheet() {
   const [debugEditing, setDebugEditing] = useState(false);
   const [linkedPatchId, setLinkedPatchId] = useState<string | null>(searchParams.get("patch"));
 
-  const isBuiltIn = selectedSlug === BUILT_IN_SYNTH;
+  // The built-in Proton comes with the app, but is only offered while the server lists it (FEATURE_LEGACY_SYNTHS).
+  const builtInListed = catalog?.some((item) => item.slug === BUILT_IN_SYNTH) ?? false;
+  const isBuiltIn = selectedSlug === BUILT_IN_SYNTH && builtInListed;
   // The selector must always offer the selected synth, even before the catalog has loaded (MUI warns otherwise).
   const selectorOptions = useMemo(() => {
     const items = catalog ?? [];
     if (!selectedSlug || items.some((item) => item.slug === selectedSlug)) return items;
+    if (selectedSlug === BUILT_IN_SYNTH && catalog) return items;
     const fallbackName = selectedSlug === BUILT_IN_SYNTH ? behringerProton.displayName : selectedSlug;
     return [...items, { slug: selectedSlug, displayName: fallbackName, isBuiltIn: selectedSlug === BUILT_IN_SYNTH }];
   }, [catalog, selectedSlug]);
@@ -157,8 +160,11 @@ export function PatchSheet() {
   }, [loadCatalog]);
 
   useEffect(() => {
-    if (!selectedSlug && catalog) setSelectedSlug(initialSynthSlug(readLastSynth(), catalog) ?? "");
-  }, [catalog, selectedSlug]);
+    if (!catalog) return;
+    // Nothing chosen yet, or a link to the hidden legacy Proton: open the last or first listed synth instead.
+    const hiddenBuiltIn = selectedSlug === BUILT_IN_SYNTH && !builtInListed;
+    if (!selectedSlug || hiddenBuiltIn) setSelectedSlug(initialSynthSlug(readLastSynth(), catalog) ?? "");
+  }, [catalog, selectedSlug, builtInListed]);
 
   useEffect(() => {
     if (selectedSlug) writeLastSynth(selectedSlug);

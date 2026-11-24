@@ -6,13 +6,15 @@ import { hasCapability, roleForUser } from '@/lib/auth/roles';
 import { invalidJsonResponse } from '@/lib/http/patch-responses';
 import { readJsonLimited } from '@/lib/http/read-json-limited';
 import { rejectCrossOriginMutation } from '@/lib/http/mutation-origin';
+import { legacySynthsVisible } from '@/lib/synths/legacy-visibility';
 
 export const runtime = 'nodejs';
 
 type RouteContext = { params: Promise<{ instrumentId: string }> };
 
 function isDebugEnabled(): boolean {
-  return process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_LAYOUT === 'true';
+  // Only the built-in (legacy) Proton has this editor; hidden with it.
+  return process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_LAYOUT === 'true' && legacySynthsVisible();
 }
 
 export async function GET(_request: Request, { params }: RouteContext) {

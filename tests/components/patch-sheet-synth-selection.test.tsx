@@ -94,6 +94,33 @@ describe("PatchSheet synth selection", () => {
   });
 });
 
+describe("PatchSheet when the server hides the legacy Proton", () => {
+  function hideLegacy() {
+    const base = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (input, init) =>
+      String(input) === "/api/synths"
+        ? new Response(JSON.stringify({ synths: catalog.synths.filter((item) => item.slug !== behringerProton.id) }), { status: 200 })
+        : base(input, init),
+    );
+  }
+
+  it("opens the first listed synth instead of a link to the legacy Proton", async () => {
+    hideLegacy();
+    navigation.params = new URLSearchParams(`synth=${behringerProton.id}`);
+    renderSheet();
+    expect(await screen.findByRole("region", { name: /TD3/ })).toBeInTheDocument();
+    expect(screen.queryByRole("slider", { name: "Tune 1" })).not.toBeInTheDocument();
+  });
+
+  it("does not reopen a remembered legacy Proton", async () => {
+    hideLegacy();
+    writeLastSynth(behringerProton.id);
+    renderSheet();
+    expect(await screen.findByRole("region", { name: /TD3/ })).toBeInTheDocument();
+    await waitFor(() => expect(readLastSynth()).toBe("td3"));
+  });
+});
+
 describe("PatchSheet synth list", () => {
   it("marks the built-in Proton as legacy and lists the clone under its plain name", async () => {
     const user = userEvent.setup();

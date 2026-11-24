@@ -98,7 +98,8 @@ export async function cloneLegacyProton(
     if (!built.ok || canonicalJson(built.layout) !== canonicalJson(expected)) return { ok: false, error: "layout-mismatch" };
   }
 
-  const rows = await listPatchesWithSynth(db, { synthSlug: LEGACY_PROTON_SLUG });
+  // The legacy synth may already be hidden (FEATURE_LEGACY_SYNTHS=false); its patches must still be copied.
+  const rows = await listPatchesWithSynth(db, { synthSlug: LEGACY_PROTON_SLUG, includeHidden: true });
   const plans: Array<ProtonClonePatch & { data: PatchData }> = [];
   for (const row of rows) {
     const layout = parseSynthLayout(row.layout);

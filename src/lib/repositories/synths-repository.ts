@@ -1,6 +1,7 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, notInArray, type SQL } from "drizzle-orm";
 import type { Database } from "@/lib/db/client";
 import { synthRevisions, synths } from "@/lib/db/schema";
+import { hiddenSynthSlugs } from "@/lib/synths/legacy-visibility";
 
 export type SynthRow = typeof synths.$inferSelect;
 export type RevisionRow = typeof synthRevisions.$inferSelect;
@@ -11,18 +12,24 @@ export async function findSynthBySlug(db: Database, slug: string): Promise<Synth
   return row ?? null;
 }
 
-/** A synth that is not deleted. Everything user-facing uses this. */
+/** Not deleted and not hidden (see legacy-visibility). Shared by synth and patch queries. */
+export function visibleSynthCondition(): SQL {
+  const hidden = hiddenSynthSlugs();
+  return hidden.length > 0 ? and(isNull(synths.deletedAt), notInArray(synths.slug, [...hidden]))! : isNull(synths.deletedAt);
+}
+
+/** A synth that is neither deleted nor hidden. Everything user-facing uses this. */
 export async function findActiveSynthBySlug(db: Database, slug: string): Promise<SynthRow | null> {
   const [row] = await db
     .select()
     .from(synths)
-    .where(and(eq(synths.slug, slug), isNull(synths.deletedAt)))
+    .where(and(eq(synths.slug, slug), visibleSynthCondition()))
     .limit(1);
   return row ?? null;
 }
 
 export async function listSynthRows(db: Database): Promise<SynthRow[]> {
-  return db.select().from(synths).where(isNull(synths.deletedAt)).orderBy(desc(synths.createdAt));
+  return db.select().from(synths).where(visibleSynthCondition()).orderBy(desc(synths.createdAt));
 }
 
 export async function findRevision(db: Database, revisionId: string): Promise<RevisionRow | null> {
