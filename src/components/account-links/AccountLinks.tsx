@@ -4,6 +4,7 @@ import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import NextLink from "next/link";
 import { authClient } from "@/lib/auth/client";
+import { confirmLeave } from "@/lib/navigation/leave-guard";
 import { useI18n } from "@/i18n/provider";
 
 /** Explore and account navigation links. */
@@ -22,6 +23,8 @@ export function AccountLinks() {
           color="inherit"
           size="small"
           onClick={async () => {
+            // Unsaved work (e.g. in the synth editor) is asked about first; staying cancels the sign-out.
+            if (!(await confirmLeave())) return;
             await authClient.signOut();
             window.location.assign("/");
           }}

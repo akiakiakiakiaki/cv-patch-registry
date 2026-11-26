@@ -13,6 +13,7 @@ import Link from "@mui/material/Link";
 import NextLink from "next/link";
 import { authClient } from "@/lib/auth/client";
 import { useI18n } from "@/i18n/provider";
+import { markGuestTransferPending } from "@/lib/storage/guest-transfer";
 
 export type AuthMode = "login" | "register";
 
@@ -42,6 +43,8 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         setError(t("auth.registerError"));
         return;
       }
+      // This browser's guest patches move into the new account at its first sign-in here.
+      markGuestTransferPending(email);
       if (REQUIRE_EMAIL_VERIFICATION) {
         setInfo(t("auth.checkMail"));
         return;

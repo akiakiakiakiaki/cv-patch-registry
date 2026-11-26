@@ -24,7 +24,6 @@ import { InstrumentPanel } from "@/components/instrument-panel/InstrumentPanel";
 import { PatchManager } from "@/components/patch-manager/PatchManager";
 import { SynthLayoutEditor, type SynthLayoutEditorHandle } from "@/components/synth-editor/SynthLayoutEditor";
 import { NewSynthDialog } from "@/components/synth-editor/NewSynthDialog";
-import { ImportLocalPatches } from "@/components/patch-views/ImportLocalPatches";
 import { SampleSection } from "@/components/patch-editor/SampleSection";
 import { useAccountPatchLibrary } from "@/hooks/use-account-patch-library";
 import { useInstrumentLayoutEditor } from "@/hooks/use-instrument-layout-editor";
@@ -54,6 +53,10 @@ import { useI18n } from "@/i18n/provider";
 import { useConfirmDialog } from "@/components/confirm-dialog/ConfirmDialog";
 import { RevisionLossDetails } from "@/components/patch-sheet/RevisionLossDetails";
 import { TagInput } from "@/components/patch-sheet/TagInput";
+import { PATCHES_IMPORTED_EVENT } from "@/components/guest-transfer/GuestPatchTransfer";
+import { sheetModeLayout, type SheetMode } from "@/components/patch-sheet/sheet-mode";
+import { setLeaveGuard } from "@/lib/navigation/leave-guard";
+import { useConfirmLinkNavigation } from "@/lib/navigation/use-confirm-link-navigation";
 import type { OutdatedRevision, RevisionLossDecision, RevisionLossPrompt } from "@/hooks/use-account-patch-library";
 import type { Locale } from "@/i18n/config";
 import { isMessageKey } from "@/i18n/messages";
@@ -105,7 +108,8 @@ export function PatchSheet() {
   // Empty until known: the URL names a synth, or the catalog decides (last opened, else first).
   const [selectedSlug, setSelectedSlug] = useState(searchParams.get("synth") ?? "");
   const [view, setView] = useState<SynthView | null>(null);
-  const [editing, setEditing] = useState(false);
+  const [sheetMode, setSheetMode] = useState<SheetMode>("patching");
+  const [editorDirty, setEditorDirty] = useState(false);
   const [creating, setCreating] = useState(false);
   const [shared, setShared] = useState<PatchView | null>(null);
   const [sample, setSample] = useState<PatchView["sample"]>(null);
@@ -173,7 +177,7 @@ export function PatchSheet() {
   }, [selectedSlug]);
 
   useEffect(() => {
-    setEditing(false);
+    setSheetMode("patching");
     setView(null);
     void loadView(selectedSlug);
   }, [selectedSlug, loadView]);
@@ -198,13 +202,43 @@ export function PatchSheet() {
 
   const { confirm, choose, dialog: confirmDialog } = useConfirmDialog();
   const editorRef = useRef<SynthLayoutEditorHandle>(null);
-  const editorOpen = editing && view !== null && isOwner && !isBuiltIn;
-  // While the editor is open, wide screens show the app at window height (see .editor-full-height in globals.scss).
+  const editorOpen = sheetMode === "editingSynth" && view !== null && isOwner && !isBuiltIn;
+  // The mode actually shown: editing needs an editable synth, otherwise the sheet stays in patching.
+  const modeLayout = sheetModeLayout(editorOpen ? "editingSynth" : "patching");
+  // Wide screens show the app at window height in modes that ask for it (see .editor-full-height in globals.scss).
   useEffect(() => {
-    if (!editorOpen) return;
+    if (!modeLayout.fillWindow) return;
     document.documentElement.classList.add(EDITOR_FULL_HEIGHT_CLASS);
     return () => document.documentElement.classList.remove(EDITOR_FULL_HEIGHT_CLASS);
+  }, [modeLayout.fillWindow]);
+
+  /**
+   * The one way to switch modes. Leaving the synth editor asks about unsaved changes first (save, discard,
+   * keep editing); resolves false when the user stays.
+   */
+  const requestMode = useCallback(
+    async (next: SheetMode): Promise<boolean> => {
+      if (next === sheetMode) return true;
+      if (editorOpen && editorRef.current && !(await editorRef.current.confirmLeave())) return false;
+      setSheetMode(next);
+      return true;
+    },
+    [sheetMode, editorOpen],
+  );
+
+  // Leaving from outside the sheet (signing out) asks the editor too; closing the tab gets the browser's warning.
+  useEffect(() => {
+    if (!editorOpen) return;
+    return setLeaveGuard(() => editorRef.current?.confirmLeave() ?? Promise.resolve(true));
   }, [editorOpen]);
+  // Links inside the app ask too (client-side navigation does not trigger the browser's warning).
+  useConfirmLinkNavigation(editorOpen && editorDirty);
+  useEffect(() => {
+    if (!editorOpen || !editorDirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [editorOpen, editorDirty]);
   const synthName = instrument?.displayName ?? selectedSlug;
   // A save ran into a synth revision that lacks controls: save (upgrade), restore the saved version, or keep working.
   const decideRevisionLoss = useCallback(
@@ -222,6 +256,13 @@ export function PatchSheet() {
     [choose, synthName, t],
   );
   const account = useAccountPatchLibrary(selectedSlug, accountMode && instrument !== null, { onRevisionLoss: decideRevisionLoss });
+  // Guest patches copied into the account after signing up (see GuestPatchTransfer) appear without a reload.
+  const reloadAccount = account.reload;
+  useEffect(() => {
+    if (!accountMode) return;
+    window.addEventListener(PATCHES_IMPORTED_EVENT, reloadAccount);
+    return () => window.removeEventListener(PATCHES_IMPORTED_EVENT, reloadAccount);
+  }, [accountMode, reloadAccount]);
   const layoutEditor = useInstrumentLayoutEditor(instrument ?? behringerProton, debugActive);
   const debugLayoutMode = debugActive && debugEditing;
 
@@ -242,16 +283,18 @@ export function PatchSheet() {
   const panelLayout = debugActive ? layoutEditor.layout : (panelInstrument?.layout ?? null);
 
   // Sample and own-revision panel of the active patch are loaded on demand; the library only holds the patch data.
+  // A new patch is asked for only once the server has it, so its create request is not answered with 404.
+  const activeSaved = activePatch ? account.savedIds.has(activePatch.id) : false;
   useEffect(() => {
     setSample(null);
-    if (!activePatch || !accountMode || shared) return;
+    if (!activePatch || !accountMode || shared || !activeSaved) return;
     void fetch(`/api/patches/${encodeURIComponent(activePatch.id)}`, { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((body: PatchView | null) => {
         setSample(body?.sample ?? null);
         setActiveView(body);
       });
-  }, [activePatch?.id, accountMode, shared, outdated?.revision]); // eslint-disable-line
+  }, [activePatch?.id, accountMode, shared, outdated?.revision, activeSaved]); // eslint-disable-line
 
   const askUpgrade = useCallback(
     async (patch: PatchRecord, info: OutdatedRevision) => {
@@ -347,8 +390,10 @@ export function PatchSheet() {
     const name = t("patch.newWithNumber", { count: library.patches.length + 1 });
     commitLibrary(addPatch(library, new Date(), name), t("patch.createStatus"));
   }
-  function selectInstrument(slug: string) {
+  async function selectInstrument(slug: string) {
     if (slug === selectedSlug) return;
+    // Switching synths leaves the editor; unsaved changes are asked about first.
+    if (!(await requestMode("patching"))) return;
     setLocalLibrary(null);
     setShared(null);
     setSelectedSlug(slug);
@@ -409,7 +454,6 @@ export function PatchSheet() {
   }
 
   const ownerCanEdit = canManageSynths && isOwner && !isBuiltIn && view !== null;
-  // Patches saved in this browser before signing in can be copied to the account (built-in synth only).
 
   return (
     <>
@@ -418,7 +462,8 @@ export function PatchSheet() {
         instruments={instrumentOptions}
         onCreateSynth={() => setCreating(true)}
         instrumentId={selectedSlug}
-        onInstrumentChange={selectInstrument}
+        onInstrumentChange={(slug) => void selectInstrument(slug)}
+        showPatchActions={modeLayout.patchActions}
         patches={library.patches}
         activeId={library.activeId}
         status={status}
@@ -426,10 +471,10 @@ export function PatchSheet() {
           ownerCanEdit ? (
             <Button
               // Same size as the other buttons of the bar. "Done" behaves exactly like the editor's own "Done" button.
-              variant={editing ? "contained" : "outlined"}
-              onClick={() => (editing ? void editorRef.current?.requestClose() : setEditing(true))}
+              variant={editorOpen ? "contained" : "outlined"}
+              onClick={() => void requestMode(editorOpen ? "patching" : "editingSynth")}
             >
-              {editing ? t("synths.doneEditing") : t("synths.edit")}
+              {editorOpen ? t("synths.doneEditing") : t("synths.edit")}
             </Button>
           ) : null
         }
@@ -443,10 +488,10 @@ export function PatchSheet() {
 
       <Box
         component="main"
-        sx={editorOpen ? { display: { lg: "flex" }, flexDirection: "column", flex: { lg: "1 1 auto" }, minHeight: { lg: 0 } } : undefined}
+        sx={modeLayout.fillWindow ? { display: { lg: "flex" }, flexDirection: "column", flex: { lg: "1 1 auto" }, minHeight: { lg: 0 } } : undefined}
       >
         {/* Patch settings; hidden while the synth editor is open, where they have no effect. */}
-        {!editorOpen ? (
+        {modeLayout.patchRow ? (
         <Paper component="section" square variant="outlined" sx={{ px: { xs: 2, md: 3 }, py: 1, borderTop: 0, borderLeft: 0, borderRight: 0 }}>
           <Stack direction="row" useFlexGap sx={{ alignItems: "center", flexWrap: "wrap", gap: 1.5 }}>
             {shared ? (
@@ -467,7 +512,7 @@ export function PatchSheet() {
                 label={t("debug.adjust")}
               />
             ) : null}
-            {ownsActivePatch && !editing ? (
+            {ownsActivePatch ? (
               <>
                 <FormControlLabel
                   control={<Switch checked={activeMeta?.visibility === "public"} onChange={(event) => account.updateMeta(patch.id, { visibility: event.target.checked ? "public" : "private" })} />}
@@ -479,12 +524,11 @@ export function PatchSheet() {
             <Alert severity={status.startsWith(t("status.importFailed")) ? "error" : "success"} variant="standard" role="status" sx={{ ml: "auto", py: 0, alignItems: "center", "& .MuiAlert-message": { typography: "caption" } }}>
               {status}
             </Alert>
-            {isBuiltIn && accountMode ? <ImportLocalPatches synthSlug={selectedSlug} /> : null}
           </Stack>
         </Paper>
         ) : null}
 
-        {outdated && !editing ? (
+        {outdated && !editorOpen ? (
           <Alert
             severity="warning"
             square
@@ -508,9 +552,14 @@ export function PatchSheet() {
               // A new revision can make patches outdated; reload to show which.
               if (accountMode) account.reload();
             }}
-            onClose={() => setEditing(false)}
+            onDirtyChange={setEditorDirty}
+            onClose={() => {
+              setEditorDirty(false);
+              setSheetMode("patching");
+            }}
             onDeleted={() => {
-              setEditing(false);
+              setEditorDirty(false);
+              setSheetMode("patching");
               void loadCatalog();
               // Continue with the next synth of the list.
               setSelectedSlug((catalog ?? []).find((item) => item.slug !== view.slug)?.slug ?? "");

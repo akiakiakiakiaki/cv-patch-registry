@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthForm } from "@/components/auth-forms/AuthForm";
 import { AccountLinks } from "@/components/account-links/AccountLinks";
 import { I18nProvider } from "@/i18n/provider";
+import { guestTransferPendingFor } from "@/lib/storage/guest-transfer";
 
 const signUpEmail = vi.fn();
 const signInEmail = vi.fn();
@@ -76,6 +77,23 @@ describe("AuthForm", () => {
       email: "player@example.test",
       password: "correct-horse-battery",
     });
+  });
+
+  it("marks this browser's guest patches for the new account, but not after a failed registration", async () => {
+    window.localStorage.clear();
+    const user = userEvent.setup();
+    signUpEmail.mockResolvedValueOnce({ data: null, error: { status: 422 } });
+    renderWithLocale(<AuthForm mode="register" />);
+    await user.type(screen.getByLabelText(/^Name/), "Player");
+    await user.type(screen.getByLabelText(/^Email/), "Player@Example.test");
+    await user.type(screen.getByLabelText(/^Password/), "correct-horse-battery");
+    await user.click(screen.getByRole("button", { name: "Create account" }));
+    await waitFor(() => expect(signUpEmail).toHaveBeenCalledTimes(1));
+    expect(guestTransferPendingFor("player@example.test")).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: "Create account" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/"));
+    expect(guestTransferPendingFor("player@example.test")).toBe(true);
   });
 
   it("has no axe violations in login and register forms", async () => {

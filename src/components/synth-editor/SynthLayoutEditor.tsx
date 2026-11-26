@@ -43,9 +43,14 @@ const NOOP = () => {};
 const ZOOM_STEP = 0.5;
 const ZOOM_MAX = 2.5;
 
-/** Lets other "Done" buttons (e.g. in the page toolbar) close the editor exactly like its own. */
+/** Lets the page leave or close the editor exactly like the editor's own "Done" button. */
 export interface SynthLayoutEditorHandle {
-  /** Closes at once without unsaved changes; otherwise asks to save and close, discard, or keep editing. */
+  /**
+   * Resolves true when the editor may be left: no unsaved changes, or the user saved or discarded them.
+   * Resolves false when the user keeps editing or saving failed.
+   */
+  confirmLeave: () => Promise<boolean>;
+  /** confirmLeave, then close. */
   requestClose: () => Promise<void>;
 }
 
@@ -55,12 +60,15 @@ export function SynthLayoutEditor({
   onSaved,
   onClose,
   onDeleted,
+  onDirtyChange,
   ref,
 }: {
   source: SynthDraftSource;
   onSaved: () => void;
   onClose: () => void;
   onDeleted: () => void;
+  /** Reports whether there are unsaved changes, e.g. to warn before the tab is closed. */
+  onDirtyChange?: (dirty: boolean) => void;
   ref?: Ref<SynthLayoutEditorHandle>;
 }) {
   const { t } = useI18n();
@@ -129,9 +137,9 @@ export function SynthLayoutEditor({
     return confirmed ? draft.save({ repair: true }) : false;
   }
 
-  /** Leaving with unsaved changes asks first: save and close, discard, or keep editing. */
-  async function close() {
-    if (!draft.dirty) return onClose();
+  /** Leaving with unsaved changes asks first: save, discard, or keep editing. */
+  async function confirmLeave(): Promise<boolean> {
+    if (!draft.dirty) return true;
     const choice = await choose({
       tone: "warning",
       title: t("synths.unsavedTitle"),
@@ -140,11 +148,19 @@ export function SynthLayoutEditor({
       alternativeLabel: t("synths.unsavedDiscard"),
       cancelLabel: t("synths.unsavedKeepEditing"),
     });
-    if (choice === "alternative") return onClose();
-    if (choice === "confirm" && (await save())) onClose();
+    if (choice === "alternative") return true;
+    return choice === "confirm" ? save() : false;
   }
 
-  useImperativeHandle(ref, () => ({ requestClose: close }));
+  async function close() {
+    if (await confirmLeave()) onClose();
+  }
+
+  useImperativeHandle(ref, () => ({ confirmLeave, requestClose: close }));
+
+  useEffect(() => {
+    onDirtyChange?.(draft.dirty);
+  }, [draft.dirty, onDirtyChange]);
 
   // Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z undo and redo control changes, except in text fields and open dialogs.
   const undoRedo = useRef({ undo: draft.undo, redo: draft.redo });

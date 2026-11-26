@@ -178,14 +178,16 @@ export function shownCategoryIds(control: EditorControl, controls: readonly Edit
 }
 
 /**
- * The color a control shows without a category, as the panel's CSS variable: LEDs their fixed color,
- * plain switches the default switch color. Undefined where the list shows category dots instead, or no color applies.
+ * The color a control shows without a category, as the panel's CSS variable: knobs their default tick color,
+ * LEDs their fixed color, plain switches the default switch color. Undefined where the list shows category dots
+ * instead, or no color applies (ports).
  */
 export function fixedColorOf(control: EditorControl): string | undefined {
   if (control.category || control.selects || control.dependsOn) return undefined;
   // Same rule as the panel: red LEDs are drawn red, all others blue.
   if (control.kind === "led") return (control.color ?? "red") === "red" ? "var(--color-led-red)" : "var(--color-led-blue)";
   if (control.kind === "switch") return "var(--color-switch-stroke)";
+  if (control.kind === "knob") return "var(--color-knob-tick)";
   return undefined;
 }
 

@@ -214,4 +214,32 @@ describe("useAccountPatchLibrary", () => {
       expect(onRevisionLoss).not.toHaveBeenCalled();
     });
   });
+  it("knows which patches the server has: loaded ones, new ones once created, not deleted ones", async () => {
+    let finishCreate: () => void = () => {};
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        await new Promise<void>((resolve) => (finishCreate = resolve));
+        return jsonResponse({ ok: true, revision: 1 }, 201);
+      }
+      if (init?.method === "DELETE") return jsonResponse({ ok: true });
+      return jsonResponse({ patches: [state] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useAccountPatchLibrary("td3", true));
+    await waitFor(() => expect(result.current.savedIds.has(state.id)).toBe(true));
+
+    const created = { id: "33333333-3333-4333-8333-333333333333", name: "New", updatedAt: state.updatedAt, data: state.data };
+    act(() => {
+      result.current.commit({ activeId: created.id, patches: [result.current.library!.patches[0]!, created] });
+    });
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(true));
+    expect(result.current.savedIds.has(created.id)).toBe(false);
+    await act(async () => finishCreate());
+    await waitFor(() => expect(result.current.savedIds.has(created.id)).toBe(true));
+
+    act(() => {
+      result.current.commit({ activeId: state.id, patches: [result.current.library!.patches[0]!] });
+    });
+    await waitFor(() => expect(result.current.savedIds.has(created.id)).toBe(false));
+  });
 });

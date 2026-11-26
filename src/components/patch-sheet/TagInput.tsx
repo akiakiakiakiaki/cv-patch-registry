@@ -119,7 +119,14 @@ export function TagInput({ value, onChange }: { value: readonly string[]; onChan
           helperText={problem ?? undefined}
         />
       )}
-      sx={{ minWidth: 260, maxWidth: 520, flex: "1 1 260px" }}
+      sx={(theme) => ({
+        minWidth: 260,
+        maxWidth: 520,
+        flex: "1 1 260px",
+        // Typed text and the "Add tag" placeholder in the size of the tag chips (MUI's small chip label).
+        // The input inherits its font from the input root, so the size is set there.
+        "& .MuiInputBase-root": { fontSize: theme.typography.pxToRem(13) },
+      })}
     />
   );
 }

@@ -70,6 +70,8 @@ export function useAccountPatchLibrary(synthSlug: string, enabled: boolean, opti
   const outdatedRef = useRef<Record<string, OutdatedRevision>>({});
   const libraryRef = useRef<PatchLibrary | null>(null);
   const revisions = useRef(new Map<string, number>());
+  // Patches the server already has; a new patch is in the library before its create request finished.
+  const [savedIds, setSavedIds] = useState<ReadonlySet<string>>(() => new Set());
   const dirtyIds = useRef(new Set<string>());
   const queue = useRef<Promise<void>>(Promise.resolve());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -81,6 +83,7 @@ export function useAccountPatchLibrary(synthSlug: string, enabled: boolean, opti
 
   const applyStates = useCallback((states: PatchStateResponse[]) => {
     revisions.current = new Map(states.map((state) => [state.id, state.revision]));
+    setSavedIds(new Set(states.map((state) => state.id)));
     // A reload (after a conflict or a declined save) keeps the patch the user is on.
     const previousActive = libraryRef.current?.activeId;
     const next: PatchLibrary = {
@@ -211,6 +214,7 @@ export function useAccountPatchLibrary(synthSlug: string, enabled: boolean, opti
           if (!response.ok) return setStatus("error");
           const created = (await response.json()) as { revision: number };
           revisions.current.set(patch.id, created.revision);
+          setSavedIds((current) => new Set([...current, patch.id]));
           setStatus("saved");
         });
       }
@@ -219,6 +223,7 @@ export function useAccountPatchLibrary(synthSlug: string, enabled: boolean, opti
           const response = await fetch(`/api/patches/${encodeURIComponent(id)}`, { method: "DELETE" });
           if (!response.ok) return setStatus("error");
           revisions.current.delete(id);
+          setSavedIds((current) => new Set([...current].filter((savedId) => savedId !== id)));
           setStatus("saved");
         });
       }
@@ -262,7 +267,7 @@ export function useAccountPatchLibrary(synthSlug: string, enabled: boolean, opti
 
   const reload = useCallback(() => void enqueue(load), [enqueue, load]);
   return useMemo(
-    () => ({ library, meta, status, outdated, commit, updateMeta, upgrade, reload }),
-    [library, meta, status, outdated, commit, updateMeta, upgrade, reload],
+    () => ({ library, meta, status, outdated, savedIds, commit, updateMeta, upgrade, reload }),
+    [library, meta, status, outdated, savedIds, commit, updateMeta, upgrade, reload],
   );
 }

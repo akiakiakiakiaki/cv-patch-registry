@@ -127,3 +127,14 @@ describe("TagInput accessibility", () => {
   });
 });
 
+describe("TagInput text size", () => {
+  it("shows typed text and the placeholder in the size of the tag chips", () => {
+    render(<Harness initial={["Acid"]} />);
+    const chip = screen.getAllByRole("button").find((element) => element.classList.contains("MuiChip-root"))!;
+    const field = screen.getByRole("combobox", { name: "Tags" });
+    expect(field).toHaveAttribute("placeholder", "Add tag");
+    expect(getComputedStyle(field).fontSize).not.toBe("");
+    expect(getComputedStyle(field).fontSize).toBe(getComputedStyle(chip).fontSize);
+  });
+});
+

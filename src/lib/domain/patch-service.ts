@@ -205,3 +205,21 @@ export function replacePatchData(
 ): PatchRecord {
   return { ...patch, data, updatedAt: now.toISOString() };
 }
+
+/**
+ * Whether a browser library holds something worth keeping: more than one patch, or a patch with settings or a
+ * name of its own. The empty start library ("New patch" without settings) does not count.
+ */
+export function hasGuestContent(library: PatchLibrary): boolean {
+  if (library.patches.length > 1) return true;
+  return library.patches.some((patch) => {
+    const name = patch.name.trim().toLocaleLowerCase();
+    const hasData =
+      Object.keys(patch.data.knobs).length > 0 ||
+      Object.keys(patch.data.switches).length > 0 ||
+      Object.keys(patch.data.leds).length > 0 ||
+      patch.data.cables.length > 0;
+    return hasData || (name !== "new patch" && name !== "neues patch");
+  });
+}
+

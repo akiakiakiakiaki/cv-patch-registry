@@ -136,12 +136,13 @@ describe("fixedColorOf", () => {
     expect(fixedColorOf(sw("plain"))).toBe("var(--color-switch-stroke)");
   });
 
-  it("leaves categorized and role switches to their category dots, and knobs without a dot", () => {
+  it("leaves categorized and role switches to their category dots, gives knobs their tick color and ports none", () => {
     expect(fixedColorOf(sw("s", { category: NORMAL }))).toBeUndefined();
     expect(fixedColorOf(sw("s", { selects: [NORMAL, SHIFT] }))).toBeUndefined();
     expect(fixedColorOf(sw("s", { dependsOn: "x" }))).toBeUndefined();
     expect(fixedColorOf({ id: "led", kind: "led", label: "L", x: 1, y: 1, color: "red", category: NORMAL })).toBeUndefined();
-    expect(fixedColorOf({ ...knob, category: undefined })).toBeUndefined();
+    expect(fixedColorOf({ ...knob, category: undefined })).toBe("var(--color-knob-tick)");
+    expect(fixedColorOf({ id: "in-1", kind: "in", label: "In", x: 1, y: 1 })).toBeUndefined();
   });
 });
 

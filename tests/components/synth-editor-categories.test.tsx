@@ -227,7 +227,7 @@ describe("SynthLayoutEditor fixed color dots", () => {
     const fixedOf = (name: RegExp) => screen.getByRole("button", { name }).querySelector("[data-fixed-color]")?.getAttribute("data-fixed-color");
     expect(fixedOf(/Test switch · Switch/)).toBe("var(--color-switch-stroke)");
     expect(fixedOf(/Test LED · LED/)).toBe("var(--color-led-red)");
-    expect(fixedOf(/Test knob · Knob/)).toBeUndefined();
+    expect(fixedOf(/Test knob · Knob/)).toBe("var(--color-knob-tick)");
 
     await addTwoCategories(user);
     await focusControl(user, /Test LED · LED/);

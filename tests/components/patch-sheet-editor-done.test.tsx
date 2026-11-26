@@ -2,12 +2,16 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EDITOR_FULL_HEIGHT_CLASS, PatchSheet } from "@/components/patch-sheet/PatchSheet";
+import { AccountLinks } from "@/components/account-links/AccountLinks";
+import { authClient } from "@/lib/auth/client";
+import { PATCHES_IMPORTED_EVENT } from "@/components/guest-transfer/GuestPatchTransfer";
 import { I18nProvider } from "@/i18n/provider";
 import { testLayout } from "../fixtures/instrument";
 
+const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams("synth=custom-synth"),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => router,
 }));
 vi.mock("@/lib/auth/client", () => ({
   authClient: { useSession: () => ({ data: { user: { id: "user-1", role: "user" } }, isPending: false }), signOut: vi.fn() },
@@ -49,7 +53,15 @@ beforeEach(() => {
         return json({ ok: true, revision: 2 }, 201);
       }
       if (url.startsWith("/api/synths/custom-synth")) return json(view);
-      if (url.startsWith("/api/synths")) return json({ synths: [{ slug: "custom-synth", displayName: "Custom Synth", isBuiltIn: false }] });
+      if (url.startsWith("/api/synths/other-synth")) return json({ ...view, slug: "other-synth", displayName: "Other Synth" });
+      if (url.startsWith("/api/synths")) {
+        return json({
+          synths: [
+            { slug: "custom-synth", displayName: "Custom Synth", isBuiltIn: false },
+            { slug: "other-synth", displayName: "Other Synth", isBuiltIn: false },
+          ],
+        });
+      }
       if (url.startsWith("/api/patches?")) return json({ patches: [patch] });
       return json({}, 404);
     }),
@@ -170,6 +182,160 @@ describe("PatchSheet bars", () => {
     await user.click(toolbarDone());
     expect(await screen.findByRole("textbox", { name: "Active patch name" })).toBeInTheDocument();
     expect(screen.getByText("Saved to your account")).toBeInTheDocument();
+  });
+});
+
+describe("PatchSheet with a new patch", () => {
+  it("asks for the patch's view only after the server created it", async () => {
+    const user = userEvent.setup();
+    let finishCreate: () => void = () => {};
+    let createdId = "";
+    const base = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (String(input) === "/api/patches" && init?.method === "POST") {
+        createdId = (JSON.parse(String(init.body)) as { id: string }).id;
+        await new Promise<void>((resolve) => (finishCreate = resolve));
+        return new Response(JSON.stringify({ ok: true, id: createdId, revision: 1 }), { status: 201 });
+      }
+      return base(input, init);
+    });
+    render(
+      <I18nProvider locale="en">
+        <PatchSheet />
+      </I18nProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: /New patch/ }));
+    await waitFor(() => expect(createdId).not.toBe(""));
+    const viewRequests = () => vi.mocked(fetch).mock.calls.filter(([input]) => String(input) === `/api/patches/${createdId}`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(viewRequests()).toHaveLength(0);
+
+    finishCreate();
+    await waitFor(() => expect(viewRequests()).toHaveLength(1));
+  });
+});
+
+describe("PatchSheet modes", () => {
+  it("hides the patch functions of the top bar while editing and shows them again after Done", async () => {
+    const user = userEvent.setup();
+    render(
+      <I18nProvider locale="en">
+        <PatchSheet />
+      </I18nProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    await screen.findByRole("complementary");
+    expect(screen.queryByTestId("patch-actions")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /New patch/ })).not.toBeInTheDocument();
+    await user.click(toolbarDone());
+    expect(await screen.findByTestId("patch-actions")).toBeInTheDocument();
+  });
+
+  async function switchSynthWithChanges(user: ReturnType<typeof userEvent.setup>) {
+    await openEditorWithChange(user);
+    await user.click(screen.getByRole("combobox", { name: "Synthesizer" }));
+    await user.click(await screen.findByRole("option", { name: "Other Synth" }));
+    return screen.findByRole("dialog", { name: "Changes not saved" });
+  }
+
+  it("asks before switching synths with unsaved changes and stays on request", async () => {
+    const user = userEvent.setup();
+    const dialog = await switchSynthWithChanges(user);
+    await user.click(within(dialog).getByRole("button", { name: "Keep editing" }));
+    expect(screen.getByRole("complementary")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Synthesizer" })).toHaveTextContent("Custom Synth");
+  });
+
+  it("switches synths after discarding the changes", async () => {
+    const user = userEvent.setup();
+    const dialog = await switchSynthWithChanges(user);
+    await user.click(within(dialog).getByRole("button", { name: "Discard" }));
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Synthesizer" })).toHaveTextContent("Other Synth"));
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    expect(revisionPosts).toBe(0);
+  });
+
+  it("warns before the tab closes only while changes are unsaved", async () => {
+    const user = userEvent.setup();
+    render(
+      <I18nProvider locale="en">
+        <PatchSheet />
+      </I18nProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    await screen.findByRole("complementary");
+    const unload = () => {
+      const event = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(unload()).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Add Knob" }));
+    expect(unload()).toBe(true);
+  });
+
+  it("asks before signing out with unsaved changes and stays signed in on request", async () => {
+    const user = userEvent.setup();
+    render(
+      <I18nProvider locale="en">
+        <AccountLinks />
+        <PatchSheet />
+      </I18nProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Add Knob" }));
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    const dialog = await screen.findByRole("dialog", { name: "Changes not saved" });
+    await user.click(within(dialog).getByRole("button", { name: "Keep editing" }));
+    expect(authClient.signOut).not.toHaveBeenCalled();
+    expect(screen.getByRole("complementary")).toBeInTheDocument();
+  });
+});
+
+describe("PatchSheet after guest patches were moved into the account", () => {
+  it("reloads the account library", async () => {
+    render(
+      <I18nProvider locale="en">
+        <PatchSheet />
+      </I18nProvider>,
+    );
+    await screen.findByRole("button", { name: "Edit" });
+    const loads = () => vi.mocked(fetch).mock.calls.filter(([input]) => String(input).startsWith("/api/patches?")).length;
+    const before = loads();
+    window.dispatchEvent(new Event(PATCHES_IMPORTED_EVENT));
+    await waitFor(() => expect(loads()).toBe(before + 1));
+  });
+});
+
+describe("PatchSheet links while editing", () => {
+  async function clickExploreWithChanges(user: ReturnType<typeof userEvent.setup>) {
+    router.push.mockClear();
+    render(
+      <I18nProvider locale="en">
+        <AccountLinks />
+        <PatchSheet />
+      </I18nProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Add Knob" }));
+    await user.click(screen.getByRole("link", { name: "Explore" }));
+    return screen.findByRole("dialog", { name: "Changes not saved" });
+  }
+
+  it("asks before following Explore with unsaved changes and stays on request", async () => {
+    const user = userEvent.setup();
+    const dialog = await clickExploreWithChanges(user);
+    await user.click(within(dialog).getByRole("button", { name: "Keep editing" }));
+    expect(router.push).not.toHaveBeenCalled();
+    expect(screen.getByRole("complementary")).toBeInTheDocument();
+  });
+
+  it("follows Explore after discarding the changes", async () => {
+    const user = userEvent.setup();
+    const dialog = await clickExploreWithChanges(user);
+    await user.click(within(dialog).getByRole("button", { name: "Discard" }));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/explore"));
+    expect(revisionPosts).toBe(0);
   });
 });
 

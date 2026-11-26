@@ -9,8 +9,23 @@ const PREVIOUS_LIBRARY_KEY = 'proton-patch-library-v1';
 const PREVIOUS_SINGLE_PATCH_KEY = 'proton-patch-sheet';
 const MIDI_RANGE_MARKER = 'midi-127';
 
+const SYNTH_LIBRARY_KEY = /^synth-patch-library:(.+):v1$/;
+
 export class LocalPatchRepository {
   constructor(private readonly instrument: InstrumentDefinition) {}
+
+  /** IDs of all instruments this browser holds a library for, including the older Proton keys. */
+  static storedInstrumentIds(): string[] {
+    if (typeof window === 'undefined') return [];
+    const ids = new Set<string>();
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index) ?? '';
+      const match = SYNTH_LIBRARY_KEY.exec(key);
+      if (match?.[1]) ids.add(match[1]);
+      if (key === PROTON_STORAGE_KEY || key === PREVIOUS_LIBRARY_KEY || key === PREVIOUS_SINGLE_PATCH_KEY) ids.add('behringer-proton');
+    }
+    return [...ids];
+  }
 
   load(defaultPatchName = 'New patch'): PatchLibrary {
     if (typeof window === 'undefined') return createEmptyLibrary(new Date(), defaultPatchName);

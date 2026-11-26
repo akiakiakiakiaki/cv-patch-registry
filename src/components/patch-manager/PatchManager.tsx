@@ -40,6 +40,8 @@ interface PatchManagerProps {
   status: string;
   /** Shown right of the synth selector, e.g. the synth's Edit/Done button. */
   synthAction?: ReactNode;
+  /** Patch list, new patch, download and import; hidden in modes where patches cannot be changed. Default true. */
+  showPatchActions?: boolean;
   onSelect: (id: string) => void;
   onCreate: () => void;
   onRename: (id: string, name: string) => void;
@@ -133,6 +135,7 @@ export function PatchManager(props: PatchManagerProps) {
 
           {props.synthAction}
 
+          {props.showPatchActions !== false ? (
           <Stack
             direction="row"
             useFlexGap
@@ -175,10 +178,11 @@ export function PatchManager(props: PatchManagerProps) {
               </>
             ) : null}
           </Stack>
+          ) : null}
         </Stack>
       </Paper>
 
-      {expanded && (
+      {expanded && props.showPatchActions !== false && (
         <Paper
           id="patchPanel"
           component="section"
