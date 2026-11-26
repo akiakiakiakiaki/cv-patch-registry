@@ -1,27 +1,21 @@
 "use client";
 
-import { useRef, useState } from "react";
-import type { ChangeEvent, ReactNode } from "react";
+import { useState } from "react";
+import type { ReactNode } from "react";
 import Button from "@mui/material/Button";
-import Box from "@mui/material/Box";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-import Paper from "@mui/material/Paper";
 import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
 import type { PatchRecord } from "@/lib/domain/types";
 import type { AppRole } from "@/lib/auth/roles";
 import { hasCapability } from "@/lib/auth/roles";
 import { PATCH_NAME_MAX_LENGTH } from "@/lib/domain/patch-library";
-import { formatTimestamp } from "@/lib/utils/date-format";
 import { useI18n } from "@/i18n/provider";
 import { useConfirmDialog } from "@/components/confirm-dialog/ConfirmDialog";
 import { BarSection } from "@/components/app-shell/BarSection";
-import { PAGE_GUTTER } from "@/components/app-shell/layout";
+import { PatchListDialog } from "@/components/patch-manager/PatchListDialog";
 
 export interface InstrumentOption {
   id: string;
@@ -43,7 +37,7 @@ interface PatchManagerProps {
   status: string;
   /** Shown right of the synth selector, e.g. the synth's Edit/Done button. */
   synthAction?: ReactNode;
-  /** Patch list, new patch, download and import; hidden in modes where patches cannot be changed. Default true. */
+  /** Patch list (with download and import) and new patch; hidden in modes where patches cannot be changed. Default true. */
   showPatchActions?: boolean;
   onSelect: (id: string) => void;
   onCreate: () => void;
@@ -54,24 +48,14 @@ interface PatchManagerProps {
 }
 
 export function PatchManager(props: PatchManagerProps) {
-  const [expanded, setExpanded] = useState(false);
-  const { locale, t } = useI18n();
-  const fileInput = useRef<HTMLInputElement>(null);
+  const [listOpen, setListOpen] = useState(false);
+  const { t } = useI18n();
   const { confirm, prompt, dialog } = useConfirmDialog();
   const canManageSynths = hasCapability(props.role, "manageSynths");
   const canImportExport = hasCapability(props.role, "importExportPatches");
   const patches = [...props.patches].sort((left, right) =>
     right.updatedAt.localeCompare(left.updatedAt),
   );
-
-  function importFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.currentTarget.files?.[0];
-    if (file) {
-      setExpanded(true);
-      props.onImport(file);
-    }
-    event.currentTarget.value = "";
-  }
 
   async function requestRename(patch: PatchRecord) {
     const name = await prompt({
@@ -155,174 +139,30 @@ export function PatchManager(props: PatchManagerProps) {
                 ml: "auto",
               }}
             >
-              <Button
-                variant="outlined"
-                aria-expanded={expanded}
-                aria-controls="patchPanel"
-                onClick={() => setExpanded((value) => !value)}
-              >
-                {t("patch.list")} {expanded ? "▴" : "▾"}
+              <Button variant="outlined" aria-haspopup="dialog" onClick={() => setListOpen(true)}>
+                {t("patch.list")}
               </Button>
-              <Button
-                variant="outlined"
-                onClick={() => {
-                  setExpanded(true);
-                  props.onCreate();
-                }}
-              >
+              <Button variant="outlined" onClick={props.onCreate}>
                 + {t("patch.new")}
               </Button>
-              {canImportExport ? (
-                <>
-                  <Button
-                    variant="contained"
-                    onClick={props.onExport}
-                  >
-                    {t("patch.downloadAll")}
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    onClick={() => fileInput.current?.click()}
-                  >
-                    {t("patch.import")}
-                  </Button>
-                  <input
-                    ref={fileInput}
-                    hidden
-                    type="file"
-                    aria-label={t("patch.import")}
-                    accept=".json,application/json"
-                    onChange={importFile}
-                  />
-                </>
-              ) : null}
             </Stack>
           ) : null}
         </Stack>
       </BarSection>
 
-      {expanded && props.showPatchActions !== false && (
-        <Paper
-          id="patchPanel"
-          component="section"
-          square
-          elevation={2}
-          aria-label={t("patch.libraryAria")}
-          sx={{ position: "relative", zIndex: 2, px: PAGE_GUTTER, py: 2 }}
-        >
-          <Stack
-            direction="row"
-            sx={{
-              alignItems: "center",
-              justifyContent: "space-between",
-              mb: 1.5,
-            }}
-          >
-            <Box>
-              <Typography
-                variant="subtitle2"
-                sx={{ fontWeight: 700 }}
-              >
-                {t("patch.local")}
-              </Typography>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-              >
-                {patches.length}{" "}
-                {t(patches.length === 1 ? "patch.countOne" : "patch.countMany")}{" "}
-                · {props.status}
-              </Typography>
-            </Box>
-            <Button
-              size="small"
-              onClick={() => setExpanded(false)}
-            >
-              {t("patch.close")} ×
-            </Button>
-          </Stack>
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fill, minmax(min(100%, 250px), 1fr))",
-              gap: 1,
-            }}
-          >
-            {patches.map((patch) => {
-              const active = patch.id === props.activeId;
-              return (
-                <Card
-                  key={patch.id}
-                  variant="outlined"
-                  sx={{
-                    borderColor: active ? "primary.main" : "divider",
-                    bgcolor: active ? "action.selected" : "background.paper",
-                  }}
-                >
-                  <CardContent sx={{ p: 1, "&:last-child": { pb: 1 } }}>
-                    <Button
-                      fullWidth
-                      color="inherit"
-                      aria-current={active ? "true" : undefined}
-                      onClick={() => props.onSelect(patch.id)}
-                      sx={{
-                        justifyContent: "flex-start",
-                        textAlign: "left",
-                        px: 0.75,
-                      }}
-                    >
-                      <Stack
-                        sx={{
-                          width: "100%",
-                          minWidth: 0,
-                          alignItems: "flex-start",
-                        }}
-                      >
-                        <Typography
-                          variant="body2"
-                          sx={{ fontWeight: 700, overflowWrap: "anywhere" }}
-                        >
-                          {patch.name}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ overflowWrap: "anywhere" }}
-                        >
-                          {t("patch.lastChanged")} ·{" "}
-                          {formatTimestamp(patch.updatedAt, locale)}
-                        </Typography>
-                      </Stack>
-                    </Button>
-                    <Stack
-                      direction="row"
-                      spacing={0.5}
-                      sx={{ justifyContent: "flex-start" }}
-                    >
-                      <Button
-                        size="small"
-                        onClick={() => void requestRename(patch)}
-                        aria-label={t("patch.renameAria", { name: patch.name })}
-                      >
-                        {t("patch.rename")}
-                      </Button>
-                      <Button
-                        size="small"
-                        color="error"
-                        onClick={() => void requestDelete(patch)}
-                        aria-label={t("patch.deleteAria", { name: patch.name })}
-                      >
-                        {t("patch.delete")}
-                      </Button>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </Box>
-        </Paper>
-      )}
+      <PatchListDialog
+        open={listOpen && props.showPatchActions !== false}
+        onClose={() => setListOpen(false)}
+        patches={patches}
+        activeId={props.activeId}
+        status={props.status}
+        onSelect={props.onSelect}
+        onCreate={props.onCreate}
+        onRename={(patch) => void requestRename(patch)}
+        onDelete={(patch) => void requestDelete(patch)}
+        transfer={canImportExport ? { onExport: props.onExport, onImport: props.onImport } : undefined}
+      />
+      {/* After the list, so rename and delete questions open above it. */}
       {dialog}
     </>
   );

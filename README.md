@@ -8,7 +8,7 @@ The app supports multiple synthesizers. Signed-in users can add their own synthe
 
 - Create, rename, select, and delete patches. Each patch has a last changed timestamp.
 - Store patch libraries locally in the browser, separately for each synth.
-- Signed-in users can download a synth's patch library as a versioned JSON file or import and merge one. Imports are checked for synth ID and data version; differing local and imported patches can be resolved during import.
+- Signed-in users can download a synth's patch library as a versioned JSON file or import and merge one, both from the patch list. Imports are checked for synth ID and data version; differing local and imported patches can be resolved during import.
 - Draw patch cables by dragging between an input and an output in either direction. Each endpoint can be used by one cable at a time. Cable colors can be changed after creation.
 - Use the instrument layout editor in development to adjust control positions.
 - Switch between German and English; the browser's language setting selects the initial language.
@@ -77,7 +77,7 @@ See LICENSE for details.
 
 Everything happens on the start page:
 
-- Choose a synthesizer in the selector. Its patches appear in the patch list, and the panel plays the active patch.
+- Choose a synthesizer in the selector. Its patches appear in the patch list (a dialog opened with "Patches"), and the panel plays the active patch.
 - **+ New synthesizer** opens a dialog for name, manufacturer, identifier and panel image.
 - **Edit** next to the synth selector (owner only) turns the panel into a layout editor. Drag controls from the palette onto the panel or click to place them in the centre. Drag them on the panel or use the arrow keys to move them in half-unit steps. The zoom buttons at the top right enlarge the panel in 50 % steps up to 250 % and reset it to full width. Save creates a new revision. Unsaved changes are marked in the sidebar. Leaving the editor with unsaved changes – **Done**, choosing another synth or signing out – offers to save, discard them, or keep editing; closing or reloading the tab shows the browser's warning. While editing, the patch functions are hidden. Cmd/Ctrl+Z undoes and Cmd/Ctrl+Shift+Z redoes changes to the controls (adding, moving, deleting, labels, colors, categories and switch roles). On wide screens the editor fills the window between header and footer; the panel and the sidebar scroll separately.
 - Signed-in users keep patches on the server, and changes are saved automatically. Anonymous visitors keep them in this browser. When a visitor creates an account, the patches kept in this browser for every synth move into the account at the first sign-in here; the browser copy is removed afterwards.

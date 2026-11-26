@@ -16,11 +16,8 @@
   "patch.newWithNumber": "New patch {count}",
   "patch.downloadAll": "Download all patches",
   "patch.import": "Import patches",
-  "patch.libraryAria": "Local patch library",
-  "patch.local": "Local patches",
   "patch.countOne": "patch",
   "patch.countMany": "patches",
-  "patch.close": "Close",
   "patch.rename": "Rename",
   "patch.delete": "Delete",
   "patch.renameAria": "Rename patch “{name}”",
@@ -325,5 +322,6 @@
   "import.useIncoming": "Use imported version",
   "import.keepLocal": "Keep local version",
   "confirm.delete": "Delete",
-  "time.unknown": "Unknown time"
+  "time.unknown": "Unknown time",
+  "dialog.close": "Close"
 }

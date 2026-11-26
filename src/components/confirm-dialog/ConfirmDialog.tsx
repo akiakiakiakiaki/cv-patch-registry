@@ -1,17 +1,13 @@
 "use client";
 
-import { useCallback, useId, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
-import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlineOutlined";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import { AppDialog } from "@/components/app-dialog/AppDialog";
 import { useI18n } from "@/i18n/provider";
 
 export type ConfirmTone = "default" | "warning" | "danger";
@@ -74,8 +70,6 @@ export function ConfirmDialog({
   onAlternative,
 }: ConfirmDialogProps) {
   const { t } = useI18n();
-  const titleId = useId();
-  const contentId = useId();
   const { color, Icon } = TONE[tone];
   const [value, setValue] = useState(input?.initialValue ?? "");
   const blank = Boolean(input) && !value.trim();
@@ -84,50 +78,50 @@ export function ConfirmDialog({
     onConfirm(input ? value.trim() : undefined);
   };
   return (
-    <Dialog open={open} onClose={onCancel} aria-labelledby={titleId} aria-describedby={contentId} maxWidth="sm" fullWidth>
-      <DialogTitle id={titleId}>
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-          <Icon color={color} aria-hidden />
-          <span>{title}</span>
-        </Stack>
-      </DialogTitle>
-      <DialogContent id={contentId}>
-        {content}
-        {input ? (
-          <TextField
-            autoFocus
-            fullWidth
-            size="small"
-            margin="dense"
-            label={input.label}
-            value={value}
-            error={blank}
-            helperText={blank ? input.emptyHint : undefined}
-            slotProps={{ htmlInput: { maxLength: input.maxLength } }}
-            onChange={(event) => setValue(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter") return;
-              event.preventDefault();
-              submit();
-            }}
-          />
-        ) : null}
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2, flexWrap: "wrap", gap: 1 }}>
-        {alternativeLabel && onAlternative ? (
-          <Button onClick={onAlternative} sx={{ mr: "auto" }}>
-            {alternativeLabel}
+    <AppDialog
+      open={open}
+      onClose={onCancel}
+      title={title}
+      icon={<Icon color={color} aria-hidden />}
+      describedByContent
+      actions={
+        <>
+          {alternativeLabel && onAlternative ? (
+            <Button onClick={onAlternative} sx={{ mr: "auto" }}>
+              {alternativeLabel}
+            </Button>
+          ) : null}
+          {/* Cancel has the initial focus, unless there is text to type. */}
+          <Button onClick={onCancel} autoFocus={!input}>
+            {cancelLabel ?? t("confirm.cancel")}
           </Button>
-        ) : null}
-        {/* Cancel has the initial focus, unless there is text to type. */}
-        <Button onClick={onCancel} autoFocus={!input}>
-          {cancelLabel ?? t("confirm.cancel")}
-        </Button>
-        <Button onClick={submit} disabled={blank} variant="contained" color={color}>
-          {confirmLabel ?? t("confirm.ok")}
-        </Button>
-      </DialogActions>
-    </Dialog>
+          <Button onClick={submit} disabled={blank} variant="contained" color={color}>
+            {confirmLabel ?? t("confirm.ok")}
+          </Button>
+        </>
+      }
+    >
+      {content}
+      {input ? (
+        <TextField
+          autoFocus
+          fullWidth
+          size="small"
+          margin="dense"
+          label={input.label}
+          value={value}
+          error={blank}
+          helperText={blank ? input.emptyHint : undefined}
+          slotProps={{ htmlInput: { maxLength: input.maxLength } }}
+          onChange={(event) => setValue(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            submit();
+          }}
+        />
+      ) : null}
+    </AppDialog>
   );
 }
 

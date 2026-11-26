@@ -161,9 +161,9 @@ describe("PatchSheet bars", () => {
     const topBar = selector.closest("section")!;
     expect(topBar.contains(edit)).toBe(true);
     expect(selector.compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(edit.compareDocumentPosition(within(topBar).getByRole("button", { name: /^Patches/ })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(edit.compareDocumentPosition(within(topBar).getByRole("button", { name: "Patches" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // Same size as the other buttons of the bar.
-    const patches = within(topBar).getByRole("button", { name: /^Patches/ });
+    const patches = within(topBar).getByRole("button", { name: "Patches" });
     expect(edit).toHaveClass("MuiButton-sizeMedium");
     expect(patches).toHaveClass("MuiButton-sizeMedium");
 
@@ -352,22 +352,32 @@ describe("PatchSheet import conflicts", () => {
     expect(await screen.findByRole("textbox", { name: "Active patch name" })).toHaveValue("Mine");
     const incoming = { id: patch.id, name: "Imported", updatedAt: "2026-02-01T00:00:00.000Z", data: patch.data };
     const contents = libraryExport({ activeId: patch.id, patches: [incoming] }, instrumentFromSynth(view), "2026-02-01T00:00:00.000Z").contents;
-    fireEvent.change(screen.getByLabelText("Import patches"), { target: { files: [new File([contents], "patches.json", { type: "application/json" })] } });
+    await user.click(screen.getByRole("button", { name: "Patches" }));
+    const list = await screen.findByRole("dialog", { name: "Patches" });
+    fireEvent.change(within(list).getByLabelText("Import patches"), { target: { files: [new File([contents], "patches.json", { type: "application/json" })] } });
     const dialog = await screen.findByRole("dialog", { name: "Import conflict" });
     expect(dialog).toHaveTextContent("“Imported” has different versions.");
     return { user, dialog };
   }
 
+  /** After the answer the patch list is still open; closing it shows the active patch again. */
+  async function closeList(user: ReturnType<typeof userEvent.setup>) {
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Import conflict" })).not.toBeInTheDocument());
+    await user.click(within(screen.getByRole("dialog", { name: "Patches" })).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  }
+
   it("asks in a dialog and keeps the local version on request", async () => {
     const { user, dialog } = await importChangedPatch(userEvent.setup());
     await user.click(within(dialog).getByRole("button", { name: "Keep local version" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await closeList(user);
     expect(screen.getByRole("textbox", { name: "Active patch name" })).toHaveValue("Mine");
   });
 
   it("takes the imported version when chosen", async () => {
     const { user, dialog } = await importChangedPatch(userEvent.setup());
     await user.click(within(dialog).getByRole("button", { name: "Use imported version" }));
+    await closeList(user);
     await waitFor(() => expect(screen.getByRole("textbox", { name: "Active patch name" })).toHaveValue("Imported"));
   });
 });

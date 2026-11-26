@@ -168,7 +168,7 @@ describe("PatchSheet importing a legacy Proton export into the clone", () => {
       if (url.startsWith("/api/patches?")) return new Response(JSON.stringify({ patches: [copied] }), { status: 200 });
       return base(input, init);
     });
-    const { container } = renderSheet();
+    renderSheet();
     await screen.findByDisplayValue("Copied");
 
     const exported: PatchLibrary = {
@@ -179,7 +179,10 @@ describe("PatchSheet importing a legacy Proton export into the clone", () => {
       ],
     };
     const file = new File([JSON.stringify(encodeLibrary(exported, behringerProton.id))], "proton.json", { type: "application/json" });
-    fireEvent.change(container.querySelector<HTMLInputElement>('input[type="file"]')!, { target: { files: [file] } });
+    // Import lives in the patch list.
+    fireEvent.click(screen.getByRole("button", { name: "Patches" }));
+    const list = await screen.findByRole("dialog", { name: "Patches" });
+    fireEvent.change(within(list).getByLabelText("Import patches"), { target: { files: [file] } });
 
     await waitFor(() => expect(created).toHaveLength(1));
     expect(created[0]).toMatchObject({ name: "Legacy Bass", data: { knobs: { [cloneControlId("knob", "Tune 1")]: 100 } } });

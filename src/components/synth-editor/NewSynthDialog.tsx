@@ -5,13 +5,10 @@ import type { FormEvent } from "react";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
+import { AppDialog } from "@/components/app-dialog/AppDialog";
 import { api } from "@/lib/api/client";
 import { useI18n } from "@/i18n/provider";
 import { panelRejectionMessage, uploadPanelFile } from "@/components/synth-editor/upload-panel";
@@ -77,10 +74,20 @@ export function NewSynthDialog({ open, onClose, onCreated }: { open: boolean; on
   }
 
   return (
-    <Dialog open={open} onClose={close} fullWidth maxWidth="sm" aria-labelledby="new-synth-title">
-      <Box component="form" onSubmit={submit}>
-      <DialogTitle id="new-synth-title">{t("synths.createTitle")}</DialogTitle>
-      <DialogContent>
+    <AppDialog
+      open={open}
+      onClose={close}
+      title={t("synths.createTitle")}
+      onSubmit={(event) => void submit(event)}
+      actions={
+        <>
+          <Button onClick={close} disabled={busy}>{t("synths.cancel")}</Button>
+          <Button type="submit" variant="contained" disabled={busy || !file || !displayName || !slug}>
+            {busy ? t("synths.saving") : t("synths.create")}
+          </Button>
+        </>
+      }
+    >
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField
             label={t("synths.displayName")}
@@ -112,14 +119,6 @@ export function NewSynthDialog({ open, onClose, onCreated }: { open: boolean; on
           </Box>
           {error ? <Alert severity="error" role="alert">{error}</Alert> : null}
         </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={close} disabled={busy}>{t("synths.cancel")}</Button>
-        <Button type="submit" variant="contained" disabled={busy || !file || !displayName || !slug}>
-          {busy ? t("synths.saving") : t("synths.create")}
-        </Button>
-      </DialogActions>
-      </Box>
-    </Dialog>
+    </AppDialog>
   );
 }
