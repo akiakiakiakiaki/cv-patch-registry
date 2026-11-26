@@ -64,7 +64,8 @@ export function SampleSection({
 }) {
   const { t } = useI18n();
   const enabled = process.env.NEXT_PUBLIC_FEATURE_AUDIO === "true";
-  const [replacing, setReplacing] = useState(false);
+  // The upload form opens on request: to add a first sample or to replace the existing one.
+  const [formOpen, setFormOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [license, setLicense] = useState("");
@@ -72,17 +73,19 @@ export function SampleSection({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ severity: "success" | "error"; text: string } | null>(null);
 
-  if (!enabled) return null;
+  // Without a sample there is nothing to show to others; the owner gets the upload button.
+  if (!enabled || (!sample && !isOwner)) return null;
 
   const replace = sample !== null;
 
-  function startReplacing(current: SampleInfo) {
-    setTitle(current.title);
-    setLicense(current.license);
+  /** Opens the upload form, prefilled with the current sample's title and license when replacing. */
+  function openForm(current: SampleInfo | null) {
+    setTitle(current?.title ?? "");
+    setLicense(current?.license ?? "");
     setRights(false);
     setFile(null);
     setMessage(null);
-    setReplacing(true);
+    setFormOpen(true);
   }
 
   async function upload(event: FormEvent<HTMLFormElement>) {
@@ -100,7 +103,7 @@ export function SampleSection({
     if (response.ok) {
       const stored = response.data;
       setMessage({ severity: "success", text: t(replace ? "sample.replaced" : "sample.uploaded") });
-      setReplacing(false);
+      setFormOpen(false);
       setFile(null);
       setRights(false);
       if (stored.sample) onChange?.(stored.sample);
@@ -119,17 +122,21 @@ export function SampleSection({
           <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
             {sample.title} · {t("sample.license")}: {sample.license}
           </Typography>
-          {isOwner && !replacing ? (
-            <Button size="small" sx={{ mt: 1 }} onClick={() => startReplacing(sample)}>
+          {isOwner && !formOpen ? (
+            <Button size="small" sx={{ mt: 1 }} onClick={() => openForm(sample)}>
               {t("sample.replace")}
             </Button>
           ) : null}
         </Box>
-      ) : (
-        <Typography variant="body2" color="text.secondary">{t("sample.none")}</Typography>
-      )}
+      ) : !formOpen ? (
+        <Box>
+          <Button variant="contained" color="primary" size="small" onClick={() => openForm(null)}>
+            {t("sample.submit")}
+          </Button>
+        </Box>
+      ) : null}
 
-      {isOwner && (!sample || replacing) ? (
+      {isOwner && formOpen ? (
         <Box component="form" onSubmit={upload} noValidate sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, maxWidth: 720 }}>
           <TextField
             type="file"
@@ -148,11 +155,9 @@ export function SampleSection({
             <Button type="submit" variant="outlined" disabled={busy || !file || !rights || !title || !license}>
               {busy ? t("sample.uploading") : t(replace ? "sample.replaceSubmit" : "sample.submit")}
             </Button>
-            {replacing ? (
-              <Button onClick={() => setReplacing(false)} disabled={busy}>
-                {t("confirm.cancel")}
-              </Button>
-            ) : null}
+            <Button onClick={() => setFormOpen(false)} disabled={busy}>
+              {t("confirm.cancel")}
+            </Button>
           </Stack>
         </Box>
       ) : null}

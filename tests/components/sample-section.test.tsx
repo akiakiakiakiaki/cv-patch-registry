@@ -40,14 +40,29 @@ describe("SampleSection", () => {
     expect(screen.queryByRole("button", { name: "Upload sample" })).not.toBeInTheDocument();
   });
 
-  it("offers the upload form to the owner only while no sample exists", () => {
+  it("shows the upload form to the owner only after asking for it, and hides it again on cancel", async () => {
+    const user = userEvent.setup();
     renderSection({ sample: null, isOwner: true });
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/MP3 or M4A file/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Upload sample" })).toHaveClass("MuiButton-contained", "MuiButton-colorPrimary");
+
+    await user.click(screen.getByRole("button", { name: "Upload sample" }));
+    // The opening button gives way to the form and its own submit button.
     expect(screen.getByRole("button", { name: "Upload sample" })).toBeDisabled();
     expect(screen.getByRole("checkbox")).not.toBeChecked();
+    expect(screen.getByLabelText(/MP3 or M4A file/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Upload sample" })).toBeEnabled();
   });
 
-  it("has no axe violations", async () => {
+  it("has no axe violations, with the form closed and open", async () => {
+    const user = userEvent.setup();
     const { container } = renderSection({ sample: null, isOwner: true });
+    expect(await axe(container)).toHaveNoViolations();
+    await user.click(screen.getByRole("button", { name: "Upload sample" }));
     expect(await axe(container)).toHaveNoViolations();
   });
 });
@@ -82,6 +97,7 @@ describe("SampleSection upload errors", () => {
     }));
     const user = userEvent.setup();
     renderSection({ sample: null, isOwner: true });
+    await user.click(screen.getByRole("button", { name: "Upload sample" }));
     await user.upload(screen.getByLabelText(/MP3 or M4A file/), new File(["data"], "take.mp3", { type: "audio/mpeg" }));
     await user.type(screen.getByRole("textbox", { name: /Sample title/ }), "Take");
     await user.type(screen.getByRole("textbox", { name: /License/ }), "CC BY 4.0");
@@ -165,6 +181,8 @@ describe("SampleSection replacing a sample", () => {
     const url = new URL(String(fetchMock.mock.calls[0]![0]), "http://localhost");
     expect(Object.fromEntries(url.searchParams)).toEqual({ title: "New take", license: "CC BY 4.0", rights: "true", replace: "true" });
     expect(onChange).toHaveBeenCalledWith(stored);
+    // The form closes after a successful upload.
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
   it("closes the form again on cancel without uploading", async () => {
@@ -189,6 +207,7 @@ describe("SampleSection replacing a sample", () => {
         <SampleSection patchId="patch-1" sample={null} isOwner onChange={onChange} />
       </I18nProvider>,
     );
+    await user.click(screen.getByRole("button", { name: "Upload sample" }));
     await user.upload(screen.getByLabelText(/MP3 or M4A file/), new File(["data"], "take.mp3", { type: "audio/mpeg" }));
     await user.type(screen.getByRole("textbox", { name: /Sample title/ }), "Take");
     await user.type(screen.getByRole("textbox", { name: /License/ }), "CC BY 4.0");
@@ -198,3 +217,11 @@ describe("SampleSection replacing a sample", () => {
     expect(onChange).toHaveBeenCalledWith(stored);
   });
 });
+
+describe("SampleSection without a sample", () => {
+  it("shows nothing to someone who does not own the patch", () => {
+    const { container } = renderSection({ sample: null, isOwner: false });
+    expect(container).toBeEmptyDOMElement();
+  });
+});
+

@@ -186,7 +186,6 @@
   "auth.explore": "Explore",
   "auth.myPatches": "Meine Patches",
   "sample.title": "Audio-Sample",
-  "sample.none": "Noch kein Sample.",
   "sample.file": "MP3- oder M4A-Datei (höchstens 30 s, 1,5 MB)",
   "sample.sampleTitle": "Titel des Samples",
   "sample.license": "Lizenz",

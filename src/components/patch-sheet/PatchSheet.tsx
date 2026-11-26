@@ -434,7 +434,8 @@ export function PatchSheet() {
             />
             {ownsActivePatch ? (
               <Box sx={{ px: PAGE_GUTTER }}>
-                <SampleSection patchId={patch.id} sample={sample} isOwner onChange={setSample} />
+                {/* Keyed by patch: an opened upload form does not carry over to another patch. */}
+                <SampleSection key={patch.id} patchId={patch.id} sample={sample} isOwner onChange={setSample} />
               </Box>
             ) : null}
           </>
