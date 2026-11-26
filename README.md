@@ -15,7 +15,7 @@ The app supports multiple synthesizers. Signed-in users can add their own synthe
 
 ## Run locally
 
-Next.js 16 requires Node.js 20.9 or newer.
+Requires Node.js 20.19 or newer (22.12 or newer on Node 22); the test tooling needs these versions. `.nvmrc` names the version used in development.
 
 ```sh
 nvm use
