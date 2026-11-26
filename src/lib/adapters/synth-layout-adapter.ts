@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { LAYOUT_SCHEMA_MINOR, encodeInstrumentLayout } from "@/lib/adapters/instrument-layout-adapter";
-import type { ControlKind } from "@/lib/domain/control-ids";
+import { CONTROL_KINDS, type ControlKind } from "@/lib/domain/control-ids";
 import type { ControlCategory, InstrumentLayout, KnobDefinition, PatchPort, SwitchDefinition } from "@/lib/instrument/layout";
 import { CATEGORY_COLOR_PATTERN, CATEGORY_ID_PATTERN, categoryIssues, usesCategories } from "@/lib/domain/switch-categories";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
@@ -8,7 +8,6 @@ import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
 /** Geometry and knob angles are shared defaults for user-built synths (same hardware language as Proton). */
 const DEFAULTS = behringerProton.layout;
 
-export const CONTROL_KINDS = ["knob", "switch", "led", "in", "out", "uni"] as const;
 export const CONTROL_ID_PATTERN = /^(knob|switch|led|in|out|uni)-[a-f0-9]{8}$/;
 export const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 

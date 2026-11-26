@@ -9,6 +9,7 @@ import NextLink from "next/link";
 import { useI18n } from "@/i18n/provider";
 import { CURATED_TAGS } from "@/lib/domain/tags";
 import type { PatchSummary } from "@/lib/patches/patch-service";
+import { PAGE_GUTTER } from "@/components/app-shell/layout";
 
 interface Props {
   patches: readonly PatchSummary[];
@@ -30,7 +31,7 @@ export function ExploreView({ patches, activeTag, activeSynth, synths }: Props) 
   };
 
   return (
-    <Box component="main" sx={{ maxWidth: 1000, mx: "auto", p: { xs: 2, md: 3 } }}>
+    <Box component="main" sx={{ maxWidth: 1000, mx: "auto", p: PAGE_GUTTER }}>
       <Typography variant="h1" sx={{ fontSize: "1.5rem", mb: 2 }}>{t("patches.explore")}</Typography>
 
       <Stack spacing={1.5} sx={{ mb: 3 }}>

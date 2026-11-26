@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createEmptyPatch } from "@/lib/domain/patch-service";
+import { api } from "@/lib/api/client";
+import { createEmptyPatch } from "@/lib/domain/patch-library";
 import { diffPatchLibraries } from "@/lib/patches/library-diff";
-import type { PatchLibrary, PatchRecord } from "@/lib/domain/types";
+import type { PatchLibrary } from "@/lib/domain/types";
+import type { PatchState } from "@/lib/patches/patch-service";
 import type { RevisionLoss } from "@/lib/patches/revision-loss";
 
 export type AccountSaveStatus = "idle" | "saving" | "saved" | "conflict" | "error";
@@ -14,18 +16,7 @@ export interface PatchMeta {
   tags: string[];
 }
 
-interface PatchStateResponse {
-  id: string;
-  name: string;
-  updatedAt: string;
-  revision: number;
-  visibility: "private" | "public";
-  tags: string[];
-  tagLabels?: string[];
-  data: PatchRecord["data"];
-  synthRevision: number;
-  revisionLosses: RevisionLoss[];
-}
+type PatchStateResponse = Omit<PatchState, "tagLabels"> & { tagLabels?: string[] };
 
 const SAVE_DELAY_MS = 500;
 
@@ -108,21 +99,16 @@ export function useAccountPatchLibrary(synthSlug: string, enabled: boolean, opti
   }
 
   const load = useCallback(async () => {
-    const response = await fetch(`/api/patches?synth=${encodeURIComponent(synthSlug)}`, { cache: "no-store" });
+    const response = await api.patches.listStates(synthSlug);
     if (!response.ok) return setStatus("error");
-    const body = (await response.json()) as { patches: PatchStateResponse[] };
-    if (body.patches.length === 0) {
+    if (response.data.patches.length === 0) {
       // Like the local library, an account always has one patch to edit.
       const first = createEmptyPatch();
-      const created = await fetch("/api/patches", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id: first.id, synthSlug, name: first.name, data: first.data }),
-      });
+      const created = await api.patches.create({ id: first.id, synthSlug, name: first.name, data: first.data });
       if (!created.ok) return setStatus("error");
       return load();
     }
-    applyStates(body.patches);
+    applyStates(response.data.patches);
   }, [synthSlug, applyStates]);
 
   const putPatch = useCallback(
@@ -130,20 +116,15 @@ export function useAccountPatchLibrary(synthSlug: string, enabled: boolean, opti
       const expectedRevision = revisions.current.get(id);
       if (expectedRevision === undefined) return;
       setStatus("saving");
-      const send = (extra: Record<string, unknown> = {}) =>
-        fetch(`/api/patches/${encodeURIComponent(id)}`, {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ ...body, ...extra, expectedRevision }),
-        });
+      const send = (extra: Record<string, unknown> = {}) => api.patches.update(id, { ...body, ...extra, expectedRevision });
       // A patch kept on its older revision is saved there; an explicit upgrade (acceptRevisionLoss) moves it.
       const keep = outdatedRef.current[id] && body.acceptRevisionLoss !== true;
       let response = await send(keep ? { keepRevision: true } : {});
       // Runs inside the queue already, so reload directly instead of re-queueing (that would wait for itself).
       // The queue waits while the user decides, so later edits are saved after the answer, in order.
-      if (response.status === 409) {
-        const failure = (await response.json().catch(() => ({}))) as Partial<RevisionLossPrompt> & { error?: string };
-        if (failure.error === "revision-loss") {
+      if (!response.ok && response.status === 409) {
+        const failure = response.body as Partial<RevisionLossPrompt>;
+        if (response.error === "revision-loss") {
           const prompt: RevisionLossPrompt = {
             patchName: libraryRef.current?.patches.find((item) => item.id === id)?.name ?? "",
             fromRevision: failure.fromRevision ?? 0,
@@ -168,8 +149,7 @@ export function useAccountPatchLibrary(synthSlug: string, enabled: boolean, opti
         return load();
       }
       if (!response.ok) return setStatus("error");
-      const saved = (await response.json()) as { revision: number };
-      revisions.current.set(id, saved.revision);
+      revisions.current.set(id, response.data.revision);
       setStatus("saved");
     },
     [enqueue, load],
@@ -206,21 +186,16 @@ export function useAccountPatchLibrary(synthSlug: string, enabled: boolean, opti
       setLibrary(next);
       for (const patch of diff.created) {
         void enqueue(async () => {
-          const response = await fetch("/api/patches", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ id: patch.id, synthSlug, name: patch.name, data: patch.data }),
-          });
+          const response = await api.patches.create({ id: patch.id, synthSlug, name: patch.name, data: patch.data });
           if (!response.ok) return setStatus("error");
-          const created = (await response.json()) as { revision: number };
-          revisions.current.set(patch.id, created.revision);
+          revisions.current.set(patch.id, response.data.revision);
           setSavedIds((current) => new Set([...current, patch.id]));
           setStatus("saved");
         });
       }
       for (const id of diff.deleted) {
         void enqueue(async () => {
-          const response = await fetch(`/api/patches/${encodeURIComponent(id)}`, { method: "DELETE" });
+          const response = await api.patches.remove(id);
           if (!response.ok) return setStatus("error");
           revisions.current.delete(id);
           setSavedIds((current) => new Set([...current].filter((savedId) => savedId !== id)));

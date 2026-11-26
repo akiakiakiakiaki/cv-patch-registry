@@ -5,92 +5,49 @@ import { useSearchParams } from "next/navigation";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Paper from "@mui/material/Paper";
-import Stack from "@mui/material/Stack";
-import Switch from "@mui/material/Switch";
-import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import {
-  associateLegacyPatches,
-  decodeImport,
-  encodeLibrary,
-  parseJson,
-  requiredPatchSchemaMinor,
-} from "@/lib/adapters/patch-adapter";
 import { InstrumentPanel } from "@/components/instrument-panel/InstrumentPanel";
 import { PatchManager } from "@/components/patch-manager/PatchManager";
 import { SynthLayoutEditor, type SynthLayoutEditorHandle } from "@/components/synth-editor/SynthLayoutEditor";
 import { NewSynthDialog } from "@/components/synth-editor/NewSynthDialog";
 import { SampleSection } from "@/components/patch-editor/SampleSection";
-import { useAccountPatchLibrary } from "@/hooks/use-account-patch-library";
+import { PAGE_GUTTER } from "@/components/app-shell/layout";
+import { useConfirmDialog } from "@/components/confirm-dialog/ConfirmDialog";
+import { PATCHES_IMPORTED_EVENT } from "@/components/guest-transfer/GuestPatchTransfer";
+import { PatchSettingsBar } from "@/components/patch-sheet/PatchSettingsBar";
+import { PatchSheetFooter } from "@/components/patch-sheet/PatchSheetFooter";
+import { RevisionLossDetails } from "@/components/patch-sheet/RevisionLossDetails";
+import { downloadJson, importErrorMessage, importLibraryFile, libraryExport, type ImportConflict } from "@/components/patch-sheet/patch-file";
+import { sheetModeLayout, type SheetMode } from "@/components/patch-sheet/sheet-mode";
+import type { OutdatedRevision, RevisionLossDecision, RevisionLossPrompt } from "@/hooks/use-account-patch-library";
 import { useInstrumentLayoutEditor } from "@/hooks/use-instrument-layout-editor";
-import type { SynthView } from "@/lib/synths/synth-service";
-import type { PatchLibrary, PatchRecord, PatchCable } from "@/lib/domain/types";
-import type { InstrumentDefinition } from "@/lib/instruments/types";
+import { useSheetLibrary } from "@/hooks/use-sheet-library";
+import { useSynthCatalog } from "@/hooks/use-synth-catalog";
+import { api } from "@/lib/api/client";
 import { authClient } from "@/lib/auth/client";
 import { hasCapability, roleForUser } from "@/lib/auth/roles";
 import {
+  EMPTY_PATCH_DATA,
   activatePatch,
   addPatch,
-  mergePatchLibrary,
-  patchContentDiffers,
   removePatch,
   updateCables,
   updateKnob,
   updateLed,
   updatePatch,
   updateSwitches,
-} from "@/lib/domain/patch-service";
-import { LocalPatchRepository } from "@/lib/storage/local-patch-repository";
-import { loadLocalLibrary } from "@/lib/storage/legacy-proton-local";
-import { initialSynthSlug, readLastSynth, writeLastSynth } from "@/lib/storage/last-synth";
-import { LEGACY_PROTON_SLUG, PROTON_CLONE_SLUG, decodeLegacyProtonExportForClone, isLegacyProtonExport } from "@/lib/adapters/proton-legacy-migration-adapter";
-import { layoutElementPosition } from "@/lib/instrument/layout-editor";
-import { useI18n } from "@/i18n/provider";
-import { useConfirmDialog } from "@/components/confirm-dialog/ConfirmDialog";
-import { RevisionLossDetails } from "@/components/patch-sheet/RevisionLossDetails";
-import { TagInput } from "@/components/patch-sheet/TagInput";
-import { PATCHES_IMPORTED_EVENT } from "@/components/guest-transfer/GuestPatchTransfer";
-import { sheetModeLayout, type SheetMode } from "@/components/patch-sheet/sheet-mode";
-import { setLeaveGuard } from "@/lib/navigation/leave-guard";
-import { useConfirmLinkNavigation } from "@/lib/navigation/use-confirm-link-navigation";
-import type { OutdatedRevision, RevisionLossDecision, RevisionLossPrompt } from "@/hooks/use-account-patch-library";
-import type { Locale } from "@/i18n/config";
-import { isMessageKey } from "@/i18n/messages";
+} from "@/lib/domain/patch-library";
+import type { PatchCable, PatchRecord } from "@/lib/domain/types";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
 import { instrumentFromSynth } from "@/lib/instruments/from-synth";
+import { useUnsavedChangesGuard } from "@/lib/navigation/use-unsaved-changes-guard";
 import type { PatchView } from "@/lib/patches/patch-service";
+import { formatTimestamp } from "@/lib/utils/date-format";
+import { NOOP } from "@/lib/utils/noop";
+import { useI18n } from "@/i18n/provider";
 
-const BUILT_IN_SYNTH = behringerProton.id;
-const NOOP = () => {};
 export const EDITOR_FULL_HEIGHT_CLASS = "editor-full-height";
-
-function dateLocale(locale: Locale): string {
-  return locale === "de" ? "de-DE" : "en-US";
-}
-
-function makeDownload(filename: string, contents: string) {
-  const blob = new Blob([contents], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
-function timestampForFilename(value: string): string {
-  return value.replace(/[:.]/g, "-");
-}
-
-interface CatalogItem {
-  slug: string;
-  displayName: string;
-  isBuiltIn: boolean;
-}
 
 /**
  * The whole app on one page: pick a synth, manage its patches, play them on the panel. Signed-in users
@@ -104,101 +61,36 @@ export function PatchSheet() {
   const accountUserId = session?.user?.id ?? null;
   const role = roleForUser(session?.user);
 
-  const [catalog, setCatalog] = useState<CatalogItem[] | null>(null);
-  // Empty until known: the URL names a synth, or the catalog decides (last opened, else first).
-  const [selectedSlug, setSelectedSlug] = useState(searchParams.get("synth") ?? "");
-  const [view, setView] = useState<SynthView | null>(null);
+  const synths = useSynthCatalog(searchParams.get("synth") ?? "");
+  const { selectedSlug, setSelectedSlug, view, instrument, isBuiltIn } = synths;
   const [sheetMode, setSheetMode] = useState<SheetMode>("patching");
   const [editorDirty, setEditorDirty] = useState(false);
   const [creating, setCreating] = useState(false);
   const [shared, setShared] = useState<PatchView | null>(null);
   const [sample, setSample] = useState<PatchView["sample"]>(null);
-  const [localLibrary, setLocalLibrary] = useState<PatchLibrary | null>(null);
-  const [localStatus, setLocalStatus] = useState(t("status.saved"));
   const [debugEditing, setDebugEditing] = useState(false);
   const [linkedPatchId, setLinkedPatchId] = useState<string | null>(searchParams.get("patch"));
 
-  // The built-in Proton comes with the app, but is only offered while the server lists it (FEATURE_LEGACY_SYNTHS).
-  const builtInListed = catalog?.some((item) => item.slug === BUILT_IN_SYNTH) ?? false;
-  const isBuiltIn = selectedSlug === BUILT_IN_SYNTH && builtInListed;
-  // The selector must always offer the selected synth, even before the catalog has loaded (MUI warns otherwise).
-  const selectorOptions = useMemo(() => {
-    const items = catalog ?? [];
-    if (!selectedSlug || items.some((item) => item.slug === selectedSlug)) return items;
-    if (selectedSlug === BUILT_IN_SYNTH && catalog) return items;
-    const fallbackName = selectedSlug === BUILT_IN_SYNTH ? behringerProton.displayName : selectedSlug;
-    return [...items, { slug: selectedSlug, displayName: fallbackName, isBuiltIn: selectedSlug === BUILT_IN_SYNTH }];
-  }, [catalog, selectedSlug]);
-  // The built-in Proton is kept next to its editable clone until removed; the list marks it as legacy.
-  const instrumentOptions = useMemo(
-    () =>
-      selectorOptions.map((item) => ({
-        id: item.slug,
-        displayName: item.slug === LEGACY_PROTON_SLUG ? t("instrument.legacyName", { name: item.displayName }) : item.displayName,
-      })),
-    [selectorOptions, t],
-  );
-  // Memoized: the instrument identity drives effects (layout and library loading); a new object per render would loop.
-  const instrument: InstrumentDefinition | null = useMemo(
-    () => (isBuiltIn ? behringerProton : view ? instrumentFromSynth(view) : null),
-    [isBuiltIn, view],
-  );
   const isOwner = Boolean(view && accountUserId && view.ownerId === accountUserId);
   const accountMode = role !== "guest" && Boolean(accountUserId);
   const debugActive = debugLayoutEnabled && isBuiltIn && hasCapability(role, "adjustBuiltInLayout");
   const canManageSynths = hasCapability(role, "manageSynths");
 
-  const loadCatalog = useCallback(async () => {
-    const response = await fetch("/api/synths", { cache: "no-store" });
-    if (!response.ok) return;
-    const body = (await response.json()) as { synths: CatalogItem[] };
-    setCatalog(body.synths);
-  }, []);
-
-  const loadView = useCallback(async (slug: string) => {
-    if (!slug || slug === BUILT_IN_SYNTH) return setView(null);
-    const response = await fetch(`/api/synths/${encodeURIComponent(slug)}`, { cache: "no-store" });
-    setView(response.ok ? ((await response.json()) as SynthView) : null);
-  }, []);
-
-  useEffect(() => {
-    void loadCatalog();
-  }, [loadCatalog]);
-
-  useEffect(() => {
-    if (!catalog) return;
-    // Nothing chosen yet, or a link to the hidden legacy Proton: open the last or first listed synth instead.
-    const hiddenBuiltIn = selectedSlug === BUILT_IN_SYNTH && !builtInListed;
-    if (!selectedSlug || hiddenBuiltIn) setSelectedSlug(initialSynthSlug(readLastSynth(), catalog) ?? "");
-  }, [catalog, selectedSlug, builtInListed]);
-
-  useEffect(() => {
-    if (selectedSlug) writeLastSynth(selectedSlug);
-  }, [selectedSlug]);
-
+  // Another synth always opens in patching mode.
   useEffect(() => {
     setSheetMode("patching");
-    setView(null);
-    void loadView(selectedSlug);
-  }, [selectedSlug, loadView]);
+  }, [selectedSlug]);
 
   // A patch link from /explore or the old patch pages opens the synth and the patch, read-only unless owned.
   useEffect(() => {
     const patchId = searchParams.get("patch");
     if (!patchId) return;
-    void fetch(`/api/patches/${encodeURIComponent(patchId)}`, { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body: PatchView | null) => {
-        if (!body) return;
-        setSelectedSlug(body.synth.slug);
-        setShared(body.isOwner ? null : body);
-      });
-  }, [searchParams]);
-
-  const repository = useMemo(() => (instrument ? new LocalPatchRepository(instrument) : null), [instrument]);
-  useEffect(() => {
-    if (repository && instrument) setLocalLibrary(loadLocalLibrary(repository, instrument.id, t("patch.new")));
-  }, [repository, instrument, t]);
+    void api.patches.get(patchId).then((response) => {
+      if (!response.ok) return;
+      setSelectedSlug(response.data.synth.slug);
+      setShared(response.data.isOwner ? null : response.data);
+    });
+  }, [searchParams, setSelectedSlug]);
 
   const { confirm, choose, dialog: confirmDialog } = useConfirmDialog();
   const editorRef = useRef<SynthLayoutEditorHandle>(null);
@@ -226,19 +118,8 @@ export function PatchSheet() {
     [sheetMode, editorOpen],
   );
 
-  // Leaving from outside the sheet (signing out) asks the editor too; closing the tab gets the browser's warning.
-  useEffect(() => {
-    if (!editorOpen) return;
-    return setLeaveGuard(() => editorRef.current?.confirmLeave() ?? Promise.resolve(true));
-  }, [editorOpen]);
-  // Links inside the app ask too (client-side navigation does not trigger the browser's warning).
-  useConfirmLinkNavigation(editorOpen && editorDirty);
-  useEffect(() => {
-    if (!editorOpen || !editorDirty) return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [editorOpen, editorDirty]);
+  useUnsavedChangesGuard(editorOpen, editorDirty, () => editorRef.current?.confirmLeave() ?? Promise.resolve(true));
+
   const synthName = instrument?.displayName ?? selectedSlug;
   // A save ran into a synth revision that lacks controls: save (upgrade), restore the saved version, or keep working.
   const decideRevisionLoss = useCallback(
@@ -255,7 +136,8 @@ export function PatchSheet() {
     },
     [choose, synthName, t],
   );
-  const account = useAccountPatchLibrary(selectedSlug, accountMode && instrument !== null, { onRevisionLoss: decideRevisionLoss });
+  const sheet = useSheetLibrary(selectedSlug, instrument, accountMode, { onRevisionLoss: decideRevisionLoss });
+  const { account, commit: commitLibrary, library: currentLibrary, activePatch, status } = sheet;
   // Guest patches copied into the account after signing up (see GuestPatchTransfer) appear without a reload.
   const reloadAccount = account.reload;
   useEffect(() => {
@@ -266,11 +148,7 @@ export function PatchSheet() {
   const layoutEditor = useInstrumentLayoutEditor(instrument ?? behringerProton, debugActive);
   const debugLayoutMode = debugActive && debugEditing;
 
-  const currentLibrary: PatchLibrary | null = accountMode ? account.library : localLibrary;
-  const status = accountMode ? accountStatusText(account.status, t) : localStatus;
-  const activePatch: PatchRecord | undefined = currentLibrary?.patches.find((patch) => patch.id === currentLibrary.activeId) ?? currentLibrary?.patches[0];
   const panelData = shared?.data ?? activePatch?.data;
-  const activeMeta = activePatch && accountMode ? account.meta[activePatch.id] : undefined;
   const ownsActivePatch = Boolean(activePatch && accountMode && !shared);
   // A patch kept on an older synth revision is shown and edited with that revision's panel and controls.
   const outdated = ownsActivePatch && activePatch ? account.outdated[activePatch.id] : undefined;
@@ -288,12 +166,11 @@ export function PatchSheet() {
   useEffect(() => {
     setSample(null);
     if (!activePatch || !accountMode || shared || !activeSaved) return;
-    void fetch(`/api/patches/${encodeURIComponent(activePatch.id)}`, { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body: PatchView | null) => {
-        setSample(body?.sample ?? null);
-        setActiveView(body);
-      });
+    void api.patches.get(activePatch.id).then((response) => {
+      const body = response.ok ? response.data : null;
+      setSample(body?.sample ?? null);
+      setActiveView(body);
+    });
   }, [activePatch?.id, accountMode, shared, outdated?.revision, activeSaved]); // eslint-disable-line
 
   const askUpgrade = useCallback(
@@ -311,19 +188,6 @@ export function PatchSheet() {
     [account, confirm, synthName, t, view?.revision],
   );
 
-  const commitLibrary = useCallback(
-    (next: PatchLibrary, message = t("status.saved")) => {
-      if (accountMode) {
-        account.commit(next);
-        return;
-      }
-      repository?.save(next);
-      setLocalLibrary(next);
-      setLocalStatus(message);
-    },
-    [accountMode, account, repository, t],
-  );
-
   // A patch named in the link becomes active once the library holds it (runs once).
   useEffect(() => {
     if (!linkedPatchId || !currentLibrary?.patches.some((item) => item.id === linkedPatchId)) return;
@@ -331,19 +195,48 @@ export function PatchSheet() {
     if (currentLibrary.activeId !== linkedPatchId) commitLibrary(activatePatch(currentLibrary, linkedPatchId));
   }, [linkedPatchId, currentLibrary, commitLibrary]);
 
+  async function selectInstrument(slug: string) {
+    if (slug === selectedSlug) return;
+    // Switching synths leaves the editor; unsaved changes are asked about first.
+    if (!(await requestMode("patching"))) return;
+    sheet.clearLocal();
+    setShared(null);
+    setSelectedSlug(slug);
+  }
+
+  const managerBase = {
+    role,
+    instruments: synths.instrumentOptions,
+    onCreateSynth: () => setCreating(true),
+    instrumentId: selectedSlug,
+    onInstrumentChange: (slug: string) => void selectInstrument(slug),
+    status,
+  };
+  const dialogs = (
+    <>
+      {confirmDialog}
+      {canManageSynths ? (
+        <NewSynthDialog
+          open={creating}
+          onClose={() => setCreating(false)}
+          onCreated={(slug) => {
+            setCreating(false);
+            void synths.reloadCatalog();
+            setSelectedSlug(slug);
+          }}
+        />
+      ) : null}
+    </>
+  );
+
   if (!instrument || !currentLibrary || !activePatch) {
     // Same structure as the loaded page: the control bar stays at the top, only the content area shows the loader.
     return (
       <>
         <PatchManager
-          role={role}
-          instruments={instrumentOptions}
-          onCreateSynth={() => setCreating(true)}
-          instrumentId={selectedSlug}
-          onInstrumentChange={setSelectedSlug}
+          {...managerBase}
           patches={[]}
           activeId=""
-          status={status}
           onSelect={NOOP}
           onCreate={NOOP}
           onRename={NOOP}
@@ -355,24 +248,13 @@ export function PatchSheet() {
           <CircularProgress color="primary" />
           <Typography color="text.secondary">{t("loading.library")}</Typography>
         </Box>
-        {canManageSynths ? (
-          <NewSynthDialog
-            open={creating}
-            onClose={() => setCreating(false)}
-            onCreated={(slug) => {
-              setCreating(false);
-              void loadCatalog();
-              setSelectedSlug(slug);
-            }}
-          />
-        ) : null}
+        {dialogs}
       </>
     );
   }
 
   const library = currentLibrary;
   const patch = activePatch;
-
 
   function changeKnob(id: string, value: number) {
     commitLibrary(updateKnob(library, patch.id, id, value));
@@ -390,14 +272,6 @@ export function PatchSheet() {
     const name = t("patch.newWithNumber", { count: library.patches.length + 1 });
     commitLibrary(addPatch(library, new Date(), name), t("patch.createStatus"));
   }
-  async function selectInstrument(slug: string) {
-    if (slug === selectedSlug) return;
-    // Switching synths leaves the editor; unsaved changes are asked about first.
-    if (!(await requestMode("patching"))) return;
-    setLocalLibrary(null);
-    setShared(null);
-    setSelectedSlug(slug);
-  }
   function selectPatch(id: string) {
     setShared(null);
     commitLibrary(activatePatch(library, id), t("patch.opened", { name: library.patches.find((item) => item.id === id)?.name ?? t("patch.generic") }));
@@ -411,45 +285,40 @@ export function PatchSheet() {
 
   function exportLibrary() {
     const exportedAt = new Date().toISOString();
-    const bundle = encodeLibrary(library, selectedSlug, exportedAt, requiredPatchSchemaMinor(library, instrument!));
-    makeDownload(`${selectedSlug}-patches-${timestampForFilename(exportedAt)}.json`, JSON.stringify(bundle, null, 2));
-    setLocalStatus(t("status.exported", { date: new Intl.DateTimeFormat(dateLocale(locale), { dateStyle: "short", timeStyle: "short" }).format(new Date(exportedAt)) }));
+    const file = libraryExport(library, instrument!, exportedAt);
+    downloadJson(file.filename, file.contents);
+    sheet.setStatus(t("status.exported", { date: formatTimestamp(exportedAt, locale, "short") }));
+  }
+
+  /** A patch that differs between the library and the file: the imported version replaces it only on request. */
+  async function useIncomingVersion({ local, incoming }: ImportConflict): Promise<boolean> {
+    const localIsNewer = Date.parse(local.updatedAt) > Date.parse(incoming.updatedAt);
+    return confirm({
+      tone: "warning",
+      title: t("import.conflictTitle"),
+      content: (
+        <Typography sx={{ whiteSpace: "pre-line" }}>
+          {t("status.conflict", {
+            name: incoming.name,
+            localDate: formatTimestamp(local.updatedAt, locale),
+            incomingDate: formatTimestamp(incoming.updatedAt, locale),
+            localNewer: localIsNewer ? t("conflict.newer") : "",
+            incomingNewer: !localIsNewer ? t("conflict.newerOrSame") : "",
+          })}
+        </Typography>
+      ),
+      confirmLabel: t("import.useIncoming"),
+      cancelLabel: t("import.keepLocal"),
+    });
   }
 
   async function importFile(file: File) {
     try {
-      const decoded = parseJson(await file.text());
-      // A legacy Proton export is migrated when imported into the editable clone.
-      const imported =
-        instrument!.id === PROTON_CLONE_SLUG && isLegacyProtonExport(decoded)
-          ? decodeLegacyProtonExportForClone(decoded)
-          : decodeImport(decoded, instrument!);
-      const incoming = imported.hasStableIds ? imported.patches : associateLegacyPatches(imported.patches, library.patches);
-      const choices: Record<string, "local" | "incoming"> = {};
-      for (const incomingPatch of incoming) {
-        const local = library.patches.find((candidate) => candidate.id === incomingPatch.id);
-        if (!local || !patchContentDiffers(local, incomingPatch)) continue;
-        const format = (value: string) => new Intl.DateTimeFormat(dateLocale(locale), { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
-        const localIsNewer = Date.parse(local.updatedAt) > Date.parse(incomingPatch.updatedAt);
-        const useIncoming = window.confirm(t("status.conflict", {
-          name: incomingPatch.name,
-          localDate: format(local.updatedAt),
-          incomingDate: format(incomingPatch.updatedAt),
-          localNewer: localIsNewer ? t("conflict.newer") : "",
-          incomingNewer: !localIsNewer ? t("conflict.newerOrSame") : "",
-        }));
-        choices[incomingPatch.id] = useIncoming ? "incoming" : "local";
-      }
-      const merged = mergePatchLibrary(library, incoming, choices);
-      const updatedCount = incoming.filter((item) => choices[item.id] === "incoming").length;
-      commitLibrary(merged, t("status.imported", { added: merged.patches.length - library.patches.length, updated: updatedCount }));
+      const result = await importLibraryFile(file, library, instrument!, useIncomingVersion);
+      commitLibrary(result.library, t("status.imported", { added: result.added, updated: result.updated }));
     } catch (error: unknown) {
-      const message = error instanceof SyntaxError
-        ? t("status.importErrorJson")
-        : error instanceof Error && isMessageKey(error.message)
-          ? t(error.message)
-          : error instanceof Error ? error.message : t("status.unknownError");
-      setLocalStatus(t("status.importFailed", { message }));
+      const reason = importErrorMessage(error);
+      sheet.setStatus(t("status.importFailed", { message: "key" in reason ? t(reason.key) : reason.text }));
     }
   }
 
@@ -458,15 +327,10 @@ export function PatchSheet() {
   return (
     <>
       <PatchManager
-        role={role}
-        instruments={instrumentOptions}
-        onCreateSynth={() => setCreating(true)}
-        instrumentId={selectedSlug}
-        onInstrumentChange={(slug) => void selectInstrument(slug)}
+        {...managerBase}
         showPatchActions={modeLayout.patchActions}
         patches={library.patches}
         activeId={library.activeId}
-        status={status}
         synthAction={
           ownerCanEdit ? (
             <Button
@@ -492,40 +356,26 @@ export function PatchSheet() {
       >
         {/* Patch settings; hidden while the synth editor is open, where they have no effect. */}
         {modeLayout.patchRow ? (
-        <Paper component="section" square variant="outlined" sx={{ px: { xs: 2, md: 3 }, py: 1, borderTop: 0, borderLeft: 0, borderRight: 0 }}>
-          <Stack direction="row" useFlexGap sx={{ alignItems: "center", flexWrap: "wrap", gap: 1.5 }}>
-            {shared ? (
-              <Chip size="small" label={t("patches.sharedReadOnly", { name: shared.name })} />
-            ) : (
-              <TextField
-                size="small"
-                label={t("patch.active")}
-                value={patch.name}
-                slotProps={{ htmlInput: { maxLength: 60, "aria-label": t("patch.nameAria") } }}
-                onChange={(event) => renamePatch(patch.id, event.currentTarget.value)}
-                sx={{ width: { xs: "100%", sm: 210 } }}
-              />
-            )}
-            {debugActive ? (
-              <FormControlLabel
-                control={<Switch checked={debugEditing} onChange={() => { setDebugEditing((value) => !value); layoutEditor.clearFocus(); }} />}
-                label={t("debug.adjust")}
-              />
-            ) : null}
-            {ownsActivePatch ? (
-              <>
-                <FormControlLabel
-                  control={<Switch checked={activeMeta?.visibility === "public"} onChange={(event) => account.updateMeta(patch.id, { visibility: event.target.checked ? "public" : "private" })} />}
-                  label={t("patches.publicPatch")}
-                />
-                <TagInput key={patch.id} value={activeMeta?.tags ?? []} onChange={(tags) => account.updateMeta(patch.id, { tags })} />
-              </>
-            ) : null}
-            <Alert severity={status.startsWith(t("status.importFailed")) ? "error" : "success"} variant="standard" role="status" sx={{ ml: "auto", py: 0, alignItems: "center", "& .MuiAlert-message": { typography: "caption" } }}>
-              {status}
-            </Alert>
-          </Stack>
-        </Paper>
+          <PatchSettingsBar
+            patch={patch}
+            sharedName={shared?.name}
+            onRename={(name) => renamePatch(patch.id, name)}
+            meta={ownsActivePatch ? account.meta[patch.id] : undefined}
+            onMetaChange={ownsActivePatch ? (change) => account.updateMeta(patch.id, change) : undefined}
+            debug={
+              debugActive
+                ? {
+                    editing: debugEditing,
+                    onToggle: () => {
+                      setDebugEditing((value) => !value);
+                      layoutEditor.clearFocus();
+                    },
+                  }
+                : undefined
+            }
+            status={status}
+            statusIsError={status.startsWith(t("status.importFailed"))}
+          />
         ) : null}
 
         {outdated && !editorOpen ? (
@@ -548,7 +398,7 @@ export function PatchSheet() {
             key={`${view.slug}-${view.revision}`}
             source={view}
             onSaved={() => {
-              void loadView(view.slug);
+              void synths.reloadView(view.slug);
               // A new revision can make patches outdated; reload to show which.
               if (accountMode) account.reload();
             }}
@@ -560,16 +410,16 @@ export function PatchSheet() {
             onDeleted={() => {
               setEditorDirty(false);
               setSheetMode("patching");
-              void loadCatalog();
+              void synths.reloadCatalog();
               // Continue with the next synth of the list.
-              setSelectedSlug((catalog ?? []).find((item) => item.slug !== view.slug)?.slug ?? "");
+              setSelectedSlug(synths.slugAfter(view.slug));
             }}
           />
         ) : (
           <>
             <InstrumentPanel
               readOnly={Boolean(shared)}
-              data={panelData ?? { knobs: {}, switches: {}, leds: {}, cables: [] }}
+              data={panelData ?? EMPTY_PATCH_DATA}
               instrument={panelInstrument ?? instrument}
               layout={panelLayout ?? instrument.layout}
               layoutEditMode={debugLayoutMode}
@@ -583,45 +433,22 @@ export function PatchSheet() {
               onCableChange={changeCables}
             />
             {ownsActivePatch ? (
-              <Box sx={{ px: { xs: 2, md: 3 } }}>
+              <Box sx={{ px: PAGE_GUTTER }}>
                 <SampleSection patchId={patch.id} sample={sample} isOwner onChange={setSample} />
               </Box>
             ) : null}
           </>
         )}
 
-        <Box component="footer" sx={{ display: "flex", justifyContent: "space-between", gap: 2, px: { xs: 2, md: 3 }, py: 1.5, color: "text.secondary", typography: "caption", flexDirection: { xs: "column", md: "row" } }}>
-          <Typography variant="caption">{accountMode ? t("footer.accountSaved") : t("footer.autosave")}</Typography>
-          <Typography variant="caption" sx={{ fontFamily: "monospace", textAlign: { xs: "left", md: "right" } }}>
-            {(panelLayout ?? instrument.layout).knobs.length} {t("footer.knobs")} · {(panelData ?? patch.data).cables.length} {t("footer.cables")} · {t("footer.lastChanged")}{" "}
-            {new Intl.DateTimeFormat(dateLocale(locale), { dateStyle: "medium", timeStyle: "short" }).format(new Date(patch.updatedAt))}
-          </Typography>
-        </Box>
+        <PatchSheetFooter
+          accountMode={accountMode}
+          knobCount={(panelLayout ?? instrument.layout).knobs.length}
+          cableCount={(panelData ?? patch.data).cables.length}
+          updatedAt={patch.updatedAt}
+        />
       </Box>
 
-      {confirmDialog}
-      {canManageSynths ? (
-        <NewSynthDialog
-          open={creating}
-          onClose={() => setCreating(false)}
-          onCreated={(slug) => {
-            setCreating(false);
-            void loadCatalog();
-            setSelectedSlug(slug);
-          }}
-        />
-      ) : null}
+      {dialogs}
     </>
   );
 }
-
-type Translate = ReturnType<typeof useI18n>["t"];
-
-function accountStatusText(status: "idle" | "saving" | "saved" | "conflict" | "error", t: Translate): string {
-  if (status === "saving") return t("status.saving");
-  if (status === "conflict") return t("status.conflictReload");
-  if (status === "error") return t("status.saveError");
-  // Signed-in users' patches live on the server only; "status.saved" is the browser-storage message for guests.
-  return t("status.savedAccount");
-}
-

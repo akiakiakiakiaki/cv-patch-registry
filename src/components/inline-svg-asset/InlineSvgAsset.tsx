@@ -21,7 +21,7 @@ function scopeSvgStyles(markup: string, scope: string): string {
   });
   const withScopedReferences = withScopedIds.replace(
     /url\(#([^)]*)\)|((?:xlink:)?href)="#([^"]+)"/g,
-    (match, urlId: string | undefined, href: string | undefined, hrefId: string | undefined) => {
+    (_match, urlId: string | undefined, href: string | undefined, hrefId: string | undefined) => {
       if (urlId) return `url(#${ids.get(urlId) ?? `${classPrefix}-${urlId}`})`;
       return `${href}="#${ids.get(hrefId!) ?? `${classPrefix}-${hrefId}`}"`;
     },

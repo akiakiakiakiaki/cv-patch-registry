@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
 import Button from "@mui/material/Button";
-import ButtonGroup from "@mui/material/ButtonGroup";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
@@ -17,8 +16,12 @@ import Typography from "@mui/material/Typography";
 import type { PatchRecord } from "@/lib/domain/types";
 import type { AppRole } from "@/lib/auth/roles";
 import { hasCapability } from "@/lib/auth/roles";
+import { PATCH_NAME_MAX_LENGTH } from "@/lib/domain/patch-library";
 import { formatTimestamp } from "@/lib/utils/date-format";
 import { useI18n } from "@/i18n/provider";
+import { useConfirmDialog } from "@/components/confirm-dialog/ConfirmDialog";
+import { BarSection } from "@/components/app-shell/BarSection";
+import { PAGE_GUTTER } from "@/components/app-shell/layout";
 
 export interface InstrumentOption {
   id: string;
@@ -54,6 +57,7 @@ export function PatchManager(props: PatchManagerProps) {
   const [expanded, setExpanded] = useState(false);
   const { locale, t } = useI18n();
   const fileInput = useRef<HTMLInputElement>(null);
+  const { confirm, prompt, dialog } = useConfirmDialog();
   const canManageSynths = hasCapability(props.role, "manageSynths");
   const canImportExport = hasCapability(props.role, "importExportPatches");
   const patches = [...props.patches].sort((left, right) =>
@@ -69,38 +73,41 @@ export function PatchManager(props: PatchManagerProps) {
     event.currentTarget.value = "";
   }
 
-  function requestRename(patch: PatchRecord) {
-    const name = window.prompt(t("patch.renamePrompt"), patch.name);
-    if (name === null) return;
-    if (!name.trim()) {
-      window.alert(t("patch.emptyName"));
-      return;
-    }
-    props.onRename(patch.id, name.trim());
+  async function requestRename(patch: PatchRecord) {
+    const name = await prompt({
+      title: t("patch.renameTitle"),
+      content: null,
+      label: t("patch.renamePrompt"),
+      initialValue: patch.name,
+      maxLength: PATCH_NAME_MAX_LENGTH,
+      emptyHint: t("patch.emptyName"),
+      confirmLabel: t("patch.rename"),
+    });
+    if (name !== null) props.onRename(patch.id, name);
   }
 
-  function requestDelete(patch: PatchRecord) {
-    if (window.confirm(t("patch.deleteConfirm", { name: patch.name })))
-      props.onDelete(patch.id);
+  async function requestDelete(patch: PatchRecord) {
+    const confirmed = await confirm({
+      tone: "danger",
+      title: t("patch.deleteTitle"),
+      content: t("patch.deleteConfirm", { name: patch.name }),
+      confirmLabel: t("confirm.delete"),
+    });
+    if (confirmed) props.onDelete(patch.id);
   }
 
   return (
     <>
-      <Paper
-        component="section"
-        square
-        elevation={0}
-        sx={{
-          borderBottom: 1,
-          borderColor: "divider",
-          px: { xs: 2, md: 3 },
-          py: 1.5,
-        }}
-      >
+      <BarSection py={1.5}>
         <Stack
           direction="row"
           useFlexGap
-          sx={{ alignItems: "center", flexWrap: "wrap", gap: 1.5, "& .MuiButton-root": { height: BAR_CONTROL_HEIGHT } }}
+          sx={{
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 1.5,
+            "& .MuiButton-root": { height: BAR_CONTROL_HEIGHT },
+          }}
         >
           <FormControl
             size="small"
@@ -114,7 +121,8 @@ export function PatchManager(props: PatchManagerProps) {
               label={t("instrument.select")}
               value={props.instrumentId}
               onChange={(event) => {
-                if (event.target.value === CREATE_SYNTH) return props.onCreateSynth();
+                if (event.target.value === CREATE_SYNTH)
+                  return props.onCreateSynth();
                 props.onInstrumentChange(event.target.value);
               }}
               inputProps={{ "aria-label": t("instrument.selectAria") }}
@@ -136,51 +144,62 @@ export function PatchManager(props: PatchManagerProps) {
           {props.synthAction}
 
           {props.showPatchActions !== false ? (
-          <Stack
-            direction="row"
-            useFlexGap
-            data-testid="patch-actions"
-            sx={{ alignItems: "center", flexWrap: "wrap", gap: 1, ml: "auto" }}
-          >
-            <Button
-              variant="outlined"
-              aria-expanded={expanded}
-              aria-controls="patchPanel"
-              onClick={() => setExpanded((value) => !value)}
-            >
-              {t("patch.list")} {expanded ? "▴" : "▾"}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => {
-                setExpanded(true);
-                props.onCreate();
+            <Stack
+              direction="row"
+              useFlexGap
+              data-testid="patch-actions"
+              sx={{
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 1,
+                ml: "auto",
               }}
             >
-              + {t("patch.new")}
-            </Button>
-            {canImportExport ? (
-              <>
-                <Button variant="contained" onClick={props.onExport}>
-                  {t("patch.downloadAll")}
-                </Button>
-                <Button variant="outlined" onClick={() => fileInput.current?.click()}>
-                  {t("patch.import")}
-                </Button>
-                <input
-                  ref={fileInput}
-                  hidden
-                  type="file"
-                  aria-label={t("patch.import")}
-                  accept=".json,application/json"
-                  onChange={importFile}
-                />
-              </>
-            ) : null}
-          </Stack>
+              <Button
+                variant="outlined"
+                aria-expanded={expanded}
+                aria-controls="patchPanel"
+                onClick={() => setExpanded((value) => !value)}
+              >
+                {t("patch.list")} {expanded ? "▴" : "▾"}
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setExpanded(true);
+                  props.onCreate();
+                }}
+              >
+                + {t("patch.new")}
+              </Button>
+              {canImportExport ? (
+                <>
+                  <Button
+                    variant="contained"
+                    onClick={props.onExport}
+                  >
+                    {t("patch.downloadAll")}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => fileInput.current?.click()}
+                  >
+                    {t("patch.import")}
+                  </Button>
+                  <input
+                    ref={fileInput}
+                    hidden
+                    type="file"
+                    aria-label={t("patch.import")}
+                    accept=".json,application/json"
+                    onChange={importFile}
+                  />
+                </>
+              ) : null}
+            </Stack>
           ) : null}
         </Stack>
-      </Paper>
+      </BarSection>
 
       {expanded && props.showPatchActions !== false && (
         <Paper
@@ -189,7 +208,7 @@ export function PatchManager(props: PatchManagerProps) {
           square
           elevation={2}
           aria-label={t("patch.libraryAria")}
-          sx={{ position: "relative", zIndex: 2, px: { xs: 2, md: 3 }, py: 2 }}
+          sx={{ position: "relative", zIndex: 2, px: PAGE_GUTTER, py: 2 }}
         >
           <Stack
             direction="row"
@@ -283,7 +302,7 @@ export function PatchManager(props: PatchManagerProps) {
                     >
                       <Button
                         size="small"
-                        onClick={() => requestRename(patch)}
+                        onClick={() => void requestRename(patch)}
                         aria-label={t("patch.renameAria", { name: patch.name })}
                       >
                         {t("patch.rename")}
@@ -291,7 +310,7 @@ export function PatchManager(props: PatchManagerProps) {
                       <Button
                         size="small"
                         color="error"
-                        onClick={() => requestDelete(patch)}
+                        onClick={() => void requestDelete(patch)}
                         aria-label={t("patch.deleteAria", { name: patch.name })}
                       >
                         {t("patch.delete")}
@@ -304,6 +323,7 @@ export function PatchManager(props: PatchManagerProps) {
           </Box>
         </Paper>
       )}
+      {dialog}
     </>
   );
 }

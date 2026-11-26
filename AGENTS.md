@@ -6,6 +6,9 @@
 - Mapping belongs in adapters, not components or routes.
 - Prefer minimal diffs; modify only what is necessary.
 - Reuse existing utilities; no duplication.
+- Logic, calculations or UI needed 2+ times: extract a shared function, hook, component or interface; tell the user.
+- UI: use MUI first; combine or customize MUI components before building custom ones. Dialogs via `useConfirmDialog`, never `window.confirm/prompt/alert`.
+- API calls via `src/lib/api/client.ts`, not raw `fetch` in components or hooks.
 - No new dependencies unless strictly necessary.
 - Keep logging minimal; remove debug logs after use.
 - Verify framework APIs if unsure.

@@ -7,6 +7,7 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { ColorModeSwitch } from "@/components/color-mode-switch/ColorModeSwitch";
 import { useI18n } from "@/i18n/provider";
+import { PAGE_GUTTER } from "@/components/app-shell/layout";
 
 export function AppFooter() {
   const { locale, setLocale, t } = useI18n();
@@ -16,7 +17,7 @@ export function AppFooter() {
       component="footer"
       sx={{
         mt: "auto",
-        px: { xs: 2, md: 3 },
+        px: PAGE_GUTTER,
         py: 1,
         minHeight: 56,
         display: "flex",

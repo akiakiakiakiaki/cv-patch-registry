@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { draftToLayout } from "@/lib/adapters/synth-layout-adapter";
 import type { ControlCategory, FocusedLayoutElement, InstrumentLayout } from "@/lib/instrument/layout";
+import { api } from "@/lib/api/client";
 import { useI18n } from "@/i18n/provider";
 import {
   addCategory as addCategoryTo,
@@ -227,30 +228,18 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
     }
     setSaving(true);
     setMessage(null);
-    let response: Response;
-    try {
-      response = await fetch(`/api/synths/${encodeURIComponent(source.slug)}/revisions`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        displayName,
-        slug: source.slug,
-        manufacturer,
-        controls: repaired.controls,
-        ...(repaired.categories.length ? { categories: repaired.categories } : {}),
-        expectedRevision: revision,
-        ...(panel.assetId ? { panelAssetId: panel.assetId } : {}),
-      }),
-      });
-    } catch {
-      setSaving(false);
-      setMessage({ severity: "error", text: t("synths.invalid") });
-      return false;
-    }
-    const body = (await response.json().catch(() => ({}))) as { revision?: number };
+    const response = await api.synths.saveRevision(source.slug, {
+      displayName,
+      slug: source.slug,
+      manufacturer,
+      controls: repaired.controls,
+      ...(repaired.categories.length ? { categories: repaired.categories } : {}),
+      expectedRevision: revision,
+      ...(panel.assetId ? { panelAssetId: panel.assetId } : {}),
+    });
     setSaving(false);
     if (response.ok) {
-      setRevision(body.revision ?? revision + 1);
+      setRevision(response.data.revision ?? revision + 1);
       setDirty(false);
       setPanel((current) => ({ ...current, assetId: null }));
       setMessage({ severity: "success", text: t("synths.saved") });

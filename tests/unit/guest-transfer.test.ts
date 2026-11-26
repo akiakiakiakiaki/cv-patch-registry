@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PROTON_CLONE_SLUG, buildProtonCloneLayout, cloneControlId } from "@/lib/adapters/proton-legacy-migration-adapter";
-import { hasGuestContent } from "@/lib/domain/patch-service";
+import { hasGuestContent } from "@/lib/domain/patch-library";
 import type { PatchLibrary } from "@/lib/domain/types";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
 import { instrumentFromSynth } from "@/lib/instruments/from-synth";

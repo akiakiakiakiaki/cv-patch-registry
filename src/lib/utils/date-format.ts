@@ -1,7 +1,9 @@
-import type { Locale } from '@/i18n/config';
+import type { Locale } from "@/i18n/config";
+import { translate } from "@/i18n/messages";
 
-export function formatTimestamp(value: string, locale: Locale): string {
+/** Date and time as the app shows them everywhere; "short" for compact status texts. */
+export function formatTimestamp(value: string, locale: Locale, style: "medium" | "short" = "medium"): string {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return locale === 'de' ? 'Zeit unbekannt' : 'Unknown time';
-  return new Intl.DateTimeFormat(locale === 'de' ? 'de-DE' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  if (Number.isNaN(date.getTime())) return translate(locale, "time.unknown");
+  return new Intl.DateTimeFormat(locale === "de" ? "de-DE" : "en-US", { dateStyle: style, timeStyle: "short" }).format(date);
 }

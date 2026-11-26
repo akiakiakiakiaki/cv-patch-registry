@@ -1,4 +1,6 @@
-export type ControlKind = "knob" | "switch" | "led" | "in" | "out" | "uni";
+/** Every kind of control a synth layout can hold, in the order the editor lists them. */
+export const CONTROL_KINDS = ["knob", "switch", "led", "in", "out", "uni"] as const;
+export type ControlKind = (typeof CONTROL_KINDS)[number];
 
 const AUTO_LABEL_NAMES: Readonly<Record<ControlKind, string>> = {
   knob: "Knob",

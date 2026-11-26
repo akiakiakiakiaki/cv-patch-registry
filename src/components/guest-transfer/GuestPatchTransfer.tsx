@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { api } from "@/lib/api/client";
 import { authClient } from "@/lib/auth/client";
 import { clearGuestTransferPending, guestTransferPendingFor, transferGuestPatches } from "@/lib/storage/guest-transfer";
 
@@ -21,17 +22,10 @@ export function GuestPatchTransfer() {
     running.current = true;
     void transferGuestPatches({
       loadSynth: async (slug) => {
-        const response = await fetch(`/api/synths/${encodeURIComponent(slug)}`, { cache: "no-store" });
-        return response.ok ? response.json() : null;
+        const response = await api.synths.get(slug);
+        return response.ok ? response.data : null;
       },
-      importPatches: async (slug, patches) => {
-        const response = await fetch("/api/patches/import", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ synthSlug: slug, patches }),
-        });
-        return response.ok;
-      },
+      importPatches: async (slug, patches) => (await api.patches.import(slug, patches)).ok,
     })
       .then((result) => {
         if (result.failed.length === 0) clearGuestTransferPending();

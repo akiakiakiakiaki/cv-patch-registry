@@ -1,5 +1,5 @@
 import { LEGACY_PROTON_SLUG, PROTON_CLONE_SLUG, migrateLegacyLibrary } from "@/lib/adapters/proton-legacy-migration-adapter";
-import { hasGuestContent } from "@/lib/domain/patch-service";
+import { hasGuestContent } from "@/lib/domain/patch-library";
 import type { PatchLibrary, PatchRecord } from "@/lib/domain/types";
 import type { InstrumentLayout } from "@/lib/instrument/layout";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";

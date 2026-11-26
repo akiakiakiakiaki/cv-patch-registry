@@ -73,17 +73,15 @@ describe("palette drag feedback", () => {
     );
     const svg = container.querySelector('svg[viewBox="0 0 1000 600"]');
     expect(svg).not.toBeNull();
-    vi.spyOn(svg!, "getBoundingClientRect").mockReturnValue({
-      x: 10,
-      y: 20,
-      left: 10,
-      top: 20,
-      right: 510,
-      bottom: 320,
-      width: 500,
-      height: 300,
-      toJSON: () => ({}),
+    // Panel drawn at (10, 20) with half its size: client points map to panel units through the screen matrix.
+    Object.defineProperty(svg!, "createSVGPoint", {
+      configurable: true,
+      value: () => {
+        const point = { x: 0, y: 0, matrixTransform: () => ({ x: (point.x - 10) * 2, y: (point.y - 20) * 2 }) };
+        return point;
+      },
     });
+    Object.defineProperty(svg!, "getScreenCTM", { configurable: true, value: () => ({ inverse: () => ({}) }) });
 
     fireEvent.pointerDown(screen.getByRole("button", { name: "Add Switch" }), { clientX: 50, clientY: 60, pointerId: 3 });
     fireEvent.pointerMove(window, { clientX: 260, clientY: 170, pointerId: 3 });

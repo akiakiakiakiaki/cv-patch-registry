@@ -7,6 +7,12 @@ import type {
   PatchRecord,
 } from "@/lib/domain/types";
 
+/** Longest patch name the forms accept. */
+export const PATCH_NAME_MAX_LENGTH = 60;
+
+/** A patch without settings: shown where no patch exists yet; copy it before changing (see createEmptyPatch). */
+export const EMPTY_PATCH_DATA: Readonly<PatchData> = Object.freeze({ knobs: {}, switches: {}, leds: {}, cables: [] });
+
 export function createEmptyPatch(
   name = "Neues Patch",
   now = new Date(),
@@ -15,7 +21,7 @@ export function createEmptyPatch(
     id: createId(),
     name,
     updatedAt: now.toISOString(),
-    data: { knobs: {}, switches: {}, leds: {}, cables: [] },
+    data: structuredClone(EMPTY_PATCH_DATA),
   };
 }
 

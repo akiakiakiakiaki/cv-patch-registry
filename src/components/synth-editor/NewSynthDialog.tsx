@@ -12,6 +12,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
+import { api } from "@/lib/api/client";
 import { useI18n } from "@/i18n/provider";
 import { panelRejectionMessage, uploadPanelFile } from "@/components/synth-editor/upload-panel";
 
@@ -65,20 +66,14 @@ export function NewSynthDialog({ open, onClose, onCreated }: { open: boolean; on
       setBusy(false);
       return setError(panelRejectionMessage(upload.reason, t));
     }
-    const response = await fetch("/api/synths", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ displayName, slug, manufacturer, panelAssetId: upload.panel.assetId, controls: [] }),
-    });
+    const response = await api.synths.create({ displayName, slug, manufacturer, panelAssetId: upload.panel.assetId, controls: [] });
     setBusy(false);
     if (response.ok) {
-      const created = (await response.json()) as { slug: string };
       reset();
-      onCreated(created.slug);
+      onCreated(response.data.slug);
       return;
     }
-    const body = (await response.json().catch(() => ({}))) as { error?: string };
-    setError(body.error === "slug-taken" ? t("synths.slugTaken") : t("synths.invalid"));
+    setError(response.error === "slug-taken" ? t("synths.slugTaken") : t("synths.invalid"));
   }
 
   return (

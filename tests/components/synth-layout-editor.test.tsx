@@ -85,7 +85,6 @@ describe("SynthLayoutEditor deletion", () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const onDeleted = vi.fn();
     render(
       <I18nProvider locale="en">
@@ -93,6 +92,9 @@ describe("SynthLayoutEditor deletion", () => {
       </I18nProvider>,
     );
     await user.click(screen.getByRole("button", { name: "Delete synth" }));
+    const dialog = await screen.findByRole("dialog", { name: "Delete synth" });
+    expect(fetchMock).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
     expect(fetchMock).toHaveBeenCalledWith("/api/synths/test-synth", { method: "DELETE" });
     await waitFor(() => expect(onDeleted).toHaveBeenCalled());
     vi.unstubAllGlobals();

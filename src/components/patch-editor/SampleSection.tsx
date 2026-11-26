@@ -10,6 +10,7 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
+import { api, type StoredSample } from "@/lib/api/client";
 import { useI18n } from "@/i18n/provider";
 import type { MessageKey } from "@/i18n/messages";
 
@@ -44,11 +45,7 @@ async function durationOf(file: File): Promise<number> {
   }
 }
 
-export interface SampleInfo {
-  url: string;
-  title: string;
-  license: string;
-}
+export type SampleInfo = StoredSample;
 
 /**
  * Plays a patch's sample. The owner can upload one, or replace the existing one (rights are confirmed again).
@@ -98,21 +95,10 @@ export function SampleSection({
       setMessage({ severity: "error", text: t("sample.tooLong") });
       return;
     }
-    const query = new URLSearchParams({ title, license, rights: String(rights), ...(replace ? { replace: "true" } : {}) });
-    let response: Response;
-    try {
-      response = await fetch(`/api/patches/${encodeURIComponent(patchId)}/sample?${query.toString()}`, {
-        method: "POST",
-        body: file,
-      });
-    } catch {
-      setBusy(false);
-      setMessage({ severity: "error", text: t("sample.failed") });
-      return;
-    }
+    const response = await api.patches.uploadSample(patchId, file, { title, license, rights: String(rights), ...(replace ? { replace: "true" } : {}) });
     setBusy(false);
     if (response.ok) {
-      const stored = (await response.json().catch(() => ({}))) as { sample?: SampleInfo };
+      const stored = response.data;
       setMessage({ severity: "success", text: t(replace ? "sample.replaced" : "sample.uploaded") });
       setReplacing(false);
       setFile(null);
@@ -120,8 +106,7 @@ export function SampleSection({
       if (stored.sample) onChange?.(stored.sample);
       return;
     }
-    const body = (await response.json().catch(() => ({}))) as { error?: unknown };
-    const key = typeof body.error === "string" ? UPLOAD_ERRORS[body.error] : undefined;
+    const key = response.error ? UPLOAD_ERRORS[response.error] : undefined;
     setMessage({ severity: "error", text: t(key ?? "sample.failed") });
   }
 

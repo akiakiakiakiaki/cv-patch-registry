@@ -92,12 +92,22 @@ describe("PatchManager", () => {
     await user.click(screen.getByRole("button", { name: /^Active patch/ }));
     expect(props.onSelect).toHaveBeenCalledWith("active");
 
-    vi.spyOn(window, "prompt").mockReturnValue("  Renamed patch  ");
     await user.click(screen.getByRole("button", { name: "Rename patch “Active patch”" }));
+    const renameDialog = await screen.findByRole("dialog", { name: "Rename patch" });
+    const nameField = within(renameDialog).getByRole("textbox", { name: "New patch name" });
+    expect(nameField).toHaveValue("Active patch");
+    await user.clear(nameField);
+    // A blank name cannot be confirmed.
+    expect(within(renameDialog).getByRole("button", { name: "Rename" })).toBeDisabled();
+    expect(within(renameDialog).getByText("The patch name cannot be empty.")).toBeInTheDocument();
+    await user.type(nameField, "  Renamed patch  {Enter}");
     expect(props.onRename).toHaveBeenCalledWith("active", "Renamed patch");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     await user.click(screen.getByRole("button", { name: "Delete patch “Active patch”" }));
+    const deleteDialog = await screen.findByRole("dialog", { name: "Delete patch" });
+    expect(deleteDialog).toHaveTextContent("Delete patch “Active patch”?");
+    await user.click(within(deleteDialog).getByRole("button", { name: "Delete" }));
     expect(props.onDelete).toHaveBeenCalledWith("active");
   });
 
@@ -105,11 +115,13 @@ describe("PatchManager", () => {
     const user = userEvent.setup();
     const { props } = renderManager();
     await user.click(screen.getByRole("button", { name: /^Patches/ }));
-    vi.spyOn(window, "prompt").mockReturnValue(null);
-    vi.spyOn(window, "confirm").mockReturnValue(false);
 
     await user.click(screen.getByRole("button", { name: "Rename patch “Active patch”" }));
+    await user.click(within(await screen.findByRole("dialog", { name: "Rename patch" })).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: "Delete patch “Active patch”" }));
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
     expect(props.onRename).not.toHaveBeenCalled();
     expect(props.onDelete).not.toHaveBeenCalled();

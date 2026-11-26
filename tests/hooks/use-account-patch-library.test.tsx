@@ -34,7 +34,7 @@ describe("useAccountPatchLibrary", () => {
   });
 
   it("saves a changed patch after a short pause, with the revision it was based on", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       if (init?.method === "PATCH") return jsonResponse({ ok: true, revision: 5 });
       return jsonResponse({ patches: [state] });
     });

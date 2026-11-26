@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { decodeImport, decodeLibrary, encodeLibrary, normalizePatchData, requiredPatchSchemaMinor } from "@/lib/adapters/patch-adapter";
-import { createEmptyLibrary } from "@/lib/domain/patch-service";
+import { createEmptyLibrary } from "@/lib/domain/patch-library";
 import type { InstrumentDefinition } from "@/lib/instruments/types";
 import { testInstrument, testLayout } from "../fixtures/instrument";
 

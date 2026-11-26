@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Autocomplete from "@mui/material/Autocomplete";
 import Chip from "@mui/material/Chip";
 import TextField from "@mui/material/TextField";
+import { api } from "@/lib/api/client";
 import { useI18n } from "@/i18n/provider";
 import { MAX_TAGS_PER_PATCH, formatTagLabel, normalizeTag, type TagEntry } from "@/lib/domain/tags";
 
@@ -48,9 +49,9 @@ export function TagInput({ value, onChange }: { value: readonly string[]; onChan
   useEffect(() => {
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      void fetch(`/api/tags?q=${encodeURIComponent(input.trim())}`, { signal: controller.signal })
-        .then((response) => (response.ok ? response.json() : { tags: [] }))
-        .then((body: { tags?: TagEntry[] }) => setSuggestions(body.tags ?? []))
+      void api.tags
+        .suggest(input.trim(), controller.signal)
+        .then((response) => setSuggestions(response.ok ? (response.data.tags ?? []) : []))
         .catch(() => undefined);
     }, SUGGESTION_DELAY_MS);
     return () => {

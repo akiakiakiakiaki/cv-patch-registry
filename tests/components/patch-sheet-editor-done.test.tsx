@@ -339,3 +339,35 @@ describe("PatchSheet links while editing", () => {
   });
 });
 
+
+describe("PatchSheet import conflicts", () => {
+  async function importChangedPatch(user: ReturnType<typeof userEvent.setup>) {
+    const { libraryExport } = await import("@/components/patch-sheet/patch-file");
+    const { instrumentFromSynth } = await import("@/lib/instruments/from-synth");
+    render(
+      <I18nProvider locale="en">
+        <PatchSheet />
+      </I18nProvider>,
+    );
+    expect(await screen.findByRole("textbox", { name: "Active patch name" })).toHaveValue("Mine");
+    const incoming = { id: patch.id, name: "Imported", updatedAt: "2026-02-01T00:00:00.000Z", data: patch.data };
+    const contents = libraryExport({ activeId: patch.id, patches: [incoming] }, instrumentFromSynth(view), "2026-02-01T00:00:00.000Z").contents;
+    fireEvent.change(screen.getByLabelText("Import patches"), { target: { files: [new File([contents], "patches.json", { type: "application/json" })] } });
+    const dialog = await screen.findByRole("dialog", { name: "Import conflict" });
+    expect(dialog).toHaveTextContent("“Imported” has different versions.");
+    return { user, dialog };
+  }
+
+  it("asks in a dialog and keeps the local version on request", async () => {
+    const { user, dialog } = await importChangedPatch(userEvent.setup());
+    await user.click(within(dialog).getByRole("button", { name: "Keep local version" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByRole("textbox", { name: "Active patch name" })).toHaveValue("Mine");
+  });
+
+  it("takes the imported version when chosen", async () => {
+    const { user, dialog } = await importChangedPatch(userEvent.setup());
+    await user.click(within(dialog).getByRole("button", { name: "Use imported version" }));
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Active patch name" })).toHaveValue("Imported"));
+  });
+});

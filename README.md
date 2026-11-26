@@ -53,7 +53,7 @@ The repository includes a Git pre-commit hook that runs the full test suite. Ena
 git config core.hooksPath .githooks
 ```
 
-After enabling it, `git commit` runs `npm run test:run` and is stopped if any test fails. To disable the hook for this clone, run `git config --unset core.hooksPath`.
+After enabling it, `git commit` runs `npm run test:run` and is stopped if any test fails. With nvm installed, the hook uses the Node version from `.nvmrc`, also when committing from an editor. To disable the hook for this clone, run `git config --unset core.hooksPath`.
 
 ## Project structure
 
@@ -62,7 +62,9 @@ After enabling it, `git commit` runs `npm run test:run` and is stopped if any te
 - `src/lib/instruments`: instrument definitions, switch adapters, and the synth registry.
 - `src/lib/adapters`: validation and mapping for layout and patch JSON documents.
 - `src/lib/storage`: local patch storage and layout-file persistence.
-- `src/components`: interactive patch manager and instrument panel.
+- `src/lib/api`: the browser's typed client for the app's API routes.
+- `src/hooks`: data hooks for the synth catalog and the patch libraries (browser and account).
+- `src/components`: interactive patch manager, instrument panel and synth editor.
 - `src/app`: Next.js pages, API routes, and global styles.
 - `src/i18n`: German and English UI messages and locale selection.
 

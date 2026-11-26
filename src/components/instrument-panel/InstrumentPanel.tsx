@@ -15,13 +15,13 @@ import styles from "./InstrumentPanel.module.scss";
 import type { InstrumentPanelProps } from "./types";
 import { useInstrumentPanelInteractions } from "./useInstrumentPanelInteractions";
 import { eventPoint } from "./utils";
+import { NOOP } from "@/lib/utils/noop";
 
 interface LayoutDrag {
   target: FocusedLayoutElement;
   grab: Point;
 }
 
-const NOOP = () => {};
 
 export function InstrumentPanel({
   readOnly = false,

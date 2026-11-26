@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import protonLayoutJson from "@/lib/instrument/behringer-proton/behringer-proton-layout.json";
 import { decodeInstrumentLayout } from "@/lib/adapters/instrument-layout-adapter";
 import { decodeImport, decodeLibrary, encodeLibrary, normalizePatchData } from "@/lib/adapters/patch-adapter";
-import { createEmptyLibrary } from "@/lib/domain/patch-service";
+import { createEmptyLibrary } from "@/lib/domain/patch-library";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
 
 const protonPorts = behringerProton.layout.ports;

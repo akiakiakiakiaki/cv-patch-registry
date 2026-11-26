@@ -26,7 +26,7 @@
   "patch.renameAria": "Rename patch “{name}”",
   "patch.deleteAria": "Delete patch “{name}”",
   "patch.lastChanged": "Last changed",
-  "patch.renamePrompt": "New patch name:",
+  "patch.renamePrompt": "New patch name",
   "patch.emptyName": "The patch name cannot be empty.",
   "patch.deleteConfirm": "Delete patch “{name}”?",
   "patch.opened": "Opened “{name}”",
@@ -45,7 +45,7 @@
   "status.importUnsupportedVersion": "This file uses an unsupported data version.",
   "status.importWrongInstrument": "This patch file belongs to a different synthesizer.",
   "status.importUnknownFormat": "This file format is not supported.",
-  "status.conflict": "“{name}” has different versions.\n\nLocal: {localDate}{localNewer}\nImport: {incomingDate}{incomingNewer}\n\nOK = use imported version · Cancel = keep local version.",
+  "status.conflict": "“{name}” has different versions.\n\nLocal: {localDate}{localNewer}\nImport: {incomingDate}{incomingNewer}",
   "conflict.newer": " (newer)",
   "conflict.newerOrSame": " (newer or same age)",
   "loading.library": "Opening local patch library …",
@@ -318,5 +318,12 @@
   "synths.unsavedSave": "Save and close",
   "synths.unsavedDiscard": "Discard",
   "synths.unsavedKeepEditing": "Keep editing",
-  "synths.unsavedHint": "Changes not saved yet – no new revision has been created."
+  "synths.unsavedHint": "Changes not saved yet – no new revision has been created.",
+  "patch.renameTitle": "Rename patch",
+  "patch.deleteTitle": "Delete patch",
+  "import.conflictTitle": "Import conflict",
+  "import.useIncoming": "Use imported version",
+  "import.keepLocal": "Keep local version",
+  "confirm.delete": "Delete",
+  "time.unknown": "Unknown time"
 }

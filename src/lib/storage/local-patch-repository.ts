@@ -1,5 +1,5 @@
 import { decodeImport, decodeLibrary, encodeLibrary, parseJson } from '@/lib/adapters/patch-adapter';
-import { createEmptyLibrary } from '@/lib/domain/patch-service';
+import { createEmptyLibrary } from '@/lib/domain/patch-library';
 import { percentageToMidiValue } from '@/lib/domain/knob-range';
 import type { PatchLibrary } from '@/lib/domain/types';
 import type { InstrumentDefinition } from '@/lib/instruments/types';

@@ -7,7 +7,6 @@ import { encodeLibrary } from "@/lib/adapters/patch-adapter";
 import { PROTON_CLONE_SLUG, buildProtonCloneLayout, cloneControlId } from "@/lib/adapters/proton-legacy-migration-adapter";
 import type { PatchLibrary } from "@/lib/domain/types";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
-import { instrumentFromSynth } from "@/lib/instruments/from-synth";
 import { readLastSynth, writeLastSynth } from "@/lib/storage/last-synth";
 import { LocalPatchRepository } from "@/lib/storage/local-patch-repository";
 import { testLayout } from "../fixtures/instrument";

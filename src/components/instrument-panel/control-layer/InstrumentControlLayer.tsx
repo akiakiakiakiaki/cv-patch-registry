@@ -16,6 +16,7 @@ import styles from "../InstrumentPanel.module.scss";
 import type { useInstrumentPanelInteractions } from "../useInstrumentPanelInteractions";
 import { handleKeyboardToggle } from "../utils";
 import { useI18n } from "@/i18n/provider";
+import { cx } from "@/lib/utils/class-names";
 import {
   DEFAULT_KNOB_VALUE,
   KNOB_VALUE_MAX,
@@ -53,6 +54,9 @@ export function InstrumentControlLayer({
   onLedChange,
 }: InstrumentControlLayerProps) {
   const { t } = useI18n();
+  /** The element focused for layout editing gets the focus ring. */
+  const focusClass = (kind: FocusedLayoutElement["kind"], id: string) =>
+    layoutEditMode && focusedElement?.kind === kind && focusedElement.id === id ? styles.layoutEditFocus : null;
 
   function focusElement(
     event: MouseEvent<SVGElement>,
@@ -114,7 +118,7 @@ export function InstrumentControlLayer({
               x={knob.x}
               y={knob.y}
               radius={layout.geometry.knob.hitRadius}
-              className={`${styles.knobHit}${layoutEditMode && focusedElement?.kind === "knob" && focusedElement.id === knob.id ? ` ${styles.layoutEditFocus}` : ""}`}
+              className={cx(styles.knobHit, focusClass("knob", knob.id))}
               tabIndex={0}
               role={layoutEditMode ? "button" : "slider"}
               ariaLabel={knob.id}
@@ -143,7 +147,7 @@ export function InstrumentControlLayer({
               onKeyDown={(event) => updateKnobFromKey(event, knob.id, value)}
             />
             <line
-              className={`${styles.knobTick} ${categoryClass(knob.category)}`.trim()}
+              className={cx(styles.knobTick, categoryClass(knob.category))}
               x1={knob.x}
               y1={knob.y}
               x2={
@@ -177,7 +181,13 @@ export function InstrumentControlLayer({
             width={layout.geometry.switch.width}
             height={layout.geometry.switch.height}
             cornerRadius={layout.geometry.switch.cornerRadius}
-            className={`${styles.toggleHit} ${state.categoryId ? `${styles.toggleCategory} ${categoryClass(state.categoryId)}` : state.color === "red" ? styles.toggleRed : styles.toggleBlue}${state.active && !layoutEditMode ? ` ${styles.active}` : ""}${layoutEditMode && focusedElement?.kind === "switch" && focusedElement.id === control.id ? ` ${styles.layoutEditFocus}` : ""}`}
+            className={cx(
+              styles.toggleHit,
+              // A category's color takes precedence over the switch's fixed color.
+              state.categoryId ? cx(styles.toggleCategory, categoryClass(state.categoryId)) : state.color === "red" ? styles.toggleRed : styles.toggleBlue,
+              state.active && !layoutEditMode && styles.active,
+              focusClass("switch", control.id),
+            )}
             tabIndex={0}
             role="button"
             ariaLabel={control.id}
@@ -204,6 +214,7 @@ export function InstrumentControlLayer({
         const active = data.leds[led.id] ?? false;
         const toggle = () => onLedChange(led.id, !active);
         const ledCategory = categoryClass(led.category);
+        const lit = active && !layoutEditMode;
         return (
           <InstrumentHitArea
             key={led.id}
@@ -214,26 +225,16 @@ export function InstrumentControlLayer({
             tabIndex={0}
             role="checkbox"
             layoutElement={{ kind: "led", id: led.id }}
-            className={[
+            className={cx(
               styles.ledHit,
               // A category's color takes precedence over the LED's fixed color.
-              ledCategory ? `${styles.ledCategory} ${ledCategory}` : led.color === "red" ? styles.ledRed : styles.ledBlue,
-              active && !layoutEditMode ? styles.active : "",
-              active && !layoutEditMode && ledCategory ? styles.ledCategoryActive : "",
-              active && !layoutEditMode && !ledCategory && led.color === "red"
-                ? styles.ledRedActive
-                : "",
-              active && !layoutEditMode && !ledCategory && led.color === "blue"
-                ? styles.ledBlueActive
-                : "",
-              layoutEditMode &&
-              focusedElement?.kind === "led" &&
-              focusedElement.id === led.id
-                ? styles.layoutEditFocus
-                : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
+              ledCategory ? cx(styles.ledCategory, ledCategory) : led.color === "red" ? styles.ledRed : styles.ledBlue,
+              lit && styles.active,
+              lit && ledCategory && styles.ledCategoryActive,
+              lit && !ledCategory && led.color === "red" && styles.ledRedActive,
+              lit && !ledCategory && led.color === "blue" && styles.ledBlueActive,
+              focusClass("led", led.id),
+            )}
             ariaLabel={led.id}
             ariaChecked={!layoutEditMode && active}
             onPointerDown={(event) => {
@@ -260,7 +261,7 @@ export function InstrumentControlLayer({
           x={port.x}
           y={port.y}
           radius={layout.geometry.port.hitRadius}
-          className={`${styles.portHit}${layoutEditMode && focusedElement?.kind === "port" && focusedElement.id === port.id ? ` ${styles.layoutEditFocus}` : ""}`}
+          className={cx(styles.portHit, focusClass("port", port.id))}
           tabIndex={0}
           role="button"
           layoutElement={{ kind: "port", id: port.id }}
@@ -296,7 +297,7 @@ function PlacementPreview({
   point: Point;
   layout: InstrumentLayout;
 }) {
-  const ghostClass = `${styles.layoutEditFocus}`;
+  const ghostClass = styles.layoutEditFocus;
 
   if (kind === "knob") {
     const angle =
@@ -305,7 +306,7 @@ function PlacementPreview({
     return (
       <g aria-hidden="true" opacity={0.7} pointerEvents="none">
         <circle
-          className={`${styles.knobHit} ${ghostClass}`}
+          className={cx(styles.knobHit, ghostClass)}
           cx={point.x}
           cy={point.y}
           r={layout.geometry.knob.hitRadius}
@@ -329,7 +330,7 @@ function PlacementPreview({
         aria-hidden="true"
         pointerEvents="none"
         opacity={0.7}
-        className={`${styles.toggleHit} ${styles.toggleBlue} ${ghostClass}`}
+        className={cx(styles.toggleHit, styles.toggleBlue, ghostClass)}
         x={point.x - width / 2}
         y={point.y - height / 2}
         width={width}
@@ -345,7 +346,7 @@ function PlacementPreview({
         aria-hidden="true"
         pointerEvents="none"
         opacity={0.7}
-        className={`${styles.ledHit} ${styles.ledRed} ${ghostClass}`}
+        className={cx(styles.ledHit, styles.ledRed, ghostClass)}
         cx={point.x}
         cy={point.y}
         r={layout.geometry.led.hitRadius}
@@ -358,7 +359,7 @@ function PlacementPreview({
       aria-hidden="true"
       pointerEvents="none"
       opacity={0.7}
-      className={`${styles.portHit} ${ghostClass}`}
+      className={cx(styles.portHit, ghostClass)}
       cx={point.x}
       cy={point.y}
       r={layout.geometry.port.hitRadius}

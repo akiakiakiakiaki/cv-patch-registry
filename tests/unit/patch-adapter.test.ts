@@ -7,7 +7,7 @@ import {
   normalizePatchData,
   parseJson,
 } from "@/lib/adapters/patch-adapter";
-import { createEmptyLibrary } from "@/lib/domain/patch-service";
+import { createEmptyLibrary } from "@/lib/domain/patch-library";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
 
 const now = "2026-01-01T00:00:00.000Z";

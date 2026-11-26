@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { LocalPatchRepository } from "@/lib/storage/local-patch-repository";
-import { createEmptyLibrary } from "@/lib/domain/patch-service";
+import { createEmptyLibrary } from "@/lib/domain/patch-library";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
 
 const PROTON_KEY = "proton-patch-sheet-next-v1";

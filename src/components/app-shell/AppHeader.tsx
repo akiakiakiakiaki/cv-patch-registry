@@ -10,6 +10,7 @@ import { AccountLinks } from "@/components/account-links/AccountLinks";
 import { GuestPatchTransfer } from "@/components/guest-transfer/GuestPatchTransfer";
 import { InlineSvgAsset } from "@/components/inline-svg-asset/InlineSvgAsset";
 import { useI18n } from "@/i18n/provider";
+import { PAGE_GUTTER } from "@/components/app-shell/layout";
 
 /** Height of the sticky header, for content that sticks right below it (e.g. the synth editor). */
 export const APP_HEADER_HEIGHT_VARIABLE = "--app-header-height";
@@ -51,7 +52,7 @@ export function AppHeader() {
         sx={{
           maxWidth: 1600,
           mx: "auto",
-          px: { xs: 2, md: 3 },
+          px: PAGE_GUTTER,
           py: 1,
           alignItems: "center",
           flexWrap: "wrap",

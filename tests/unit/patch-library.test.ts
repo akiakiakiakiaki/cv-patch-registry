@@ -11,7 +11,7 @@ import {
   updatePatch,
   updateSwitch,
   updateSwitches,
-} from "@/lib/domain/patch-service";
+} from "@/lib/domain/patch-library";
 
 const firstPatch: PatchRecord = {
   id: "patch-1",
