@@ -1,6 +1,8 @@
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, notInArray } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
+import { hiddenSynthSlugs } from "@/lib/synths/legacy-visibility";
 import type { Database } from "@/lib/db/client";
-import { patchTags, patches, synthRevisions, synths, tags } from "@/lib/db/schema";
+import { patchSamples, patchTags, patches, synthRevisions, synths, tags, user } from "@/lib/db/schema";
 import { visibleSynthCondition } from "@/lib/repositories/synths-repository";
 import type { TagEntry } from "@/lib/domain/tags";
 import type { Actor } from "@/lib/domain/policy";
@@ -146,3 +148,49 @@ export async function replacePatchTags(db: Database, patchId: string, tagIds: re
   await db.delete(patchTags).where(eq(patchTags.patchId, patchId));
   if (tagIds.length > 0) await db.insert(patchTags).values(tagIds.map((tagId) => ({ patchId, tagId })));
 }
+
+/** One patch for the admin's patch overview, with its owner and synth. */
+export interface PatchAdminRow {
+  patch: PatchRow;
+  ownerName: string;
+  ownerEmail: string;
+  synth: { slug: string; displayName: string; deleted: boolean; currentRevision: number | null };
+  /** Number of the synth revision the patch is stored with. */
+  synthRevision: number;
+  hasSample: boolean;
+}
+
+/** Every patch, private ones included, of synths that are not hidden (see legacy-visibility); newest changes first. */
+export async function listPatchesForAdmin(db: Database): Promise<PatchAdminRow[]> {
+  const current = alias(synthRevisions, "current_revision");
+  const hidden = hiddenSynthSlugs();
+  const rows = await db
+    .select({
+      patch: patches,
+      ownerName: user.name,
+      ownerEmail: user.email,
+      synthSlug: synths.slug,
+      synthDisplayName: synths.displayName,
+      synthDeletedAt: synths.deletedAt,
+      synthRevision: synthRevisions.number,
+      currentRevision: current.number,
+      sampleAssetId: patchSamples.assetId,
+    })
+    .from(patches)
+    .innerJoin(user, eq(user.id, patches.ownerId))
+    .innerJoin(synthRevisions, eq(synthRevisions.id, patches.synthRevisionId))
+    .innerJoin(synths, eq(synths.id, synthRevisions.synthId))
+    .leftJoin(current, eq(current.id, synths.currentRevisionId))
+    .leftJoin(patchSamples, eq(patchSamples.patchId, patches.id))
+    .where(hidden.length > 0 ? notInArray(synths.slug, [...hidden]) : undefined)
+    .orderBy(desc(patches.updatedAt));
+  return rows.map((row) => ({
+    patch: row.patch,
+    ownerName: row.ownerName,
+    ownerEmail: row.ownerEmail,
+    synth: { slug: row.synthSlug, displayName: row.synthDisplayName, deleted: row.synthDeletedAt !== null, currentRevision: row.currentRevision },
+    synthRevision: row.synthRevision,
+    hasSample: row.sampleAssetId !== null,
+  }));
+}
+

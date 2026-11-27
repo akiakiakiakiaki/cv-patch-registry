@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type SynthCatalogItem } from "@/lib/api/client";
-import { LEGACY_PROTON_SLUG } from "@/lib/adapters/proton-legacy-migration-adapter";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
 import { instrumentFromSynth } from "@/lib/instruments/from-synth";
 import type { InstrumentDefinition } from "@/lib/instruments/types";
 import { initialSynthSlug, readLastSynth, writeLastSynth } from "@/lib/storage/last-synth";
 import type { SynthView } from "@/lib/synths/synth-service";
 import { useI18n } from "@/i18n/provider";
+import { synthName } from "@/lib/synths/synth-name";
 
 export const BUILT_IN_SYNTH = behringerProton.id;
 
@@ -39,12 +39,7 @@ export function useSynthCatalog(initialSlug: string) {
     () =>
       selectorOptions.map((item) => ({
         id: item.slug,
-        displayName:
-          item.slug === LEGACY_PROTON_SLUG
-            ? t("instrument.legacyName", { name: item.displayName })
-            : item.approved === false
-              ? t("instrument.pendingName", { name: item.displayName })
-              : item.displayName,
+        displayName: item.approved === false ? t("instrument.pendingName", { name: synthName(t, item) }) : synthName(t, item),
       })),
     [selectorOptions, t],
   );

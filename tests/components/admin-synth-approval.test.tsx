@@ -75,8 +75,8 @@ describe("synth management list", () => {
 
   it("keeps built-in synths approved", () => {
     renderList();
-    expect(switchOf("Behringer Proton")).toBeDisabled();
-    expect(switchOf("Behringer Proton")).toBeChecked();
+    expect(switchOf("Behringer Proton (Legacy)")).toBeDisabled();
+    expect(switchOf("Behringer Proton (Legacy)")).toBeChecked();
   });
 
   it("has no axe violations", async () => {

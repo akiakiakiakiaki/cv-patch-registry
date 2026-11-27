@@ -24,6 +24,7 @@ import { KEPT_RECENT_REVISIONS } from "@/lib/domain/synth-revisions";
 import type { SynthAdminItem } from "@/lib/synths/synth-admin";
 import { formatTimestamp } from "@/lib/utils/date-format";
 import { useI18n } from "@/i18n/provider";
+import { synthName } from "@/lib/synths/synth-name";
 
 type Message = { severity: "success" | "error"; text: string };
 
@@ -49,28 +50,28 @@ export function SynthAdminList({ items: initialItems }: { items: readonly SynthA
     const confirmed = await confirm({
       tone: "warning",
       title: t("admin.synths.reduceTitle"),
-      content: t("admin.synths.reduceText", { name: item.displayName, count: item.removableRevisions, keep: KEPT_RECENT_REVISIONS }),
+      content: t("admin.synths.reduceText", { name: synthName(t, item), count: item.removableRevisions, keep: KEPT_RECENT_REVISIONS }),
       confirmLabel: t("admin.synths.reduce"),
     });
     if (!confirmed) return;
     const response = await api.admin.reduceRevisions(item.slug);
-    if (!response.ok) return fail("admin.synths.actionFailed", item.displayName);
+    if (!response.ok) return fail("admin.synths.actionFailed", synthName(t, item));
     update(item.slug, { removableRevisions: 0, storedRevisions: item.storedRevisions - response.data.removed });
-    setMessage({ severity: "success", text: t("admin.synths.reduced", { name: item.displayName, count: response.data.removed }) });
+    setMessage({ severity: "success", text: t("admin.synths.reduced", { name: synthName(t, item), count: response.data.removed }) });
   }
 
   async function purge(item: SynthAdminItem) {
     const confirmed = await confirm({
       tone: "danger",
       title: t("admin.synths.purgeTitle"),
-      content: t("admin.synths.purgeText", { name: item.displayName, patches: item.patchCount, users: item.patchOwnerCount }),
+      content: t("admin.synths.purgeText", { name: synthName(t, item), patches: item.patchCount, users: item.patchOwnerCount }),
       confirmLabel: t("admin.synths.purge"),
     });
     if (!confirmed) return;
     const response = await api.admin.purgeSynth(item.slug);
-    if (!response.ok) return fail("admin.synths.actionFailed", item.displayName);
+    if (!response.ok) return fail("admin.synths.actionFailed", synthName(t, item));
     setItems((current) => current.filter((candidate) => candidate.slug !== item.slug));
-    setMessage({ severity: "success", text: t("admin.synths.purged", { name: item.displayName }) });
+    setMessage({ severity: "success", text: t("admin.synths.purged", { name: synthName(t, item) }) });
   }
 
   return (
@@ -113,10 +114,10 @@ export function SynthAdminList({ items: initialItems }: { items: readonly SynthA
                 <TableRow key={item.slug} data-synth={item.slug} sx={item.deleted ? { "& > td": { color: "text.disabled" } } : undefined}>
                   <TableCell>
                     {item.deleted ? (
-                      <span style={{ textDecoration: "line-through" }}>{item.displayName}</span>
+                      <span style={{ textDecoration: "line-through" }}>{synthName(t, item)}</span>
                     ) : (
                       <Link component={NextLink} href={`/?synth=${encodeURIComponent(item.slug)}`}>
-                        {item.displayName}
+                        {synthName(t, item)}
                       </Link>
                     )}
                     {item.manufacturer ? (
@@ -167,7 +168,7 @@ export function SynthAdminList({ items: initialItems }: { items: readonly SynthA
                     <SavingSwitch
                       checked={item.approved}
                       disabled={builtIn}
-                      ariaLabel={t("admin.synths.approveAria", { name: item.displayName })}
+                      ariaLabel={t("admin.synths.approveAria", { name: synthName(t, item) })}
                       save={async (next) => {
                         const response = await api.admin.setSynthApproval(item.slug, next);
                         return response.ok ? response.data.approved : null;
@@ -176,7 +177,7 @@ export function SynthAdminList({ items: initialItems }: { items: readonly SynthA
                         setMessage(null);
                         update(item.slug, { approved });
                       }}
-                      onError={() => fail("admin.synths.saveFailed", item.displayName)}
+                      onError={() => fail("admin.synths.saveFailed", synthName(t, item))}
                     />
                   </TableCell>
                   <TableCell>
@@ -184,7 +185,7 @@ export function SynthAdminList({ items: initialItems }: { items: readonly SynthA
                       tone="status"
                       checked={!item.deleted}
                       disabled={builtIn}
-                      ariaLabel={t("admin.synths.activeAria", { name: item.displayName })}
+                      ariaLabel={t("admin.synths.activeAria", { name: synthName(t, item) })}
                       save={async (active) => {
                         const response = await api.admin.setSynthDeleted(item.slug, !active);
                         return response.ok ? !response.data.deleted : null;
@@ -193,7 +194,7 @@ export function SynthAdminList({ items: initialItems }: { items: readonly SynthA
                         setMessage(null);
                         update(item.slug, { deleted: !active });
                       }}
-                      onError={() => fail("admin.synths.saveFailed", item.displayName)}
+                      onError={() => fail("admin.synths.saveFailed", synthName(t, item))}
                     />
                   </TableCell>
                   <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
@@ -202,7 +203,7 @@ export function SynthAdminList({ items: initialItems }: { items: readonly SynthA
                       <span>
                         <IconButton
                           size="small"
-                          aria-label={t("admin.synths.reduceAria", { name: item.displayName })}
+                          aria-label={t("admin.synths.reduceAria", { name: synthName(t, item) })}
                           disabled={builtIn || item.removableRevisions === 0}
                           onClick={() => void reduce(item)}
                         >
@@ -211,7 +212,7 @@ export function SynthAdminList({ items: initialItems }: { items: readonly SynthA
                       </span>
                     </Tooltip>
                     {item.deleted ? (
-                      <IconButton size="small" color="error" aria-label={t("admin.synths.purgeAria", { name: item.displayName })} onClick={() => void purge(item)}>
+                      <IconButton size="small" color="error" aria-label={t("admin.synths.purgeAria", { name: synthName(t, item) })} onClick={() => void purge(item)}>
                         <DeleteForeverIcon fontSize="small" />
                       </IconButton>
                     ) : null}

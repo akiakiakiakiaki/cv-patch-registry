@@ -16,7 +16,10 @@ import type { MessageKey } from "@/i18n/messages";
 /** The admin area's sections, in the order of the side pane. */
 const SECTIONS: ReadonlyArray<{ href: string; label: MessageKey }> = [
   { href: "/admin/synths", label: "admin.synths.nav" },
+  { href: "/admin/patches", label: "admin.patches.nav" },
   { href: "/admin/users", label: "admin.users.nav" },
+  { href: "/admin/samples", label: "admin.samples.nav" },
+  { href: "/admin/backup", label: "admin.backup.nav" },
 ];
 
 /** Admin area: a side pane with the sections, the selected section's page beside it. */

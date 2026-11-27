@@ -9,6 +9,7 @@
 - Logic, calculations or UI needed 2+ times: extract a shared function, hook, component or interface; tell the user.
 - UI: use MUI first; combine or customize MUI components before building custom ones. Dialogs via `useConfirmDialog`, never `window.confirm/prompt/alert`.
 - API calls via `src/lib/api/client.ts`, not raw `fetch` in components or hooks.
+- Show synth names only via `synthName()` (`src/lib/synths/synth-name.ts`): it marks legacy synths.
 - No new dependencies unless strictly necessary.
 - Keep logging minimal; remove debug logs after use.
 - Verify framework APIs if unsure.

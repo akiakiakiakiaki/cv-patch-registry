@@ -1,4 +1,6 @@
+import type { BackupManifest, BackupTables } from "@/lib/backup/backup-format";
 import type { PatchData, PatchRecord } from "@/lib/domain/types";
+import type { UploadTarget } from "@/lib/storage/storage-provider";
 import type { TagEntry } from "@/lib/domain/tags";
 import type { PatchState, PatchView } from "@/lib/patches/patch-service";
 import type { SynthView } from "@/lib/synths/synth-service";
@@ -116,6 +118,12 @@ export const api = {
     /** One change per call: { active } | { emailVerified } | { role }; answers the applied change. */
     changeUser: <Change extends { active: boolean } | { emailVerified: boolean } | { role: "user" | "admin" }>(id: string, change: Change) =>
       request<Change>(`/api/admin/users/${segment(id)}`, { method: "PATCH", json: change }),
+    /** The database part of a backup and where to fetch each file (see the backup admin section). */
+    backupData: () => request<{ manifest: BackupManifest; tables: BackupTables; fileUrls: Record<string, string> }>("/api/admin/backup"),
+    backupUploadTargets: (keys: readonly string[]) =>
+      request<{ targets: Record<string, UploadTarget> }>("/api/admin/backup/upload-targets", { method: "POST", json: { keys } }),
+    restoreBackup: (backup: { manifest: BackupManifest; tables: BackupTables }) =>
+      request<{ ok: true }>("/api/admin/backup/restore", { method: "POST", json: backup }),
     reduceRevisions: (slug: string) => request<{ ok: true; removed: number }>(`/api/admin/synths/${segment(slug)}/revisions`, { method: "DELETE" }),
   },
   tags: {

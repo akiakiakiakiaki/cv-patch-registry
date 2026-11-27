@@ -16,7 +16,9 @@
     "db:set-role": "node --env-file=.env.development.local scripts/set-user-role.mjs",
     "storage:migrate-local": "node --env-file=.env.development.local scripts/migrate-local-uploads-to-supabase.mjs",
     "proton:clone": "node --env-file=.env.development.local node_modules/.bin/tsx --tsconfig tsconfig.json scripts/clone-proton.mts",
-    "tags:capitalize": "node --env-file=.env.development.local node_modules/.bin/tsx --tsconfig tsconfig.json scripts/capitalize-tag-labels.mts"
+    "tags:capitalize": "node --env-file=.env.development.local node_modules/.bin/tsx --tsconfig tsconfig.json scripts/capitalize-tag-labels.mts",
+    "backup:export": "node --env-file=.env.development.local node_modules/.bin/tsx --tsconfig tsconfig.json scripts/backup-export.mts",
+    "backup:restore": "node --env-file=.env.development.local node_modules/.bin/tsx --tsconfig tsconfig.json scripts/backup-restore.mts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.10",
@@ -28,6 +30,7 @@
     "@mui/material-nextjs": "^9.4.0",
     "better-auth": "^1.7.10",
     "drizzle-orm": "^0.45.4",
+    "fflate": "0.8.3",
     "isomorphic-dompurify": "^4.5.0",
     "next": "16.3.6",
     "pg": "^8.23.1",

@@ -51,3 +51,23 @@ describe("LocalFsStorage", () => {
     expect(() => new LocalFsStorage(root, temporary).publicUrl("../etc/passwd")).toThrow("Invalid storage key");
   });
 });
+
+describe("LocalFsStorage for backups", () => {
+  it("stores bytes under a given key, replacing a file already there", async () => {
+    const storage = new LocalFsStorage(root, temporary);
+    const key = "0f1e2d3c-4b5a-4968-8778-6a5b4c3d2e1f.png";
+    await storage.putAt(key, new Uint8Array([1]));
+    await storage.putAt(key, new Uint8Array([2, 3]));
+    expect(readFileSync(path.join(root, key))).toEqual(Buffer.from([2, 3]));
+    await expect(storage.putAt("../escape.png", new Uint8Array([1]))).rejects.toThrow("Invalid storage key");
+  });
+
+  it("lets the browser upload through the app", async () => {
+    const storage = new LocalFsStorage(root, temporary);
+    expect(await storage.uploadTarget("0f1e2d3c-4b5a-4968-8778-6a5b4c3d2e1f.png")).toEqual({
+      url: "/api/admin/backup/files/0f1e2d3c-4b5a-4968-8778-6a5b4c3d2e1f.png",
+      method: "PUT",
+      headers: {},
+    });
+  });
+});

@@ -19,7 +19,7 @@ import { PatchSettingsBar } from "@/components/patch-sheet/PatchSettingsBar";
 import { SynthApprovalStatus } from "@/components/patch-sheet/SynthApprovalStatus";
 import { PatchSheetFooter } from "@/components/patch-sheet/PatchSheetFooter";
 import { RevisionLossDetails } from "@/components/patch-sheet/RevisionLossDetails";
-import { downloadJson, importErrorMessage, importLibraryFile, libraryExport, type ImportConflict } from "@/components/patch-sheet/patch-file";
+import { importErrorMessage, importLibraryFile, libraryExport, type ImportConflict } from "@/components/patch-sheet/patch-file";
 import { sheetModeLayout, type SheetMode } from "@/components/patch-sheet/sheet-mode";
 import type { OutdatedRevision, RevisionLossDecision, RevisionLossPrompt } from "@/hooks/use-account-patch-library";
 import { useInstrumentLayoutEditor } from "@/hooks/use-instrument-layout-editor";
@@ -46,7 +46,9 @@ import { useUnsavedChangesGuard } from "@/lib/navigation/use-unsaved-changes-gua
 import type { PatchView } from "@/lib/patches/patch-service";
 import { formatTimestamp } from "@/lib/utils/date-format";
 import { NOOP } from "@/lib/utils/noop";
+import { downloadFile } from "@/lib/utils/download";
 import { useI18n } from "@/i18n/provider";
+import { synthName } from "@/lib/synths/synth-name";
 
 export const EDITOR_FULL_HEIGHT_CLASS = "editor-full-height";
 
@@ -122,21 +124,21 @@ export function PatchSheet() {
 
   useUnsavedChangesGuard(editorOpen, editorDirty, () => editorRef.current?.confirmLeave() ?? Promise.resolve(true));
 
-  const synthName = instrument?.displayName ?? selectedSlug;
+  const shownSynthName = instrument ? synthName(t, { slug: selectedSlug, displayName: instrument.displayName }) : selectedSlug;
   // A save ran into a synth revision that lacks controls: save (upgrade), restore the saved version, or keep working.
   const decideRevisionLoss = useCallback(
     async (prompt: RevisionLossPrompt): Promise<RevisionLossDecision> => {
       const choice = await choose({
         tone: "warning",
         title: t("revisionLoss.title"),
-        content: <RevisionLossDetails prompt={prompt} synthName={synthName} mode="save" />,
+        content: <RevisionLossDetails prompt={prompt} synthName={shownSynthName} mode="save" />,
         confirmLabel: t("revisionLoss.confirm"),
         alternativeLabel: t("revisionLoss.restore"),
         cancelLabel: t("revisionLoss.cancel"),
       });
       return choice === "confirm" ? "upgrade" : choice === "alternative" ? "restore" : "keep";
     },
-    [choose, synthName, t],
+    [choose, shownSynthName, t],
   );
   const sheet = useSheetLibrary(selectedSlug, instrument, accountMode, { onRevisionLoss: decideRevisionLoss });
   const { account, commit: commitLibrary, library: currentLibrary, activePatch, status } = sheet;
@@ -182,12 +184,12 @@ export function PatchSheet() {
       const confirmed = await confirm({
         tone: "warning",
         title: t("revisionLoss.upgradeTitle", { to: toRevision }),
-        content: <RevisionLossDetails prompt={prompt} synthName={synthName} mode="upgrade" />,
+        content: <RevisionLossDetails prompt={prompt} synthName={shownSynthName} mode="upgrade" />,
         confirmLabel: t("revisionLoss.upgradeConfirm"),
       });
       if (confirmed) void account.upgrade(patch.id);
     },
-    [account, confirm, synthName, t, view?.revision],
+    [account, confirm, shownSynthName, t, view?.revision],
   );
 
   // A patch named in the link becomes active once the library holds it (runs once).
@@ -288,7 +290,7 @@ export function PatchSheet() {
   function exportLibrary() {
     const exportedAt = new Date().toISOString();
     const file = libraryExport(library, instrument!, exportedAt);
-    downloadJson(file.filename, file.contents);
+    downloadFile(file.filename, file.contents, "application/json");
     sheet.setStatus(t("status.exported", { date: formatTimestamp(exportedAt, locale, "short") }));
   }
 
@@ -390,7 +392,7 @@ export function PatchSheet() {
               </Button>
             }
           >
-            {t("revisionLoss.outdated", { from: outdated.revision, synth: synthName, to: view?.revision ?? outdated.revision })}
+            {t("revisionLoss.outdated", { from: outdated.revision, synth: shownSynthName, to: view?.revision ?? outdated.revision })}
           </Alert>
         ) : null}
 

@@ -10,6 +10,7 @@ import { useI18n } from "@/i18n/provider";
 import { CURATED_TAGS } from "@/lib/domain/tags";
 import type { PatchSummary } from "@/lib/patches/patch-service";
 import { PAGE_GUTTER } from "@/components/app-shell/layout";
+import { synthName } from "@/lib/synths/synth-name";
 
 interface Props {
   patches: readonly PatchSummary[];
@@ -44,7 +45,7 @@ export function ExploreView({ patches, activeTag, activeSynth, synths }: Props) 
         <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }} aria-label={t("patches.filterSynth")}>
           <Chip component={NextLink} href={query({ synth: null })} clickable label={t("patches.allSynths")} color={activeSynth ? "default" : "primary"} />
           {synths.map((synth) => (
-            <Chip key={synth.slug} component={NextLink} href={query({ synth: synth.slug })} clickable label={synth.displayName} color={activeSynth === synth.slug ? "primary" : "default"} />
+            <Chip key={synth.slug} component={NextLink} href={query({ synth: synth.slug })} clickable label={synthName(t, synth)} color={activeSynth === synth.slug ? "primary" : "default"} />
           ))}
         </Stack>
       </Stack>
@@ -58,7 +59,7 @@ export function ExploreView({ patches, activeTag, activeSynth, synths }: Props) 
               <Link component={NextLink} href={`/patches/${encodeURIComponent(patch.id)}`} underline="hover" sx={{ fontWeight: 600 }}>
                 {patch.name}
               </Link>
-              <Typography variant="body2" color="text.secondary">{patch.synth.displayName}</Typography>
+              <Typography variant="body2" color="text.secondary">{synthName(t, patch.synth)}</Typography>
               {patch.tags.map((tag, index) => <Chip key={tag} size="small" label={patch.tagLabels?.[index] ?? tag} />)}
             </Box>
           ))}

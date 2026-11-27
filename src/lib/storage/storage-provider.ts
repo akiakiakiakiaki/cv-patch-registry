@@ -10,4 +10,15 @@ export interface StorageProvider {
   read(storageKey: string): Promise<Uint8Array>;
   remove(storageKey: string): Promise<void>;
   publicUrl(storageKey: string): string;
+  /** Stores bytes under a given key, replacing a file already there (restoring a backup). */
+  putAt(storageKey: string, bytes: Uint8Array): Promise<void>;
+  /** Where the browser uploads a backup's file itself, so large files do not pass through the app's functions. */
+  uploadTarget(storageKey: string): Promise<UploadTarget>;
+}
+
+/** A place the browser sends one file to with a single request. */
+export interface UploadTarget {
+  url: string;
+  method: "PUT";
+  headers: Record<string, string>;
 }

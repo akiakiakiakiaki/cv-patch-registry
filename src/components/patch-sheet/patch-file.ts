@@ -20,16 +20,6 @@ export function libraryExport(library: PatchLibrary, instrument: InstrumentDefin
   };
 }
 
-/** Lets the browser save `contents` as a JSON file. */
-export function downloadJson(filename: string, contents: string): void {
-  const url = URL.createObjectURL(new Blob([contents], { type: "application/json" }));
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
 /** A patch that exists here and in the file with different contents. */
 export interface ImportConflict {
   local: PatchRecord;

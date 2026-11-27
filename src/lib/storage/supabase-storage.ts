@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { contentTypeForKey, isValidUploadKey } from "@/lib/storage/upload-url";
-import type { StorageProvider, UploadExtension } from "@/lib/storage/storage-provider";
+import type { StorageProvider, UploadExtension, UploadTarget } from "@/lib/storage/storage-provider";
 
 function requiredSetting(name: string): string {
   const value = process.env[name]?.trim();
@@ -86,6 +86,34 @@ export class SupabaseStorage implements StorageProvider {
     if (!response.ok) {
       await throwStorageError("delete", response);
     }
+  }
+
+  async putAt(storageKey: string, bytes: Uint8Array): Promise<void> {
+    if (!isValidUploadKey(storageKey)) throw new Error("Invalid storage key");
+    const response = await fetch(objectUrl(this.projectUrl, this.bucket, storageKey), {
+      method: "POST",
+      headers: { ...apiKeyHeaders(this.secret), "Content-Type": contentTypeForKey(storageKey), "x-upsert": "true" },
+      body: new Blob([bytes as unknown as BlobPart]),
+      cache: "no-store",
+    });
+    if (!response.ok) await throwStorageError("upload", response);
+  }
+
+  /** A signed upload URL: the browser sends the file straight to Supabase, replacing a file already there. */
+  async uploadTarget(storageKey: string): Promise<UploadTarget> {
+    if (!isValidUploadKey(storageKey)) throw new Error("Invalid storage key");
+    const response = await fetch(
+      `${this.projectUrl}/storage/v1/object/upload/sign/${encodeURIComponent(this.bucket)}/${encodeURIComponent(storageKey)}`,
+      { method: "POST", headers: { ...apiKeyHeaders(this.secret), "x-upsert": "true", "Content-Type": "application/json" }, body: "{}", cache: "no-store" },
+    );
+    if (!response.ok) await throwStorageError("sign upload", response);
+    const body = (await response.json()) as { url?: string };
+    if (!body.url) throw new Error("Supabase Storage sign upload answered without a URL");
+    return {
+      url: `${this.projectUrl}/storage/v1${body.url}`,
+      method: "PUT",
+      headers: { "Content-Type": contentTypeForKey(storageKey), "x-upsert": "true" },
+    };
   }
 
   publicUrl(storageKey: string): string {

@@ -103,3 +103,52 @@ describe("patch routes", () => {
     expect(remove.status).toBe(204);
   });
 });
+
+describe("importing guest patches into the account", () => {
+  const importRoute = () => import("@/app/api/patches/import/route");
+  const send = async (body: unknown, origin?: string) =>
+    (await importRoute()).POST(
+      new Request("http://localhost/api/patches/import", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(origin ? { origin } : {}) },
+        body: typeof body === "string" ? body : JSON.stringify(body),
+      }),
+    );
+
+  it("copies the patches into the signed-in account", async () => {
+    const id = randomUUID();
+    const response = await send({ synthSlug: PROTON, patches: [{ id, name: "From the browser" }] });
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({ ok: true, created: 1 });
+    const view = await (await patchRoute()).GET(new Request(`http://localhost/api/patches/${id}`), { params: Promise.resolve({ id }) });
+    expect(await view.json()).toMatchObject({ name: "From the browser", visibility: "private", isOwner: true });
+  });
+
+  it("needs a signed-in user and refuses other sites and broken bodies", async () => {
+    session.user = null;
+    expect((await send({ synthSlug: PROTON, patches: [] })).status).toBe(401);
+    session.user = owner;
+    expect((await send({ synthSlug: PROTON, patches: [] }, "https://evil.example")).status).toBe(403);
+    expect((await send("{ not json")).status).toBeGreaterThanOrEqual(400);
+    expect((await send({ synthSlug: "no-such-synth", patches: [{ name: "x" }] })).status).toBe(404);
+  });
+});
+
+describe("tag suggestions", () => {
+  const tagsRoute = () => import("@/app/api/tags/route");
+  const suggest = async (query: string) => (await (await (await tagsRoute()).GET(new Request(`http://localhost/api/tags?q=${encodeURIComponent(query)}`))).json()) as { tags: { slug: string }[] };
+
+  it("offers the signed-in user's own tags, but not to others", async () => {
+    await (await patchesRoute()).POST(json("POST", "http://localhost/api/patches", { synthSlug: PROTON, name: "Tagged", tags: ["Owner only tag"] }));
+    expect((await suggest("owner only")).tags.map((tag) => tag.slug)).toEqual(["owner only tag"]);
+    session.user = stranger;
+    expect((await suggest("owner only")).tags).toEqual([]);
+    session.user = null;
+    expect((await suggest("owner only")).tags).toEqual([]);
+  });
+
+  it("cuts long queries instead of failing", async () => {
+    const response = await (await tagsRoute()).GET(new Request(`http://localhost/api/tags?q=${"x".repeat(500)}`));
+    expect(response.status).toBe(200);
+  });
+});

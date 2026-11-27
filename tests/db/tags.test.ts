@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createDatabase, ensureDatabase, type Database } from "@/lib/db/client";
-import { tags, user } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { synths, tags, user } from "@/lib/db/schema";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
 import { createPatch, getPatchView, listOwnPatchStates, listPublicPatches, updatePatch } from "@/lib/patches/patch-service";
 import { capitalizeTagLabels, suggestTags } from "@/lib/repositories/tags-repository";
@@ -63,7 +64,8 @@ describe("suggestTags", () => {
     await createPatch(db, other, { synthSlug: SYNTH, name: "Theirs private", tags: ["Their secret", "Acid"] });
   });
 
-  const slugs = async (query: string, ownerId: string | null) => (await suggestTags(db, { query, ownerId, limit: 20 })).map((tag) => tag.slug);
+  const slugs = async (query: string, ownerId: string | null) =>
+    (await suggestTags(db, { query, viewer: ownerId ? { id: ownerId } : null, limit: 20 })).map((tag) => tag.slug);
 
   it("offers curated tags, tags of public patches and the viewer's own, never other people's private tags", async () => {
     const mine = await slugs("", me.id);
@@ -79,13 +81,25 @@ describe("suggestTags", () => {
   });
 
   it("returns labels and treats % and _ literally", async () => {
-    expect(await suggestTags(db, { query: "acid h", ownerId: me.id, limit: 5 })).toEqual([{ slug: "acid house", label: "Acid house" }]);
+    expect(await suggestTags(db, { query: "acid h", viewer: me, limit: 5 })).toEqual([{ slug: "acid house", label: "Acid house" }]);
     expect(await slugs("%", me.id)).toEqual([]);
     expect(await slugs("_", me.id)).toEqual([]);
   });
 
   it("limits the number of suggestions", async () => {
-    expect(await suggestTags(db, { query: "", ownerId: me.id, limit: 3 })).toHaveLength(3);
+    expect(await suggestTags(db, { query: "", viewer: me, limit: 3 })).toHaveLength(3);
+  });
+
+  it("leaves out tags of synths the viewer may not see: unapproved or deleted", async () => {
+    // Without its approval, the synth's public patches no longer lend their tags to everyone.
+    await db.update(synths).set({ approvedAt: null }).where(eq(synths.slug, SYNTH));
+    expect(await slugs("acid", null)).toEqual([]);
+    expect(await slugs("acid", me.id)).toEqual([]);
+    expect(await slugs("bass", null)).toEqual(["bass"]); // curated tags stay
+
+    await db.update(synths).set({ approvedAt: new Date(), deletedAt: new Date() }).where(eq(synths.slug, SYNTH));
+    expect(await slugs("acid", null)).toEqual([]);
+    expect(await slugs("secret", me.id)).toEqual([]);
   });
 });
 

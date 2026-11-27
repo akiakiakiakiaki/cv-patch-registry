@@ -22,7 +22,8 @@ playwright/.cache/
 *.log
 .DS_Store
 
-# Runtime uploads and local database
+# Runtime uploads, local database and backups (never commit: they hold every account)
+backups/
 public/assets/uploads/
 .data/
 

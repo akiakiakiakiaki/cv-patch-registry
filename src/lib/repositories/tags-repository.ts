@@ -1,6 +1,8 @@
-import { and, eq, exists, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, eq, exists, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import type { Database } from "@/lib/db/client";
-import { patchTags, patches, tags } from "@/lib/db/schema";
+import { patchTags, patches, synthRevisions, synths, tags } from "@/lib/db/schema";
+import type { Actor } from "@/lib/domain/policy";
+import { visibleSynthCondition } from "@/lib/repositories/synths-repository";
 import { CURATED_TAGS, formatTagLabel, type TagEntry } from "@/lib/domain/tags";
 
 /**
@@ -18,25 +20,30 @@ export async function ensureTagIds(db: Database, entries: readonly TagEntry[]): 
 }
 
 /**
- * Existing tags to suggest while typing: curated tags, tags of public patches and the viewer's own tags,
- * never tags only used on other people's private patches. Prefix matches come first, then the most used.
+ * Existing tags to suggest while typing: curated tags, tags of public patches and the viewer's own tags, never
+ * tags only used on other people's private patches. Patches count only where the viewer may see their synth
+ * (see visibleSynthCondition): tags of unapproved, deleted or hidden synths stay out. Prefix matches come first,
+ * then the most used.
  */
 export async function suggestTags(
   db: Database,
-  options: { query: string; ownerId: string | null; limit: number },
+  options: { query: string; viewer: Actor | null; limit: number },
 ): Promise<TagEntry[]> {
-  const usedOn = (condition: ReturnType<typeof eq>) =>
+  const usedOn = (condition: SQL, viewer: Actor | null) =>
     exists(
       db
         .select({ one: sql`1` })
         .from(patchTags)
         .innerJoin(patches, eq(patches.id, patchTags.patchId))
-        .where(and(eq(patchTags.tagId, tags.id), condition)),
+        .innerJoin(synthRevisions, eq(synthRevisions.id, patches.synthRevisionId))
+        .innerJoin(synths, eq(synths.id, synthRevisions.synthId))
+        .where(and(eq(patchTags.tagId, tags.id), condition, visibleSynthCondition(viewer))),
     );
   const visible = or(
     eq(tags.kind, "curated"),
-    usedOn(eq(patches.visibility, "public")),
-    ...(options.ownerId ? [usedOn(eq(patches.ownerId, options.ownerId))] : []),
+    // Public patches count for everyone only on synths everyone sees.
+    usedOn(eq(patches.visibility, "public"), null),
+    ...(options.viewer ? [usedOn(eq(patches.ownerId, options.viewer.id), options.viewer)] : []),
   );
   const query = options.query.trim().toLowerCase().replace(/[\\%_]/g, (char) => `\\${char}`);
   const usage = sql<number>`(select count(*) from ${patchTags} where ${patchTags.tagId} = ${tags.id})`;
