@@ -14,7 +14,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => router,
 }));
 vi.mock("@/lib/auth/client", () => ({
-  authClient: { useSession: () => ({ data: { user: { id: "user-1", role: "user" } }, isPending: false }), signOut: vi.fn() },
+  authClient: { useSession: () => ({ data: { user: { id: "user-1", name: "Player", role: "user" } }, isPending: false }), signOut: vi.fn() },
 }));
 
 const view = {
@@ -287,7 +287,8 @@ describe("PatchSheet modes", () => {
     );
     await user.click(await screen.findByRole("button", { name: "Edit" }));
     fireEvent.click(await screen.findByRole("button", { name: "Add Knob" }));
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await user.click(screen.getByRole("button", { name: "Player" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Sign out" }));
     const dialog = await screen.findByRole("dialog", { name: "Changes not saved" });
     await user.click(within(dialog).getByRole("button", { name: "Keep editing" }));
     expect(authClient.signOut).not.toHaveBeenCalled();

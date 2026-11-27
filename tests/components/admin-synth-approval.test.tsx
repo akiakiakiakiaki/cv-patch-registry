@@ -17,8 +17,8 @@ vi.mock("@/lib/auth/client", () => ({
 }));
 
 const items: SynthAdminItem[] = [
-  { slug: "td3", displayName: "TD3", manufacturer: "Behringer", owner: { name: "Ada", email: "ada@example.test" }, approved: true, createdAt: "2026-10-01T10:00:00.000Z", revision: 22, storedRevisions: 22, deleted: false, removableRevisions: 19, patchCount: 4, patchOwnerCount: 2 },
-  { slug: "fresh", displayName: "Fresh Synth", manufacturer: null, owner: { name: "Olga", email: "olga@example.test" }, approved: false, createdAt: "2026-11-27T10:00:00.000Z", revision: 1, storedRevisions: 1, deleted: false, removableRevisions: 0, patchCount: 0, patchOwnerCount: 0 },
+  { slug: "td3", displayName: "TD3", manufacturer: "Behringer", owner: { name: "Ada", email: "ada@example.test", deleted: false }, approved: true, createdAt: "2026-10-01T10:00:00.000Z", revision: 22, storedRevisions: 22, deleted: false, removableRevisions: 19, patchCount: 4, patchOwnerCount: 2 },
+  { slug: "fresh", displayName: "Fresh Synth", manufacturer: null, owner: { name: "Olga", email: "olga@example.test", deleted: false }, approved: false, createdAt: "2026-11-27T10:00:00.000Z", revision: 1, storedRevisions: 1, deleted: false, removableRevisions: 0, patchCount: 0, patchOwnerCount: 0 },
   { slug: "behringer-proton", displayName: "Behringer Proton", manufacturer: null, owner: null, approved: true, createdAt: "2026-09-01T10:00:00.000Z", revision: 3, storedRevisions: 1, deleted: false, removableRevisions: 0, patchCount: 1, patchOwnerCount: 1 },
 ];
 
@@ -234,7 +234,7 @@ describe("approval switch while saving", () => {
 
 describe("synth management actions", () => {
   const deletedItem: SynthAdminItem = {
-    slug: "gone", displayName: "Gone Synth", manufacturer: null, owner: { name: "Olga", email: "olga@example.test" },
+    slug: "gone", displayName: "Gone Synth", manufacturer: null, owner: { name: "Olga", email: "olga@example.test", deleted: false },
     approved: true, deleted: true, createdAt: "2026-11-01T10:00:00.000Z", revision: 5, storedRevisions: 5, removableRevisions: 2, patchCount: 3, patchOwnerCount: 2,
   };
   function renderWith(list: SynthAdminItem[]) {

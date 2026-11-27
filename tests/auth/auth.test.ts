@@ -124,14 +124,15 @@ describe("deactivated accounts", () => {
 describe("Better Auth on PGlite (verification on)", () => {
   it("sends a verification mail on sign-up and blocks sign-in until verified", async () => {
     await loadAuth(true);
-    const { ConsoleMailSender: FreshConsoleMailSender } = await import("@/lib/auth/mail-sender");
-    const sendSpy = vi.spyOn(FreshConsoleMailSender.prototype, "send").mockResolvedValue(undefined);
+    const { ConsoleMailProvider } = await import("@/lib/mail/providers/console-mail-provider");
+    const sendSpy = vi.spyOn(ConsoleMailProvider.prototype, "send").mockResolvedValue(undefined);
     const email = uniqueEmail("verify");
 
     await authModule.getAuth().api.signUpEmail({ body: { name: "Verify", email, password: PASSWORD } });
     expect(sendSpy).toHaveBeenCalledTimes(1);
     const mail = sendSpy.mock.calls[0]![0];
-    expect(mail.to).toBe(email);
+    expect(mail.to.email).toBe(email);
+    expect(mail.html).toContain("Confirm email address");
 
     await expect(
       authModule.getAuth().api.signInEmail({ body: { email, password: PASSWORD } }),

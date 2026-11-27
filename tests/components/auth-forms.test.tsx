@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -71,11 +71,12 @@ describe("AuthForm", () => {
     await user.type(screen.getByLabelText(/^Password/), "correct-horse-battery");
     await user.click(screen.getByRole("button", { name: "Create account" }));
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/?welcome=1"));
     expect(signUpEmail).toHaveBeenCalledWith({
       name: "Player",
       email: "player@example.test",
       password: "correct-horse-battery",
+      callbackURL: "/?welcome=1",
     });
   });
 
@@ -92,7 +93,7 @@ describe("AuthForm", () => {
     expect(guestTransferPendingFor("player@example.test")).toBe(false);
 
     await user.click(screen.getByRole("button", { name: "Create account" }));
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/?welcome=1"));
     expect(guestTransferPendingFor("player@example.test")).toBe(true);
   });
 
@@ -113,13 +114,70 @@ describe("AccountLinks", () => {
     expect(screen.getByRole("link", { name: "Register" })).toHaveAttribute("href", "/register");
   });
 
-  it("offers sign-out when a session exists", async () => {
+  it("shows the signed-in user with a menu that opens on hover and holds sign-out", async () => {
     const user = userEvent.setup();
-    useSession.mockReturnValue({ data: { user: { email: "player@example.test" } }, isPending: false });
+    useSession.mockReturnValue({ data: { user: { name: "Player", email: "player@example.test", role: "user" } }, isPending: false });
     renderWithLocale(<AccountLinks />);
+    expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    const account = screen.getByRole("button", { name: "Player" });
+    await user.hover(account);
+    expect(account).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("menuitem", { name: "Request deletion" })).toBeInTheDocument();
+    await user.unhover(account);
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+
+    await user.click(account);
+    expect(await screen.findByRole("menuitem", { name: "Request deletion" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(account).toHaveFocus();
+
+    await user.click(account);
+    await user.click(screen.getByRole("menuitem", { name: "Sign out" }));
+    await waitFor(() => expect(signOut).toHaveBeenCalled());
+  });
+
+  it("lets a user ask for deletion: confirmed, sent, signed out", async () => {
+    const user = userEvent.setup();
+    signOut.mockClear();
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    useSession.mockReturnValue({ data: { user: { name: "Player", email: "player@example.test", role: "user" } }, isPending: false });
+    renderWithLocale(<AccountLinks />);
+    await user.click(screen.getByRole("button", { name: "Player" }));
+    await user.click(screen.getByRole("menuitem", { name: "Request deletion" }));
+    const confirmDialog = await screen.findByRole("dialog", { name: "Request deletion of your account?" });
+    expect(confirmDialog).toHaveTextContent("deactivated right away");
+    await user.click(within(confirmDialog).getByRole("button", { name: "Request deletion" }));
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/account/deletion-request", expect.objectContaining({ method: "POST" }));
+    expect(await screen.findByRole("dialog", { name: "Deletion requested" })).toHaveTextContent("you have been signed out");
     expect(signOut).toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps the account signed in and says so when the request could not be sent", async () => {
+    const user = userEvent.setup();
+    signOut.mockClear();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "mail-failed" }), { status: 502 })));
+    useSession.mockReturnValue({ data: { user: { name: "Player", email: "player@example.test", role: "user" } }, isPending: false });
+    renderWithLocale(<AccountLinks />);
+    await user.click(screen.getByRole("button", { name: "Player" }));
+    await user.click(screen.getByRole("menuitem", { name: "Request deletion" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Request deletion" }));
+    expect(await screen.findByRole("dialog", { name: "Request not sent" })).toHaveTextContent("stays as it is");
+    expect(signOut).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("offers the owner no deletion request", async () => {
+    const user = userEvent.setup();
+    useSession.mockReturnValue({ data: { user: { name: "Olli", email: "owner@example.test", role: "owner" } }, isPending: false });
+    renderWithLocale(<AccountLinks />);
+    await user.click(screen.getByRole("button", { name: "Olli" }));
+    expect(screen.getByRole("menuitem", { name: "Sign out" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Request deletion" })).not.toBeInTheDocument();
   });
 
   it("has no axe violations", async () => {

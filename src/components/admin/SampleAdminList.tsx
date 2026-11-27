@@ -23,6 +23,8 @@ import NextLink from "next/link";
 import type { SampleAdminItem, SampleGroup } from "@/lib/samples/sample-admin";
 import { formatTimestamp } from "@/lib/utils/date-format";
 import { useI18n } from "@/i18n/provider";
+import { PersonCell } from "@/components/admin/PersonCell";
+import { personName } from "@/lib/users/person";
 import { synthName } from "@/lib/synths/synth-name";
 
 function megabytes(bytes: number): string {
@@ -123,7 +125,7 @@ function SampleTable({ samples, synthSlug }: { samples: readonly SampleAdminItem
                         {item.patch.name}
                       </Link>
                       <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                        {item.patch.ownerName} · {item.patch.visibility === "public" ? t("admin.samples.public") : t("admin.samples.private")}
+                        {personName(t, item.patch.owner)} · {item.patch.visibility === "public" ? t("admin.samples.public") : t("admin.samples.private")}
                       </Typography>
                     </>
                   ) : (
@@ -133,10 +135,7 @@ function SampleTable({ samples, synthSlug }: { samples: readonly SampleAdminItem
                   )}
                 </TableCell>
                 <TableCell>
-                  {item.uploader.name}
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                    {item.uploader.email}
-                  </Typography>
+                  <PersonCell person={item.uploader} />
                 </TableCell>
                 <TableCell align="right">{megabytes(item.byteSize)}</TableCell>
                 <TableCell>{formatTimestamp(item.createdAt, locale)}</TableCell>

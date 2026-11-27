@@ -1,12 +1,13 @@
 import type { Database } from "@/lib/db/client";
 import { isAdmin, type Actor } from "@/lib/domain/policy";
 import { listPatchesForAdmin, tagsFor } from "@/lib/repositories/patches-repository";
+import type { Person } from "@/lib/users/person";
 
 /** One patch in the admin's overview. */
 export interface PatchAdminItem {
   id: string;
   name: string;
-  owner: { name: string; email: string };
+  owner: Person;
   visibility: string;
   tagLabels: string[];
   hasSample: boolean;
@@ -36,7 +37,7 @@ export async function listPatchGroups(db: Database, actor: Actor | null): Promis
     group.patches.push({
       id: row.patch.id,
       name: row.patch.name,
-      owner: { name: row.ownerName, email: row.ownerEmail },
+      owner: { name: row.ownerName, email: row.ownerEmail, deleted: row.ownerDeleted },
       visibility: row.patch.visibility,
       tagLabels: (tags.get(row.patch.id) ?? []).map((tag) => tag.label),
       hasSample: row.hasSample,

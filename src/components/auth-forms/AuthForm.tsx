@@ -14,6 +14,8 @@ import NextLink from "next/link";
 import { authClient } from "@/lib/auth/client";
 import { useI18n } from "@/i18n/provider";
 import { markGuestTransferPending } from "@/lib/storage/guest-transfer";
+import { WELCOME_PATH } from "@/components/welcome/WelcomeNotice";
+import { VerificationSent } from "@/components/auth-forms/VerificationSent";
 
 export type AuthMode = "login" | "register";
 
@@ -24,7 +26,8 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  /** Where the confirmation mail went; the form gives way to VerificationSent then. */
+  const [mailSentTo, setMailSentTo] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,11 +36,10 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     const password = String(form.get("password") ?? "");
     setPending(true);
     setError(null);
-    setInfo(null);
 
     if (mode === "register") {
       const name = String(form.get("name") ?? "");
-      const { error: signUpError } = await authClient.signUp.email({ name, email, password });
+      const { error: signUpError } = await authClient.signUp.email({ name, email, password, callbackURL: WELCOME_PATH });
       setPending(false);
       if (signUpError) {
         setError(t("auth.registerError"));
@@ -46,10 +48,10 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       // This browser's guest patches move into the new account at its first sign-in here.
       markGuestTransferPending(email);
       if (REQUIRE_EMAIL_VERIFICATION) {
-        setInfo(t("auth.checkMail"));
+        setMailSentTo(email);
         return;
       }
-      router.push("/");
+      router.push(WELCOME_PATH);
       return;
     }
 
@@ -87,24 +89,29 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
           {mode === "register" ? t("auth.registerTitle") : t("auth.loginTitle")}
         </Typography>
-        {mode === "register" && (
-          <TextField name="name" label={t("auth.name")} autoComplete="name" required fullWidth />
+        {mailSentTo ? (
+          <VerificationSent email={mailSentTo} onUseOtherAddress={() => setMailSentTo(null)} />
+        ) : (
+          <>
+            {mode === "register" && (
+              <TextField name="name" label={t("auth.name")} autoComplete="name" required fullWidth />
+            )}
+            <TextField name="email" type="email" label={t("auth.email")} autoComplete="email" required fullWidth />
+            <TextField
+              name="password"
+              type="password"
+              label={t("auth.password")}
+              autoComplete={mode === "register" ? "new-password" : "current-password"}
+              helperText={mode === "register" ? t("auth.passwordHint") : undefined}
+              required
+              fullWidth
+            />
+            {error && <Alert severity="error" role="alert">{error}</Alert>}
+            <Button type="submit" variant="contained" size="large" disabled={pending}>
+              {mode === "register" ? t("auth.registerSubmit") : t("auth.loginSubmit")}
+            </Button>
+          </>
         )}
-        <TextField name="email" type="email" label={t("auth.email")} autoComplete="email" required fullWidth />
-        <TextField
-          name="password"
-          type="password"
-          label={t("auth.password")}
-          autoComplete={mode === "register" ? "new-password" : "current-password"}
-          helperText={mode === "register" ? t("auth.passwordHint") : undefined}
-          required
-          fullWidth
-        />
-        {error && <Alert severity="error" role="alert">{error}</Alert>}
-        {info && <Alert severity="info" role="status">{info}</Alert>}
-        <Button type="submit" variant="contained" size="large" disabled={pending}>
-          {mode === "register" ? t("auth.registerSubmit") : t("auth.loginSubmit")}
-        </Button>
         {mode === "login" ? (
           <Link component={NextLink} href="/forgot-password" variant="body2" align="center">
             {t("auth.forgotPassword")}

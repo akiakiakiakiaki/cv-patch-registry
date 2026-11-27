@@ -154,6 +154,7 @@ export interface PatchAdminRow {
   patch: PatchRow;
   ownerName: string;
   ownerEmail: string;
+  ownerDeleted: boolean;
   synth: { slug: string; displayName: string; deleted: boolean; currentRevision: number | null };
   /** Number of the synth revision the patch is stored with. */
   synthRevision: number;
@@ -169,6 +170,7 @@ export async function listPatchesForAdmin(db: Database): Promise<PatchAdminRow[]
       patch: patches,
       ownerName: user.name,
       ownerEmail: user.email,
+      ownerDeletedAt: user.deletedAt,
       synthSlug: synths.slug,
       synthDisplayName: synths.displayName,
       synthDeletedAt: synths.deletedAt,
@@ -188,6 +190,7 @@ export async function listPatchesForAdmin(db: Database): Promise<PatchAdminRow[]
     patch: row.patch,
     ownerName: row.ownerName,
     ownerEmail: row.ownerEmail,
+    ownerDeleted: row.ownerDeletedAt !== null,
     synth: { slug: row.synthSlug, displayName: row.synthDisplayName, deleted: row.synthDeletedAt !== null, currentRevision: row.currentRevision },
     synthRevision: row.synthRevision,
     hasSample: row.sampleAssetId !== null,

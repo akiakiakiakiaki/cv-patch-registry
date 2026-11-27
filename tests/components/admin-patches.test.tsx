@@ -9,7 +9,7 @@ import type { PatchGroup } from "@/lib/patches/patch-admin";
 const patch = (id: string, extra: Partial<PatchGroup["patches"][number]> = {}) => ({
   id,
   name: `Patch ${id}`,
-  owner: { name: "Ada", email: "ada@example.test" },
+  owner: { name: "Ada", email: "ada@example.test", deleted: false },
   visibility: "public",
   tagLabels: [],
   hasSample: false,
@@ -24,7 +24,7 @@ const groups: PatchGroup[] = [
   { synth: { slug: "behringer-proton", displayName: "Behringer Proton", deleted: false, currentRevision: 1 }, patches: [patch("legacy")] },
   {
     synth: { slug: "td3", displayName: "TD3", deleted: false, currentRevision: 22 },
-    patches: [patch("a", { tagLabels: ["Acid", "Bass"], hasSample: true }), patch("b", { synthRevision: 14, visibility: "private", owner: { name: "Bob", email: "bob@example.test" } })],
+    patches: [patch("a", { tagLabels: ["Acid", "Bass"], hasSample: true }), patch("b", { synthRevision: 14, visibility: "private", owner: { name: "Bob", email: "bob@example.test", deleted: false } })],
   },
 ];
 

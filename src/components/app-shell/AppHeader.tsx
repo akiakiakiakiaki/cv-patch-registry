@@ -8,6 +8,7 @@ import Typography from "@mui/material/Typography";
 import NextLink from "next/link";
 import { AccountLinks } from "@/components/account-links/AccountLinks";
 import { GuestPatchTransfer } from "@/components/guest-transfer/GuestPatchTransfer";
+import { WelcomeNotice } from "@/components/welcome/WelcomeNotice";
 import { AccountDisabledNotice } from "@/components/account-disabled/AccountDisabledNotice";
 import { InlineSvgAsset } from "@/components/inline-svg-asset/InlineSvgAsset";
 import { useI18n } from "@/i18n/provider";
@@ -123,6 +124,7 @@ export function AppHeader() {
         <AccountLinks />
         <GuestPatchTransfer />
         <AccountDisabledNotice />
+        <WelcomeNotice />
       </Stack>
     </Paper>
   );

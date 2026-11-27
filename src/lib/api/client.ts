@@ -107,6 +107,10 @@ export const api = {
         body: file,
       }),
   },
+  account: {
+    /** Asks for the own account to be deleted; deactivates it right away. 502 "mail-failed" changes nothing. */
+    requestDeletion: () => request<unknown>("/api/account/deletion-request", { method: "POST" }),
+  },
   admin: {
     setSynthApproval: (slug: string, approved: boolean) =>
       request<{ ok: true; approved: boolean }>(`/api/admin/synths/${segment(slug)}`, { method: "PATCH", json: { approved } }),
@@ -118,6 +122,8 @@ export const api = {
     /** One change per call: { active } | { emailVerified } | { role }; answers the applied change. */
     changeUser: <Change extends { active: boolean } | { emailVerified: boolean } | { role: "user" | "admin" }>(id: string, change: Change) =>
       request<Change>(`/api/admin/users/${segment(id)}`, { method: "PATCH", json: change }),
+    /** Deletes a deactivated account for good, after mailing the user their data; 502 "mail-failed" deletes nothing. */
+    deleteUser: (id: string) => request<unknown>(`/api/admin/users/${segment(id)}`, { method: "DELETE" }),
     /** The database part of a backup and where to fetch each file (see the backup admin section). */
     backupData: () => request<{ manifest: BackupManifest; tables: BackupTables; fileUrls: Record<string, string> }>("/api/admin/backup"),
     backupUploadTargets: (keys: readonly string[]) =>

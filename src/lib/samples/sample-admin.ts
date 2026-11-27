@@ -2,6 +2,7 @@ import type { Database } from "@/lib/db/client";
 import { isAdmin, type Actor } from "@/lib/domain/policy";
 import { listSamplesForAdmin } from "@/lib/repositories/samples-repository";
 import { storagePublicUrl } from "@/lib/storage";
+import type { Person } from "@/lib/users/person";
 
 /** One sample file in the admin's overview. */
 export interface SampleAdminItem {
@@ -10,10 +11,10 @@ export interface SampleAdminItem {
   byteSize: number;
   /** ISO date of the upload. */
   createdAt: string;
-  uploader: { name: string; email: string };
+  uploader: Person;
   /** Null when no patch uses the file anymore (e.g. its patch was deleted): it can potentially be removed. */
   sample: { title: string; license: string } | null;
-  patch: { id: string; name: string; visibility: string; ownerName: string } | null;
+  patch: { id: string; name: string; visibility: string; owner: Pick<Person, "name" | "deleted"> } | null;
 }
 
 /** Samples of one synth, or (synth null) the files no patch uses. */

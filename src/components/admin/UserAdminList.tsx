@@ -4,6 +4,7 @@ import { useState } from "react";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
+import IconButton from "@mui/material/IconButton";
 import MenuItem from "@mui/material/MenuItem";
 import Stack from "@mui/material/Stack";
 import Table from "@mui/material/Table";
@@ -13,7 +14,10 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
+import { useConfirmDialog } from "@/components/confirm-dialog/ConfirmDialog";
 import { SavingSpinner } from "@/components/admin/SavingSpinner";
 import { SavingSwitch } from "@/components/admin/SavingSwitch";
 import { useSavedValue } from "@/components/admin/use-saved-value";
@@ -23,15 +27,36 @@ import { formatTimestamp } from "@/lib/utils/date-format";
 import { useI18n } from "@/i18n/provider";
 
 type AssignableRole = "user" | "admin";
+type Message = { severity: "success" | "error"; text: string };
 
 /**
- * Every account with its role, email confirmation and active switch. What the viewing admin may change is decided
- * by the server (canManage, canChangeRole); the owner and the admin's own account are shown read-only.
+ * Every account with its role, email confirmation and active switch, and deleting a deactivated account for good.
+ * What the viewing admin may change is decided by the server (canManage, canChangeRole, canDeleteUser); the owner
+ * and the admin's own account are shown read-only.
  */
-export function UserAdminList({ items }: { items: readonly UserAdminItem[] }) {
+export function UserAdminList({ items: initialItems }: { items: readonly UserAdminItem[] }) {
   const { locale, t } = useI18n();
-  const [failed, setFailed] = useState<string | null>(null);
-  const fail = (name: string) => setFailed(t("admin.users.saveFailed", { name }));
+  const { confirm, dialog } = useConfirmDialog();
+  const [items, setItems] = useState(initialItems);
+  const [message, setMessage] = useState<Message | null>(null);
+  const fail = (name: string) => setMessage({ severity: "error", text: t("admin.users.saveFailed", { name }) });
+
+  async function deleteForGood(item: UserAdminItem) {
+    const confirmed = await confirm({
+      tone: "danger",
+      title: t("admin.users.deleteTitle"),
+      content: t("admin.users.deleteText", { name: item.name, email: item.email }),
+      confirmLabel: t("admin.users.delete"),
+    });
+    if (!confirmed) return;
+    const response = await api.admin.deleteUser(item.id);
+    if (!response.ok) {
+      const key = response.error === "mail-failed" ? "admin.users.deleteMailFailed" : "admin.users.deleteFailed";
+      return setMessage({ severity: "error", text: t(key, { name: item.name }) });
+    }
+    setItems((current) => current.filter((candidate) => candidate.id !== item.id));
+    setMessage({ severity: "success", text: t("admin.users.deleted", { name: item.name, email: item.email }) });
+  }
 
   return (
     <Stack spacing={2}>
@@ -43,9 +68,9 @@ export function UserAdminList({ items }: { items: readonly UserAdminItem[] }) {
           {t("admin.users.intro")}
         </Typography>
       </div>
-      {failed ? (
-        <Alert severity="error" onClose={() => setFailed(null)}>
-          {failed}
+      {message ? (
+        <Alert severity={message.severity} onClose={() => setMessage(null)}>
+          {message.text}
         </Alert>
       ) : null}
       <TableContainer>
@@ -57,6 +82,7 @@ export function UserAdminList({ items }: { items: readonly UserAdminItem[] }) {
               <TableCell>{t("admin.users.emailVerified")}</TableCell>
               <TableCell>{t("admin.users.active")}</TableCell>
               <TableCell>{t("admin.users.registered")}</TableCell>
+              <TableCell align="right">{t("admin.users.actions")}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -98,15 +124,35 @@ export function UserAdminList({ items }: { items: readonly UserAdminItem[] }) {
                       const response = await api.admin.changeUser(item.id, { active: next });
                       return response.ok ? response.data.active : null;
                     }}
+                    onSaved={(active) => setItems((current) => current.map((row) => (row.id === item.id ? { ...row, active } : row)))}
                     onError={() => fail(item.name)}
                   />
                 </TableCell>
                 <TableCell>{formatTimestamp(item.createdAt, locale)}</TableCell>
+                <TableCell align="right">
+                  {item.canManage ? (
+                    <Tooltip title={item.active ? t("admin.users.deleteHint") : ""}>
+                      {/* A span keeps the tooltip working while the button is disabled. */}
+                      <span>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          disabled={item.active}
+                          aria-label={t("admin.users.deleteAria", { name: item.name })}
+                          onClick={() => void deleteForGood(item)}
+                        >
+                          <DeleteForeverIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  ) : null}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </TableContainer>
+      {dialog}
     </Stack>
   );
 }

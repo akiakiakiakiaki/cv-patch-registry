@@ -16,16 +16,17 @@ describe("password reset", () => {
   it("mails a reset link, sets the new password and invalidates the old one", async () => {
     const { getAuth } = await import("@/lib/auth");
     const { ensureDatabase, getDatabase } = await import("@/lib/db/client");
-    const { ConsoleMailSender } = await import("@/lib/auth/mail-sender");
+    const { ConsoleMailProvider } = await import("@/lib/mail/providers/console-mail-provider");
     await ensureDatabase(getDatabase());
     const auth = getAuth();
     await auth.api.signUpEmail({ body: { name: "Reset", email: EMAIL, password: PASSWORD } });
 
-    const send = vi.spyOn(ConsoleMailSender.prototype, "send").mockResolvedValue(undefined);
+    const send = vi.spyOn(ConsoleMailProvider.prototype, "send").mockResolvedValue(undefined);
     await auth.api.requestPasswordReset({ body: { email: EMAIL, redirectTo: "/reset-password" } });
     await vi.waitFor(() => expect(send).toHaveBeenCalled());
     const mail = send.mock.calls[0]![0];
-    expect(mail.to).toBe(EMAIL);
+    expect(mail.to.email).toBe(EMAIL);
+    expect(mail.subject).toBe("Reset your password");
     const link = mail.text.match(/https?:\/\/\S+/)?.[0];
     expect(link).toBeTruthy();
 

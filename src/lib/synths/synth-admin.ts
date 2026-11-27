@@ -12,6 +12,7 @@ import {
   setSynthApproval,
 } from "@/lib/repositories/synths-repository";
 import type { StorageProvider } from "@/lib/storage/storage-provider";
+import type { Person } from "@/lib/users/person";
 
 /** One synth in the admin's synth management list. */
 export interface SynthAdminItem {
@@ -19,7 +20,7 @@ export interface SynthAdminItem {
   displayName: string;
   manufacturer: string | null;
   /** Null for built-in synths. */
-  owner: { name: string; email: string } | null;
+  owner: Person | null;
   approved: boolean;
   /** Soft-deleted: hidden everywhere, restorable, or removable for good. */
   deleted: boolean;
@@ -45,7 +46,7 @@ export async function listSynthsForAdminArea(db: Database, actor: Actor | null):
       slug: row.slug,
       displayName: row.displayName,
       manufacturer: row.manufacturer,
-      owner: row.ownerId && row.ownerEmail ? { name: row.ownerName ?? "", email: row.ownerEmail } : null,
+      owner: row.ownerId && row.ownerEmail ? { name: row.ownerName ?? "", email: row.ownerEmail, deleted: row.ownerDeleted } : null,
       approved: row.approvedAt !== null,
       deleted: row.deletedAt !== null,
       createdAt: row.createdAt.toISOString(),

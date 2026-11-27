@@ -57,6 +57,13 @@
       "when": 1795797398242,
       "tag": "0007_user-management",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795816341066,
+      "tag": "0008_user-deletion",
+      "breakpoints": true
     }
   ]
 }

@@ -233,3 +233,26 @@ describe("synth management over HTTP", () => {
     expect((await route.DELETE(request("DELETE"), context)).status).toBe(404);
   });
 });
+
+describe("creating a synth notifies admins", () => {
+  it("mails every admin, and still creates the synth when the mail fails", async () => {
+    const { ConsoleMailProvider } = await import("@/lib/mail/providers/console-mail-provider");
+    const { getDatabase } = await import("@/lib/db/client");
+    const { user } = await import("@/lib/db/schema");
+    await getDatabase().db.insert(user).values({ id: admin.id, name: "Admin", email: `${admin.id}@example.test`, emailVerified: true, role: "admin" }).onConflictDoNothing();
+    const send = vi.spyOn(ConsoleMailProvider.prototype, "send").mockRejectedValueOnce(new Error("down"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    session.user = owner;
+    const created = await (await synthsRoute()).POST(
+      jsonRequest("POST", { displayName: "Mailed Synth", slug: "mailed-synth", panelAssetId: await uploadPanel(), controls: [] }),
+    );
+    expect(created.status).toBe(201);
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ to: expect.objectContaining({ email: `${admin.id}@example.test` }), subject: "New synth awaits approval: Mailed Synth" }),
+      expect.anything(),
+    );
+    expect(send.mock.calls[0]![0].text).toContain("http://localhost/admin/synths");
+    vi.restoreAllMocks();
+  });
+});
+

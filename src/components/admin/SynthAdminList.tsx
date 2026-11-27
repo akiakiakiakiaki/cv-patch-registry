@@ -24,6 +24,7 @@ import { KEPT_RECENT_REVISIONS } from "@/lib/domain/synth-revisions";
 import type { SynthAdminItem } from "@/lib/synths/synth-admin";
 import { formatTimestamp } from "@/lib/utils/date-format";
 import { useI18n } from "@/i18n/provider";
+import { PersonCell } from "@/components/admin/PersonCell";
 import { synthName } from "@/lib/synths/synth-name";
 
 type Message = { severity: "success" | "error"; text: string };
@@ -128,12 +129,7 @@ export function SynthAdminList({ items: initialItems }: { items: readonly SynthA
                   </TableCell>
                   <TableCell>
                     {item.owner ? (
-                      <>
-                        {item.owner.name}
-                        <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                          {item.owner.email}
-                        </Typography>
-                      </>
+                      <PersonCell person={item.owner} />
                     ) : (
                       t("admin.synths.builtIn")
                     )}

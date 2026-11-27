@@ -53,6 +53,14 @@ export function canManageUser(actor: Actor | null, target: { id: string; role: s
   return actor.role === "owner" || target.role === "user";
 }
 
+/**
+ * Deleting an account for good: for accounts the admin may manage, and only once deactivated (two steps, so
+ * nothing disappears with one click).
+ */
+export function canDeleteUser(actor: Actor | null, target: { id: string; role: string; disabledAt: Date | null }): boolean {
+  return canManageUser(actor, target) && target.disabledAt !== null;
+}
+
 /** Only the owner changes roles, between user and admin, of other accounts. */
 export function canChangeRole(actor: Actor | null, target: { id: string; role: string }): boolean {
   return actor?.role === "owner" && target.id !== actor.id && target.role !== "owner";

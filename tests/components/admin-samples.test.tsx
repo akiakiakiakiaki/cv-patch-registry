@@ -11,15 +11,15 @@ const file = (id: string, extra: Partial<SampleGroup["samples"][number]> = {}) =
   url: `/assets/uploads/${id}.mp3`,
   byteSize: 1_572_864,
   createdAt: "2026-11-27T10:00:00.000Z",
-  uploader: { name: "Ada", email: "ada@example.test" },
+  uploader: { name: "Ada", email: "ada@example.test", deleted: false },
   sample: { title: `Take ${id}`, license: "CC0" },
-  patch: { id: `patch-${id}`, name: `Patch ${id}`, visibility: "public", ownerName: "Ada" },
+  patch: { id: `patch-${id}`, name: `Patch ${id}`, visibility: "public", owner: { name: "Ada", deleted: false } },
   ...extra,
 });
 
 const groups: SampleGroup[] = [
   { synth: null, samples: [file("orphan", { sample: null, patch: null })] },
-  { synth: { slug: "td3", displayName: "TD3", deleted: false }, samples: [file("a"), file("b", { patch: { id: "patch-b", name: "Patch b", visibility: "private", ownerName: "Bob" } })] },
+  { synth: { slug: "td3", displayName: "TD3", deleted: false }, samples: [file("a"), file("b", { patch: { id: "patch-b", name: "Patch b", visibility: "private", owner: { name: "Bob", deleted: false } } })] },
 ];
 
 function renderList(list: SampleGroup[] = groups) {

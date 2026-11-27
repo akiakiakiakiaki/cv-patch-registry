@@ -20,6 +20,7 @@ import NextLink from "next/link";
 import type { PatchAdminItem, PatchGroup } from "@/lib/patches/patch-admin";
 import { synthName } from "@/lib/synths/synth-name";
 import { formatTimestamp } from "@/lib/utils/date-format";
+import { PersonCell } from "@/components/admin/PersonCell";
 import { useI18n } from "@/i18n/provider";
 
 /** Every patch, private ones included, grouped by synth in collapsible sections. Read-only for now. */
@@ -94,10 +95,7 @@ function PatchTable({ group }: { group: PatchGroup }) {
                 ) : null}
               </TableCell>
               <TableCell>
-                {item.owner.name}
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                  {item.owner.email}
-                </Typography>
+                <PersonCell person={item.owner} />
               </TableCell>
               <TableCell>{item.visibility === "public" ? t("admin.samples.public") : t("admin.samples.private")}</TableCell>
               <TableCell>

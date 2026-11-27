@@ -73,6 +73,39 @@ describe("user management list", () => {
     expect(within(rowOf("ada")).getByText("Admin")).toBeInTheDocument();
   });
 
+  it("deletes an account for good only once it is deactivated, after confirming", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+      init?.method === "DELETE" ? new Response(null, { status: 204 }) : json(JSON.parse(String(init?.body))),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderList();
+    expect(within(rowOf("me")).queryByRole("button", { name: /Delete the account/ })).not.toBeInTheDocument();
+    const remove = within(rowOf("uwe")).getByRole("button", { name: "Delete the account of Uwe for good" });
+    expect(remove).toBeDisabled();
+
+    await user.click(screen.getByRole("switch", { name: "Uwe active (off: deactivated)" }));
+    await waitFor(() => expect(remove).toBeEnabled());
+    await user.click(remove);
+    const dialog = await screen.findByRole("dialog", { name: "Delete account for good?" });
+    expect(dialog).toHaveTextContent("Uwe (uwe@example.test) first gets an email with all stored data");
+    await user.click(within(dialog).getByRole("button", { name: "Delete for good" }));
+
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/admin/users/uwe", expect.objectContaining({ method: "DELETE" }));
+    expect(await screen.findByText("The account of Uwe has been deleted. Its data was emailed to uwe@example.test.")).toBeInTheDocument();
+    expect(screen.getAllByRole("row").some((row) => row.getAttribute("data-user") === "uwe")).toBe(false);
+  });
+
+  it("keeps the account and says why when the data mail could not be sent", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", vi.fn(async () => json({ error: "mail-failed" }, 502)));
+    renderList(items.map((item) => (item.id === "uwe" ? { ...item, active: false } : item)));
+    await user.click(within(rowOf("uwe")).getByRole("button", { name: "Delete the account of Uwe for good" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Delete for good" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("could not be sent to Uwe, so nothing has been deleted");
+    expect(rowOf("uwe")).toBeInTheDocument();
+  });
+
   it("has no axe violations", async () => {
     const { container } = renderList();
     expect(await axe(container)).toHaveNoViolations();

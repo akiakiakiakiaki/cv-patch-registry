@@ -3,6 +3,7 @@ import { and, desc, eq, isNull, notInArray, or, sql, type SQL } from "drizzle-or
 import { hiddenSynthSlugs } from "@/lib/synths/legacy-visibility";
 import type { Database } from "@/lib/db/client";
 import { assets, patchSamples, patches, synthRevisions, synths, user } from "@/lib/db/schema";
+import type { Person } from "@/lib/users/person";
 
 export type SampleRow = typeof patchSamples.$inferSelect;
 
@@ -36,10 +37,10 @@ export interface SampleAdminRow {
   storageKey: string;
   byteSize: number;
   createdAt: Date;
-  uploader: { name: string; email: string };
+  uploader: Person;
   /** Title and license, from the patch it belongs to; null for a file no patch uses. */
   sample: { title: string; license: string } | null;
-  patch: { id: string; name: string; visibility: string; ownerName: string } | null;
+  patch: { id: string; name: string; visibility: string; owner: Pick<Person, "name" | "deleted"> } | null;
   synth: { slug: string; displayName: string; deleted: boolean } | null;
 }
 
@@ -55,9 +56,11 @@ export async function listSamplesForAdmin(db: Database): Promise<SampleAdminRow[
       asset: assets,
       uploaderName: uploader.name,
       uploaderEmail: uploader.email,
+      uploaderDeletedAt: uploader.deletedAt,
       link: patchSamples,
       patch: patches,
       patchOwnerName: patchOwner.name,
+      patchOwnerDeletedAt: patchOwner.deletedAt,
       synth: synths,
     })
     .from(assets)
@@ -74,9 +77,11 @@ export async function listSamplesForAdmin(db: Database): Promise<SampleAdminRow[
     storageKey: row.asset.storageKey,
     byteSize: row.asset.byteSize,
     createdAt: row.asset.createdAt,
-    uploader: { name: row.uploaderName, email: row.uploaderEmail },
+    uploader: { name: row.uploaderName, email: row.uploaderEmail, deleted: row.uploaderDeletedAt !== null },
     sample: row.link ? { title: row.link.title, license: row.link.license } : null,
-    patch: row.patch ? { id: row.patch.id, name: row.patch.name, visibility: row.patch.visibility, ownerName: row.patchOwnerName ?? "" } : null,
+    patch: row.patch
+      ? { id: row.patch.id, name: row.patch.name, visibility: row.patch.visibility, owner: { name: row.patchOwnerName ?? "", deleted: row.patchOwnerDeletedAt !== null } }
+      : null,
     synth: row.synth ? { slug: row.synth.slug, displayName: row.synth.displayName, deleted: row.synth.deletedAt !== null } : null,
   }));
 }

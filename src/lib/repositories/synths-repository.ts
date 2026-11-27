@@ -49,6 +49,7 @@ export async function listSynthRows(db: Database, viewer: Actor | null): Promise
 export type SynthAdminRow = SynthRow & {
   ownerName: string | null;
   ownerEmail: string | null;
+  ownerDeleted: boolean;
   patchCount: number;
   patchOwnerCount: number;
   /** Revisions stored for the synth (numbers keep their gaps after "reduce revisions"). */
@@ -78,6 +79,7 @@ export async function listSynthsForAdmin(db: Database): Promise<SynthAdminRow[]>
       synth: synths,
       ownerName: user.name,
       ownerEmail: user.email,
+      ownerDeletedAt: user.deletedAt,
       patchCount: usage.patchCount,
       patchOwnerCount: usage.patchOwnerCount,
       storedRevisions: stored.count,
@@ -92,6 +94,7 @@ export async function listSynthsForAdmin(db: Database): Promise<SynthAdminRow[]>
     ...row.synth,
     ownerName: row.ownerName,
     ownerEmail: row.ownerEmail,
+    ownerDeleted: row.ownerDeletedAt !== null,
     patchCount: row.patchCount ?? 0,
     patchOwnerCount: row.patchOwnerCount ?? 0,
     storedRevisions: row.storedRevisions ?? 0,

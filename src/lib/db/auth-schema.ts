@@ -15,6 +15,11 @@ export const user = pgTable(
     role: text("role").$type<MemberRole>().notNull().default("user"),
     /** Set when an admin deactivates the account: it can no longer sign in. */
     disabledAt: timestamp("disabledAt"),
+    /**
+     * Set when an admin deleted the account for good. What others still use (public patches, synths) keeps
+     * pointing at this row; everything personal in it is cleared (see deleteUserForGood).
+     */
+    deletedAt: timestamp("deletedAt"),
     createdAt: timestamp("createdAt").notNull().defaultNow(),
     updatedAt: timestamp("updatedAt").notNull().defaultNow(),
   },

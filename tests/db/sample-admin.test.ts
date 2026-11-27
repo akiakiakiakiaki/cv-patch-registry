@@ -40,7 +40,7 @@ describe("sample overview", () => {
     expect(groups).toHaveLength(1);
     expect(groups![0]!.synth).toMatchObject({ slug: behringerProton.id, deleted: false });
     const bass = groups![0]!.samples.find((sample) => sample.sample?.title === "Bass take");
-    expect(bass).toMatchObject({ sample: { license: "CC0" }, patch: { name: "Ada's bass", ownerName: "Ada", visibility: "public" }, uploader: { name: "Ada" } });
+    expect(bass).toMatchObject({ sample: { license: "CC0" }, patch: { name: "Ada's bass", owner: { name: "Ada", deleted: false }, visibility: "public" }, uploader: { name: "Ada" } });
     expect(bass?.url).toMatch(/11111111-1111-4111-8111-111111111111\.mp3$/);
     env.cleanup();
   });

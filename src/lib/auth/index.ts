@@ -4,12 +4,19 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { getDatabase } from "../db/client";
 import * as authSchema from "../db/auth-schema";
-import { getMailSender } from "./mail-sender";
+import { resolveLocale } from "../../i18n/config";
+import { getMailer } from "../mail/mailer";
+import { emailVerificationMail, passwordResetMail } from "../mail/mail-templates";
 import { findUserById } from "../repositories/users-repository";
 import { MEMBER_ROLES } from "./roles";
 
 /** Error code of a sign-in refused because an admin deactivated the account. */
 export const ACCOUNT_DISABLED = "ACCOUNT_DISABLED";
+
+/** Mails go out in the language of the browser that asked for them. */
+function localeOf(request: Request | undefined) {
+  return resolveLocale({ acceptLanguage: request?.headers.get("accept-language") });
+}
 
 /** What a deactivated account may still do: learn about its state, and sign out. */
 const ALLOWED_WHEN_DISABLED = new Set(["/get-session", "/sign-out"]);
@@ -47,27 +54,20 @@ function createAuth() {
       minPasswordLength: 8,
       requireEmailVerification,
       revokeSessionsOnPasswordReset: true,
-      sendResetPassword: async ({ user, url }) => {
-        await getMailSender().send({
-          to: user.email,
-          subject: "Passwort zurücksetzen",
-          text: `Setze dein Passwort über diesen Link zurück (gültig für 1 Stunde): ${url}`,
-        });
+      sendResetPassword: async ({ user, url }, request) => {
+        await getMailer().send({ email: user.email, name: user.name }, passwordResetMail(localeOf(request), url));
       },
     },
     emailVerification: {
       sendOnSignUp: requireEmailVerification,
       sendOnSignIn: requireEmailVerification,
       autoSignInAfterVerification: true,
-      sendVerificationEmail: async ({ user, url }) => {
-        await getMailSender().send({
-          to: user.email,
-          subject: "Bitte bestätige deine E-Mail-Adresse",
-          text: `Bestätige deine E-Mail-Adresse: ${url}`,
-        });
+      sendVerificationEmail: async ({ user, url }, request) => {
+        await getMailer().send({ email: user.email, name: user.name }, emailVerificationMail(localeOf(request), url));
       },
     },
-    rateLimit: { enabled: true },
+    // Matches the countdown of "send again" in VerificationSent, with room for one retry.
+    rateLimit: { enabled: true, customRules: { "/send-verification-email": { window: 60, max: 2 } } },
     hooks: {
       // A deactivated account keeps its session (so the app can tell it why), but may not use it for anything else.
       before: createAuthMiddleware(async (ctx) => {
