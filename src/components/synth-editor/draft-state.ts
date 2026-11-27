@@ -39,6 +39,20 @@ export function addControl(
   return [...controls, control];
 }
 
+/**
+ * Adds a copy of `source` at `position` with a new ID: same kind, label, style, color, category and switch role.
+ * `source` may be a control that no longer exists (copied before it was removed).
+ */
+export function copyControl(
+  controls: readonly EditorControl[],
+  source: EditorControl,
+  position: { x: number; y: number },
+  bounds: PanelBounds,
+  id = generateControlId(source.kind),
+): EditorControl[] {
+  return [...controls, { ...source, id, ...clampToPanel(position, bounds) }];
+}
+
 /** Renaming and moving never change the control ID. */
 export function updateControl(
   controls: readonly EditorControl[],

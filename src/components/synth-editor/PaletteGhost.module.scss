@@ -1,0 +1,73 @@
+@use "sass:math";
+@use "../instrument-panel/motion";
+
+/* Behavior previews of the palette: each control shows what it does on the panel, in a slow loop. */
+
+/* Length of one loop; the slide switch's move itself takes exactly as long as on the panel. */
+$loop: 1600ms;
+$move: math.percentage(math.div(motion.$slide-duration, $loop));
+
+/* Visible body for controls that are transparent on the panel (the panel image draws them there). */
+.body {
+  fill: var(--color-switch-fill);
+  stroke: var(--color-switch-stroke);
+  stroke-width: var(--active-control-stroke-width);
+  vector-effect: non-scaling-stroke;
+}
+
+/* Knob: the indicator turns through the knob's sweep and back. Origin is the knob center (0, 0). */
+.turn {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  animation: turn 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes turn {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(var(--sweep));
+  }
+}
+
+/* Switch and LED: the "on" look shows every other second. */
+.blink {
+  animation: blink 1.6s steps(1, end) infinite;
+}
+
+@keyframes blink {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Slide switch: the thumb rests off (left), moves on (right), rests and moves back. */
+.slide {
+  animation: slide $loop motion.$slide-easing infinite;
+}
+
+@keyframes slide {
+  0%,
+  #{50% - $move} {
+    transform: translateX(0);
+  }
+  50%,
+  #{100% - $move} {
+    transform: translateX(var(--travel));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn,
+  .blink,
+  .slide {
+    animation: none;
+  }
+}

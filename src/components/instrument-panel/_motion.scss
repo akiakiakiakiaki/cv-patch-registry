@@ -1,0 +1,5 @@
+/* Motion shared by the panel and the palette preview, so a control moves the same way in both. */
+
+/* A slide switch's thumb travelling between off and on. */
+$slide-duration: 320ms;
+$slide-easing: ease-in-out;

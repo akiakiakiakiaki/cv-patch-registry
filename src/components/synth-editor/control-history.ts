@@ -38,10 +38,19 @@ export function redoStep<T>(history: History<T>, current: T): { history: History
   return { value, history: { past: [...history.past, current], future: rest } };
 }
 
-/** Cmd/Ctrl+Z undoes, Cmd/Ctrl+Shift+Z redoes; text fields keep their own undo. */
-export function historyShortcut(event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "shiftKey" | "altKey" | "target">): "undo" | "redo" | null {
-  if (!(event.metaKey || event.ctrlKey) || event.altKey || event.key.toLowerCase() !== "z") return null;
+export type EditorShortcut = "undo" | "redo" | "copy" | "paste";
+
+/**
+ * Editor shortcuts: Cmd/Ctrl+Z undoes, Cmd/Ctrl+Shift+Z redoes, Cmd/Ctrl+C copies and Cmd/Ctrl+V pastes the
+ * focused control. Text fields keep their own undo, copy and paste, and so does selected text on the page.
+ */
+export function editorShortcut(event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "shiftKey" | "altKey" | "target">): EditorShortcut | null {
+  if (!(event.metaKey || event.ctrlKey) || event.altKey) return null;
+  const key = event.key.toLowerCase();
+  const action: EditorShortcut | null = key === "z" ? (event.shiftKey ? "redo" : "undo") : event.shiftKey ? null : key === "c" ? "copy" : key === "v" ? "paste" : null;
+  if (!action) return null;
   const target = event.target;
   if (target instanceof HTMLElement && (target.isContentEditable || target.closest("input, textarea, select, [contenteditable='true']"))) return null;
-  return event.shiftKey ? "redo" : "undo";
+  if (action === "copy" && target instanceof Node && Boolean(target.ownerDocument?.getSelection()?.toString())) return null;
+  return action;
 }

@@ -33,6 +33,8 @@ export interface AppDialogProps {
   describedByContent?: boolean;
   /** Makes the dialog a form; a submit button in `actions` sends it. */
   onSubmit?: (event: FormEvent<HTMLFormElement>) => void;
+  /** Default true. False keeps the dialog modal but leaves the page behind it undimmed, e.g. while picking a color from it. */
+  dimBackground?: boolean;
 }
 
 /** The app's one dialog frame: title, content and buttons in the same layout everywhere. */
@@ -46,6 +48,7 @@ export function AppDialog({
   actions,
   maxWidth = "sm",
   closeButton = false,
+  dimBackground = true,
   describedByContent = false,
   onSubmit,
 }: AppDialogProps) {
@@ -85,6 +88,7 @@ export function AppDialog({
       aria-describedby={describedByContent ? contentId : undefined}
       maxWidth={maxWidth}
       fullWidth
+      slotProps={{ backdrop: { invisible: !dimBackground } }}
     >
       {onSubmit ? (
         <Box component="form" onSubmit={onSubmit}>

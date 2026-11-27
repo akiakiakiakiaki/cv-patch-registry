@@ -24,6 +24,16 @@ export function eventPoint(
   return { x: localPoint.x, y: localPoint.y };
 }
 
+/** The pointer's position in panel units, or null when it is outside the panel. */
+export function panelPointOf(
+  svg: SVGSVGElement,
+  event: { clientX: number; clientY: number },
+  panel: { width: number; height: number },
+): Point | null {
+  const point = eventPoint(svg, event);
+  return point.x >= 0 && point.x <= panel.width && point.y >= 0 && point.y <= panel.height ? point : null;
+}
+
 export function handleKeyboardToggle(
   event: KeyboardEvent<SVGElement>,
   toggle: () => void,

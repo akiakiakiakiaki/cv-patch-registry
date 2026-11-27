@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
-import { eventPoint } from "@/components/instrument-panel/utils";
+import { panelPointOf } from "@/components/instrument-panel/utils";
 import type { PaletteItem } from "@/components/synth-editor/palette";
 import type { Point } from "@/lib/instrument/layout";
 
@@ -24,13 +24,7 @@ export function usePaletteDrag(
 
   useEffect(() => {
     if (!dragItem) return;
-    const locate = (event: PointerEvent): Point | null => {
-      const svg = panelRef.current;
-      if (!svg) return null;
-      const point = eventPoint(svg, event);
-      const inside = point.x >= 0 && point.x <= panel.width && point.y >= 0 && point.y <= panel.height;
-      return inside ? point : null;
-    };
+    const locate = (event: PointerEvent): Point | null => (panelRef.current ? panelPointOf(panelRef.current, event, panel) : null);
     const stop = () => {
       setDragItem(null);
       setPreview(null);

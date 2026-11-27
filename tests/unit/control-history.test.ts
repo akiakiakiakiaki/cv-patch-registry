@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COALESCE_MS, emptyHistory, historyShortcut, recordChange, redoStep, undoStep } from "@/components/synth-editor/control-history";
+import { COALESCE_MS, emptyHistory, editorShortcut, recordChange, redoStep, undoStep } from "@/components/synth-editor/control-history";
 
 describe("control history", () => {
   it("undoes and redoes recorded steps in order", () => {
@@ -32,9 +32,9 @@ describe("control history", () => {
   });
 });
 
-describe("historyShortcut", () => {
+describe("editorShortcut", () => {
   const key = (init: Partial<KeyboardEvent> & { target?: EventTarget | null }) =>
-    historyShortcut({ key: "z", metaKey: false, ctrlKey: false, shiftKey: false, altKey: false, target: document.body, ...init });
+    editorShortcut({ key: "z", metaKey: false, ctrlKey: false, shiftKey: false, altKey: false, target: document.body, ...init });
 
   it("maps Cmd/Ctrl+Z to undo and Cmd/Ctrl+Shift+Z to redo", () => {
     expect(key({ ctrlKey: true })).toBe("undo");
@@ -48,11 +48,31 @@ describe("historyShortcut", () => {
     expect(key({ ctrlKey: true, altKey: true })).toBeNull();
   });
 
+  it("maps Cmd/Ctrl+C to copy and Cmd/Ctrl+V to paste, not with Shift", () => {
+    expect(key({ metaKey: true, key: "c" })).toBe("copy");
+    expect(key({ ctrlKey: true, key: "V" })).toBe("paste");
+    expect(key({ metaKey: true, shiftKey: true, key: "c" })).toBeNull();
+    expect(key({ key: "c" })).toBeNull();
+  });
+
+  it("leaves copying selected text on the page to the browser", () => {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = "Some text";
+    document.body.append(paragraph);
+    document.getSelection()!.selectAllChildren(paragraph);
+    expect(key({ metaKey: true, key: "c", target: paragraph })).toBeNull();
+    expect(key({ metaKey: true, key: "v", target: paragraph })).toBe("paste");
+    document.getSelection()!.removeAllRanges();
+    paragraph.remove();
+  });
+
   it("leaves text fields their own undo", () => {
     const input = document.createElement("input");
     const editable = document.createElement("div");
     editable.setAttribute("contenteditable", "true");
     expect(key({ ctrlKey: true, target: input })).toBeNull();
+    expect(key({ ctrlKey: true, key: "c", target: input })).toBeNull();
+    expect(key({ ctrlKey: true, key: "v", target: input })).toBeNull();
     expect(key({ ctrlKey: true, target: editable })).toBeNull();
   });
 });

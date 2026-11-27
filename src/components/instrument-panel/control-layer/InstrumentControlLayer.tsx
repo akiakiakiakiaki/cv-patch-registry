@@ -16,7 +16,8 @@ import { handleKeyboardToggle } from "../utils";
 import { useI18n } from "@/i18n/provider";
 import { cx } from "@/lib/utils/class-names";
 import { categoryScale, roundFactor, scaleRect, switchRect } from "@/lib/instrument/geometry";
-import { PlacementPreview, slideThumb, type ControlPreview } from "./PlacementPreview";
+import type { InstrumentSwitchState } from "@/lib/instruments/types";
+import { PlacementPreview, slideThumb, slideTravel, type ControlPreview } from "./PlacementPreview";
 import {
   DEFAULT_KNOB_VALUE,
   KNOB_VALUE_MAX,
@@ -112,7 +113,7 @@ export function InstrumentControlLayer({
             Math.PI) /
           180;
         // A category may scale its knobs; they stay round.
-        const size = roundFactor(categoryScale(layout.categories, knob.category));
+        const size = roundScale(layout, knob.category);
         const indicatorLength = layout.geometry.knob.indicatorLength * size;
         return (
           <g key={knob.id}>
@@ -173,10 +174,7 @@ export function InstrumentControlLayer({
         const rect = scaleRect(switchRect(layout.geometry.switch, control.style), categoryScale(layout.categories, control.category));
         const slide = control.style === "slide";
         const on = state.active && !layoutEditMode;
-        // A category's color takes precedence over the switch's fixed color.
-        const colorClass = state.categoryId ? cx(styles.toggleCategory, categoryClass(state.categoryId)) : state.color === "red" ? styles.toggleRed : styles.toggleBlue;
-        // The slide switch's frame takes the same color as its thumb; the track itself stays neutral.
-        const trackColorClass = state.categoryId ? cx(styles.slideTrackCategory, categoryClass(state.categoryId)) : state.color === "red" ? styles.slideTrackRed : null;
+        const { fill: colorClass, frame: trackColorClass } = switchColorClasses(state);
         const hitArea = (
           <InstrumentHitArea
             key={control.id}
@@ -221,7 +219,9 @@ export function InstrumentControlLayer({
               pointerEvents="none"
               // Always filled in the switch's color; only its position tells off from on.
               className={cx(styles.slideThumb, colorClass, styles.active)}
-              {...slideThumb(control, rect, on)}
+              {...slideThumb(control, rect)}
+              // Glides to the right when on, with the same motion as the palette preview.
+              style={{ transform: `translateX(${on ? slideTravel(rect) : 0}px)` }}
             />
           </g>
         );
@@ -238,7 +238,7 @@ export function InstrumentControlLayer({
             shape={layout.geometry.led.shape}
             x={led.x}
             y={led.y}
-            radius={layout.geometry.led.hitRadius * roundFactor(categoryScale(layout.categories, led.category))}
+            radius={layout.geometry.led.hitRadius * roundScale(layout, led.category)}
             tabIndex={0}
             role="checkbox"
             layoutElement={{ kind: "led", id: led.id }}
@@ -304,3 +304,21 @@ export function InstrumentControlLayer({
     </>
   );
 }
+
+/**
+ * Color classes of a switch from one decision: its category, else its fixed red or blue. `fill` colors a push
+ * button or a slide switch's thumb; `frame` the slide switch's track border (blue keeps the neutral frame).
+ */
+function switchColorClasses(state: InstrumentSwitchState): { fill: string | undefined; frame: string | undefined } {
+  if (state.categoryId) {
+    const category = categoryClass(state.categoryId);
+    return { fill: cx(styles.toggleCategory, category), frame: cx(styles.slideTrackCategory, category) };
+  }
+  return state.color === "red" ? { fill: styles.toggleRed, frame: styles.slideTrackRed } : { fill: styles.toggleBlue, frame: undefined };
+}
+
+/** Size factor of a round control (knob, LED) from its category; round controls use the smaller factor. */
+function roundScale(layout: InstrumentLayout, categoryId: string | undefined): number {
+  return roundFactor(categoryScale(layout.categories, categoryId));
+}
+

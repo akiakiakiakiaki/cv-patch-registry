@@ -15,12 +15,36 @@ export interface ControlPreview {
 /** Inner gap between a slide switch's track and its thumb, in panel units. */
 const SLIDE_INSET = 3;
 
-/** The thumb of a slide switch: the left half when off, the right half when on. */
-export function slideThumb(point: Point, track: { width: number; height: number; cornerRadius: number }, on: boolean) {
+/**
+ * The thumb of a slide switch in its off position (left half). "On" moves it by slideTravel to the right half;
+ * panel and palette preview both move it there with the same CSS motion (see _motion.scss).
+ */
+export function slideThumb(point: Point, track: { width: number; height: number; cornerRadius: number }) {
   const width = track.width / 2 - SLIDE_INSET * 2;
   const height = track.height - SLIDE_INSET * 2;
-  const left = point.x - track.width / 2 + SLIDE_INSET + (on ? track.width / 2 : 0);
+  const left = point.x - track.width / 2 + SLIDE_INSET;
   return { x: left, y: point.y - height / 2, width, height, rx: Math.max(0, track.cornerRadius - SLIDE_INSET) };
+}
+
+/** How far the thumb moves from off to on, in panel units: half the track. */
+export function slideTravel(track: { width: number }): number {
+  return track.width / 2;
+}
+
+/** Half width and half height the preview of a control needs around its center, in panel units. */
+export function controlExtent({ kind, style }: Omit<ControlPreview, "point">, layout: InstrumentLayout): { x: number; y: number } {
+  const { geometry } = layout;
+  if (kind === "knob") {
+    // The indicator line may reach beyond the knob's circle.
+    const reach = Math.max(geometry.knob.hitRadius, geometry.knob.indicatorLength);
+    return { x: reach, y: reach };
+  }
+  if (kind === "switch") {
+    const rect = switchRect(geometry.switch, style);
+    return { x: rect.width / 2, y: rect.height / 2 };
+  }
+  const radius = kind === "led" ? geometry.led.hitRadius : geometry.port.hitRadius;
+  return { x: radius, y: radius };
 }
 
 /** Semi-transparent outline of a control, drawn like the placed control but without interaction. */
@@ -60,7 +84,7 @@ export function PlacementPreview({ kind, style, point, layout }: ControlPreview 
     return (
       <g aria-hidden="true" opacity={0.7} pointerEvents="none">
         {track}
-        {style === "slide" ? <rect className={cx(styles.slideThumb, styles.toggleBlue, styles.active)} {...slideThumb(point, rect, false)} /> : null}
+        {style === "slide" ? <rect className={cx(styles.slideThumb, styles.toggleBlue, styles.active)} {...slideThumb(point, rect)} /> : null}
       </g>
     );
   }

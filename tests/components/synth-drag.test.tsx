@@ -61,3 +61,26 @@ describe("dragging newly placed controls", () => {
     expect(Number((screen.getByRole("spinbutton", { name: "X" }) as HTMLInputElement).value)).toBeGreaterThan(400);
   });
 });
+
+describe("position fields", () => {
+  it("keep the control in place while a new position is typed", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
+    render(
+      <I18nProvider locale="en">
+        <SynthLayoutEditor source={source} onSaved={vi.fn()} onClose={vi.fn()} onDeleted={vi.fn()} />
+      </I18nProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add Knob" }));
+    const x = screen.getByRole("spinbutton", { name: "X" });
+    const start = (x as HTMLInputElement).value;
+    // Clearing the field used to move the control to 0.
+    await user.clear(x);
+    // The knob just added is the last one on the panel.
+    const knob = [...document.querySelectorAll('[data-layout-element-kind="knob"]')].at(-1)!;
+    expect(knob.getAttribute("cx")).toBe(start);
+    await user.type(x, "250");
+    expect(knob.getAttribute("cx")).toBe("250");
+  });
+});
+

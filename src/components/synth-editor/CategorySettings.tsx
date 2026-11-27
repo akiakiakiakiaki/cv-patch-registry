@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import type { ChangeEvent } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
@@ -13,19 +12,23 @@ import AddIcon from "@mui/icons-material/Add";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { dependentsOf, moveItem, switchRole, type SwitchRole } from "@/components/synth-editor/category-draft";
 import type { EditorControl } from "@/components/synth-editor/draft-state";
 import { useI18n } from "@/i18n/provider";
 import type { CategoryIssue } from "@/lib/domain/switch-categories";
 import type { CategoryScale, ControlCategory } from "@/lib/instrument/layout";
-import { CategoryScaleFields } from "@/components/synth-editor/CategoryScaleFields";
+import { CategoryEditDialog } from "@/components/synth-editor/CategoryEditDialog";
 
 type Translate = ReturnType<typeof useI18n>["t"];
 
 const NONE = "";
 
-/** The synth's color categories: add, rename, recolor, rescale, reorder and remove. */
+/**
+ * The synth's color categories, one compact row each: color, name, edit, reorder and remove.
+ * Name, color and size are edited in a dialog, which opens right away for a new category.
+ */
 export function CategoryList({
   categories,
   onAdd,
@@ -36,7 +39,8 @@ export function CategoryList({
   onRemove,
 }: {
   categories: readonly ControlCategory[];
-  onAdd: () => void;
+  /** Adds a category and returns its ID. */
+  onAdd: () => string;
   onRename: (id: string, name: string) => void;
   onRecolor: (id: string, color: string) => void;
   onRescale: (id: string, scale: CategoryScale) => void;
@@ -44,6 +48,9 @@ export function CategoryList({
   onRemove: (category: ControlCategory) => void;
 }) {
   const { t } = useI18n();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  // Closes by itself when the category is removed (e.g. by undo).
+  const editing = categories.find((category) => category.id === editingId);
   return (
     <Box component="section" aria-labelledby="synth-categories-heading">
       <Typography id="synth-categories-heading" variant="subtitle2" component="h3" sx={{ mb: 0.5 }}>
@@ -52,52 +59,49 @@ export function CategoryList({
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
         {t("synths.categoriesHint")}
       </Typography>
-      <Stack component="ul" spacing={1} sx={{ listStyle: "none", p: 0, m: 0 }}>
-        {categories.map((category, index) => (
-          <Box component="li" key={category.id}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Box
-              component="input"
-              type="color"
-              value={category.color}
-              aria-label={t("synths.categoryColor", { name: category.name })}
-              onChange={(event: ChangeEvent<HTMLInputElement>) => onRecolor(category.id, event.target.value)}
-              sx={{ width: 36, height: 36, p: 0, border: 0, bgcolor: "transparent", cursor: "pointer", flexShrink: 0 }}
-            />
-            <TextField
-              size="small"
-              label={t("synths.categoryName")}
-              value={category.name}
-              onChange={(event) => onRename(category.id, event.target.value)}
-              error={!category.name.trim()}
-              slotProps={{ htmlInput: { maxLength: 40 } }}
-              sx={{ flex: 1 }}
-            />
-            <IconButton size="small" aria-label={t("synths.categoryUp", { name: category.name })} disabled={index === 0} onClick={() => onMove(category.id, -1)}>
-              <ArrowUpwardIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              size="small"
-              aria-label={t("synths.categoryDown", { name: category.name })}
-              disabled={index === categories.length - 1}
-              onClick={() => onMove(category.id, 1)}
-            >
-              <ArrowDownwardIcon fontSize="small" />
-            </IconButton>
-            <IconButton size="small" aria-label={t("synths.categoryRemove", { name: category.name })} onClick={() => onRemove(category)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Box>
-          {/* Indented under the name, below the color swatch's column. */}
-          <Box sx={{ pl: 5, pt: 1 }}>
-            <CategoryScaleFields name={category.name} scale={category.scale} onChange={(scale) => onRescale(category.id, scale)} />
-          </Box>
-          </Box>
-        ))}
+      <Stack component="ul" spacing={0.5} sx={{ listStyle: "none", p: 0, m: 0 }}>
+        {categories.map((category, index) => {
+          const name = category.name.trim();
+          const label = name || t("synths.categoryUnnamed");
+          return (
+            <Box component="li" key={category.id} data-category-row={category.id} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <ColorDot categoryId={category.id} color={category.color} />
+              <Typography variant="body2" noWrap color={name ? "text.primary" : "error"} sx={{ flex: 1, minWidth: 0 }}>
+                {label}
+              </Typography>
+              <IconButton size="small" aria-label={t("synths.categoryEdit", { name: label })} onClick={() => setEditingId(category.id)}>
+                <EditIcon fontSize="small" />
+              </IconButton>
+              <IconButton size="small" aria-label={t("synths.categoryUp", { name: label })} disabled={index === 0} onClick={() => onMove(category.id, -1)}>
+                <ArrowUpwardIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                aria-label={t("synths.categoryDown", { name: label })}
+                disabled={index === categories.length - 1}
+                onClick={() => onMove(category.id, 1)}
+              >
+                <ArrowDownwardIcon fontSize="small" />
+              </IconButton>
+              <IconButton size="small" aria-label={t("synths.categoryRemove", { name: label })} onClick={() => onRemove(category)}>
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          );
+        })}
       </Stack>
-      <Button size="small" startIcon={<AddIcon />} onClick={onAdd} sx={{ mt: 1 }}>
+      <Button size="small" startIcon={<AddIcon />} onClick={() => setEditingId(onAdd())} sx={{ mt: 1 }}>
         {t("synths.categoryAdd")}
       </Button>
+      {editing ? (
+        <CategoryEditDialog
+          category={editing}
+          onClose={() => setEditingId(null)}
+          onRename={(name) => onRename(editing.id, name)}
+          onRecolor={(color) => onRecolor(editing.id, color)}
+          onRescale={(scale) => onRescale(editing.id, scale)}
+        />
+      ) : null}
     </Box>
   );
 }

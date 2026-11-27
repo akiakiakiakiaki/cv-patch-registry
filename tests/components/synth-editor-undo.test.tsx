@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SynthLayoutEditor } from "@/components/synth-editor/SynthLayoutEditor";
 import { I18nProvider } from "@/i18n/provider";
 import { testLayout } from "../fixtures/instrument";
+import { addCategory } from "../helpers/categories";
 
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ok: true, revision: 2 }), { status: 201 })));
@@ -91,7 +92,7 @@ describe("SynthLayoutEditor undo and redo", () => {
     const user = userEvent.setup();
     renderEditor();
     fireEvent.click(screen.getByRole("button", { name: "Add Knob" }));
-    await user.click(screen.getByRole("button", { name: "Add category" }));
+    await addCategory(user);
     await user.click(screen.getByRole("button", { name: "Remove Category 1" }));
     undo();
     expect(screen.getByRole("button", { name: "Knobs (2)" })).toBeInTheDocument();

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SynthLayoutEditor } from "@/components/synth-editor/SynthLayoutEditor";
 import { I18nProvider } from "@/i18n/provider";
 import { testLayout } from "../fixtures/instrument";
+import { addCategory } from "../helpers/categories";
 
 let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -95,8 +96,8 @@ describe("SynthLayoutEditor closing", () => {
   it("goes through the correction dialog when categories do not fit, and closes only after saving", async () => {
     const user = userEvent.setup();
     const { onClose } = renderEditor();
-    await user.click(screen.getByRole("button", { name: "Add category" }));
-    await user.click(screen.getByRole("button", { name: "Add category" }));
+    await addCategory(user);
+    await addCategory(user);
     await user.click(screen.getByRole("button", { name: "Switches (1)" }));
     await user.click(screen.getByRole("button", { name: /Test switch · Switch/ }));
     await user.click(screen.getByRole("combobox", { name: "Function" }));

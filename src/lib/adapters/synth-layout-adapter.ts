@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { LAYOUT_SCHEMA_MINOR, encodeInstrumentLayout, usesCategoryScale, usesSlideSwitches } from "@/lib/adapters/instrument-layout-adapter";
+import { LAYOUT_SCHEMA_MINOR, encodeInstrumentLayout, requiredSchemaMinor } from "@/lib/adapters/instrument-layout-adapter";
 import { CATEGORY_SCALE } from "@/lib/instrument/geometry";
 import { CONTROL_KINDS, type ControlKind } from "@/lib/domain/control-ids";
 import type { ControlCategory, InstrumentLayout, KnobDefinition, PatchPort, SwitchDefinition } from "@/lib/instrument/layout";
-import { CATEGORY_COLOR_PATTERN, CATEGORY_ID_PATTERN, categoryIssues, usesCategories } from "@/lib/domain/switch-categories";
+import { CATEGORY_COLOR_PATTERN, CATEGORY_ID_PATTERN, categoryIssues } from "@/lib/domain/switch-categories";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
 
 /** Geometry and knob angles are shared defaults for user-built synths (same hardware language as Proton). */
@@ -155,7 +155,8 @@ const layoutDocumentSchema = z.object({
 
 /**
  * Reads a stored layout document. Unlike the Proton decoder there is no reference layout, so the
- * structure is checked here: versions, positions inside the viewBox, unique IDs, and uni ports only with schemaMinor 1.
+ * structure is checked here: versions, positions inside the viewBox, unique IDs, and no content newer than the
+ * declared schemaMinor (see requiredSchemaMinor).
  */
 export function parseSynthLayout(value: unknown): InstrumentLayout | null {
   const result = layoutDocumentSchema.safeParse(value);
@@ -166,12 +167,9 @@ export function parseSynthLayout(value: unknown): InstrumentLayout | null {
   const ids = new Set(points.map((point) => point.id));
   if (ids.size !== points.length) return null;
   if (points.some((point) => point.x < 0 || point.y < 0 || point.x > width || point.y > height)) return null;
-  const hasUni = layout.ports.some((port) => port.kind === "uni");
-  if (hasUni && (layout.schemaMinor ?? 0) < 1) return null;
   const typed = layout as unknown as InstrumentLayout;
-  if (usesCategories(typed) && (layout.schemaMinor ?? 0) < 2) return null;
-  if (usesSlideSwitches(typed) && (layout.schemaMinor ?? 0) < 3) return null;
-  if (usesCategoryScale(typed) && (layout.schemaMinor ?? 0) < 4) return null;
+  // Content newer than the declared minor (e.g. uni ports without minor 1) is not this document's format.
+  if ((layout.schemaMinor ?? 0) < requiredSchemaMinor(typed)) return null;
   if (categoryIssues(typed).length > 0) return null;
   return typed;
 }

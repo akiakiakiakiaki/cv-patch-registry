@@ -1,3 +1,5 @@
+@use "motion";
+
 .boardWrap {
   overflow: auto;
   padding: 18px 18px 10px;
@@ -92,6 +94,11 @@
   stroke: var(--color-switch-stroke);
   stroke-width: var(--active-control-stroke-width);
   vector-effect: non-scaling-stroke;
+  transition: transform motion.$slide-duration motion.$slide-easing;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 }
 
 .toggleRed {

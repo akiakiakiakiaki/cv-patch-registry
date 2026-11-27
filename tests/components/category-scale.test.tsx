@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { InstrumentPanel } from "@/components/instrument-panel/InstrumentPanel";
@@ -7,6 +7,7 @@ import { I18nProvider } from "@/i18n/provider";
 import type { CategoryScale, InstrumentLayout } from "@/lib/instrument/layout";
 import { createLayoutSwitchAdapter } from "@/lib/instruments/generic-switch-adapter";
 import { testInstrument, testLayout } from "../fixtures/instrument";
+import { closeCategory, openCategory } from "../helpers/categories";
 
 const CAT = "cat-0000aaaa";
 const OTHER = "cat-0000bbbb";
@@ -99,8 +100,9 @@ describe("category scale in the editor", () => {
   it("scales proportionally by default and applies valid factors right away", async () => {
     const user = userEvent.setup();
     renderEditor();
-    expect(screen.getByRole("switch", { name: "Scale “Filter” proportionally" })).toBeChecked();
-    const field = screen.getByRole("spinbutton", { name: "Scale of “Filter”" });
+    const dialog = await openCategory(user, "Filter");
+    expect(within(dialog).getByRole("switch", { name: "Proportional" })).toBeChecked();
+    const field = within(dialog).getByRole("spinbutton", { name: "Scale" });
     expect(field).toHaveValue(1);
     await user.clear(field);
     await user.type(field, "1.5");
@@ -111,21 +113,90 @@ describe("category scale in the editor", () => {
     expect(cutoffRadius()).toBe(knob.hitRadius * 1.5);
     fireEvent.blur(field);
     expect(field).toHaveValue(1.5);
+    await closeCategory(user, dialog);
     expect(screen.getByText("Changes not saved yet – no new revision has been created.")).toBeInTheDocument();
   });
 
-  it("offers separate factors for width and height when not proportional", async () => {
+  it("offers separate factors for width and height side by side when not proportional", async () => {
     const user = userEvent.setup();
     renderEditor(1.5);
-    await user.click(screen.getByRole("switch", { name: "Scale “Filter” proportionally" }));
-    const width = screen.getByRole("spinbutton", { name: "Width scale of “Filter”" });
-    const height = screen.getByRole("spinbutton", { name: "Height scale of “Filter”" });
+    const dialog = await openCategory(user, "Filter");
+    await user.click(within(dialog).getByRole("switch", { name: "Proportional" }));
+    const width = within(dialog).getByRole("spinbutton", { name: "Scale X" });
+    const height = within(dialog).getByRole("spinbutton", { name: "Scale Y" });
     expect([width, height].map((field) => (field as HTMLInputElement).value)).toEqual(["1.5", "1.5"]);
     await user.clear(height);
     await user.type(height, "0.5");
     // Round controls follow the smaller factor.
     expect(cutoffRadius()).toBe(knob.hitRadius * 0.5);
-    await user.click(screen.getByRole("switch", { name: "Scale “Filter” proportionally" }));
-    expect(screen.getByRole("spinbutton", { name: "Scale of “Filter”" })).toHaveValue(1.5);
+    await user.click(within(dialog).getByRole("switch", { name: "Proportional" }));
+    expect(within(dialog).getByRole("spinbutton", { name: "Scale" })).toHaveValue(1.5);
+  });
+});
+
+describe("category list", () => {
+  it("shows color, name, edit, reorder and remove in one row, and opens the dialog for a new category", async () => {
+    const user = userEvent.setup();
+    render(
+      <I18nProvider locale="en">
+        <SynthLayoutEditor
+          source={{ slug: "list", displayName: "List", manufacturer: null, revision: 1, panelUrl: "/x.png", layout: scaledLayout(undefined) }}
+          onSaved={vi.fn()}
+          onClose={vi.fn()}
+          onDeleted={vi.fn()}
+        />
+      </I18nProvider>,
+    );
+    const row = document.querySelector(`[data-category-row="${CAT}"]`) as HTMLElement;
+    expect(row).toHaveTextContent("Filter");
+    expect(row.querySelector(`[data-category-dot="${CAT}"]`)).not.toBeNull();
+    expect(within(row).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual([
+      "Edit Filter",
+      "Move Filter up",
+      "Move Filter down",
+      "Remove Filter",
+    ]);
+    // No fields in the list itself.
+    expect(within(row).queryByRole("textbox")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Add category" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit category" });
+    expect(within(dialog).getByRole("textbox", { name: "Category name" })).toHaveValue("Category 3");
+    await user.type(within(dialog).getByRole("textbox", { name: "Category name" }), "!");
+    await closeCategory(user, dialog);
+    expect(screen.getByRole("button", { name: "Edit Category 3!" })).toBeInTheDocument();
+  });
+});
+
+describe("category color picking", () => {
+  it("leaves the page undimmed while the color picker is open, so its eyedropper sees the real colors", async () => {
+    const user = userEvent.setup();
+    render(
+      <I18nProvider locale="en">
+        <SynthLayoutEditor
+          source={{ slug: "pick", displayName: "Pick", manufacturer: null, revision: 1, panelUrl: "/x.png", layout: scaledLayout(undefined) }}
+          onSaved={vi.fn()}
+          onClose={vi.fn()}
+          onDeleted={vi.fn()}
+        />
+      </I18nProvider>,
+    );
+    const dialog = await openCategory(user, "Filter");
+    const backdrop = () => document.querySelector(".MuiBackdrop-root")!;
+    const color = within(dialog).getByLabelText("Colour");
+    expect(backdrop()).not.toHaveClass("MuiBackdrop-invisible");
+
+    // Opening the picker by pointer; choosing a color ends it.
+    fireEvent.pointerDown(color);
+    expect(backdrop()).toHaveClass("MuiBackdrop-invisible");
+    fireEvent.change(color, { target: { value: "#123456" } });
+    expect(backdrop()).not.toHaveClass("MuiBackdrop-invisible");
+    expect(screen.getByRole("dialog", { name: "Edit category" })).toBeInTheDocument();
+
+    // Opening it by keyboard; leaving the field without a choice ends it too.
+    fireEvent.keyDown(color, { key: "Enter" });
+    expect(backdrop()).toHaveClass("MuiBackdrop-invisible");
+    fireEvent.blur(color);
+    expect(backdrop()).not.toHaveClass("MuiBackdrop-invisible");
   });
 });

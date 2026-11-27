@@ -1,6 +1,7 @@
 import type { EditorControl } from "@/components/synth-editor/draft-state";
 import { CATEGORY_COLOR_PATTERN, categoryIssues, type CategoryIssue } from "@/lib/domain/switch-categories";
 import type { CategoryScale, ControlCategory } from "@/lib/instrument/layout";
+import { withOptional } from "@/lib/utils/objects";
 
 /** Colors offered for new categories, in turn. The user can change them with the color picker. */
 const CATEGORY_PALETTE = ["#e53935", "#1e88e5", "#43a047", "#fb8c00", "#8e24aa", "#00897b"] as const;
@@ -51,11 +52,7 @@ export function recolorCategory(categories: readonly ControlCategory[], id: stri
  * equal, so "not proportional" stays chosen.
  */
 export function rescaleCategory(categories: readonly ControlCategory[], id: string, scale: CategoryScale): ControlCategory[] {
-  return categories.map((category) => {
-    if (category.id !== id) return category;
-    const { scale: _previous, ...rest } = category;
-    return scale === 1 ? rest : { ...rest, scale };
-  });
+  return categories.map((category) => (category.id === id ? withOptional(category, "scale", scale === 1 ? undefined : scale) : category));
 }
 
 /** Moves an item one step up (-1) or down (+1); out-of-range moves leave the order unchanged. */

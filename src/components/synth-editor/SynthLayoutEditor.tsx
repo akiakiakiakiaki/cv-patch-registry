@@ -21,11 +21,12 @@ import { ZoomControls } from "@/components/synth-editor/ZoomControls";
 import { categoryUsage } from "@/components/synth-editor/category-draft";
 import type { EditorControl } from "@/components/synth-editor/draft-state";
 import { panelRejectionMessage, uploadPanelFile } from "@/components/synth-editor/upload-panel";
-import { useHistoryShortcuts } from "@/components/synth-editor/use-history-shortcuts";
+import { useEditorShortcuts } from "@/components/synth-editor/use-editor-shortcuts";
+import { usePanelPointer } from "@/components/synth-editor/use-panel-pointer";
 import { usePaletteDrag } from "@/components/synth-editor/use-palette-drag";
 import { useSynthDraft, type SynthDraftSource } from "@/components/synth-editor/use-synth-draft";
 import { api } from "@/lib/api/client";
-import type { ControlKind } from "@/lib/domain/control-ids";
+import { layoutElementKindOf } from "@/lib/domain/control-ids";
 import { EMPTY_PATCH_DATA } from "@/lib/domain/patch-library";
 import type { ControlCategory, FocusedLayoutElement, Point } from "@/lib/instrument/layout";
 import { createLayoutSwitchAdapter } from "@/lib/instruments/generic-switch-adapter";
@@ -33,6 +34,9 @@ import type { InstrumentDefinition } from "@/lib/instruments/types";
 import { NOOP } from "@/lib/utils/noop";
 import { useI18n } from "@/i18n/provider";
 import { PAGE_GUTTER } from "@/components/app-shell/layout";
+
+/** How far a paste without the pointer over the panel lands from the original (panel units, right and down). */
+const PASTE_OFFSET = 10;
 
 /** Lets the page leave or close the editor exactly like the editor's own "Done" button. */
 export interface SynthLayoutEditorHandle {
@@ -80,7 +84,21 @@ export function SynthLayoutEditor({
 
   // A palette item dropped on the panel is placed where the pointer is released, and focused.
   const palette = usePaletteDrag(panelRef, draft.panel, (item: PaletteItem, point: Point) => setFocusRequestedElement(draft.addAt(item, point)));
-  useHistoryShortcuts(draft.undo, draft.redo);
+  // Copy and paste of controls: the copy is a snapshot, so it can be pasted even after the original is gone.
+  const pointerOnPanel = usePanelPointer(panelRef, draft.panel);
+  const clipboard = useRef<{ control: EditorControl; lastPoint: Point } | null>(null);
+  function copyFocused() {
+    if (focusedControl) clipboard.current = { control: { ...focusedControl }, lastPoint: { x: focusedControl.x, y: focusedControl.y } };
+  }
+  function pasteCopy() {
+    const copied = clipboard.current;
+    if (!copied) return;
+    // At the pointer over the panel; otherwise next to the original, and each further paste a step further.
+    const point = pointerOnPanel() ?? { x: copied.lastPoint.x + PASTE_OFFSET, y: copied.lastPoint.y + PASTE_OFFSET };
+    copied.lastPoint = point;
+    setFocusRequestedElement(draft.paste(copied.control, point));
+  }
+  useEditorShortcuts({ undo: draft.undo, redo: draft.redo, copy: copyFocused, paste: pasteCopy });
 
   async function removeCategory(category: ControlCategory) {
     const count = categoryUsage(draft.controls, category.id);
@@ -171,7 +189,7 @@ export function SynthLayoutEditor({
   }
 
   function selectFromList(control: EditorControl) {
-    const target = { kind: controlKindToLayout(control.kind), id: control.id };
+    const target = { kind: layoutElementKindOf(control.kind), id: control.id };
     draft.focus(target);
     setFocusRequestedElement(target);
   }
@@ -341,10 +359,4 @@ export function SynthLayoutEditor({
       {confirmDialog}
     </Box>
   );
-}
-
-/** Editor kinds map to layout element kinds: knobs, switches and LEDs keep their names, ports are "port". */
-function controlKindToLayout(kind: ControlKind): "knob" | "switch" | "led" | "port" {
-  if (kind === "knob" || kind === "switch" || kind === "led") return kind;
-  return "port";
 }

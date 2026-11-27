@@ -7,6 +7,7 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { NumberField } from "@/components/number-field/NumberField";
 import { ControlCategoryFields } from "@/components/synth-editor/CategorySettings";
 import type { EditorControl } from "@/components/synth-editor/draft-state";
 import type { SynthDraft } from "@/components/synth-editor/use-synth-draft";
@@ -24,8 +25,9 @@ export function ControlDetails({ control, draft }: { control: EditorControl; dra
       <Stack spacing={1}>
         <TextField size="small" label={t("synths.label")} value={control.label} onChange={(event) => draft.rename(control.id, event.target.value)} slotProps={{ htmlInput: { maxLength: 40 } }} />
         <Stack direction="row" spacing={1}>
-          <TextField size="small" type="number" label={t("synths.x")} value={control.x} onChange={(event) => draft.setPosition(control.id, { x: Number(event.target.value) })} slotProps={{ htmlInput: { step: 0.5 } }} />
-          <TextField size="small" type="number" label={t("synths.y")} value={control.y} onChange={(event) => draft.setPosition(control.id, { y: Number(event.target.value) })} slotProps={{ htmlInput: { step: 0.5 } }} />
+          {/* Clearing a field to type a new position no longer moves the control to 0. */}
+          <NumberField label={t("synths.x")} value={control.x} min={0} step={0.5} onChange={(x) => draft.setPosition(control.id, { x })} />
+          <NumberField label={t("synths.y")} value={control.y} min={0} step={0.5} onChange={(y) => draft.setPosition(control.id, { y })} />
         </Stack>
         {control.kind === "switch" ? (
           // Changing the construction keeps the ID, so patches keep their state of this switch.

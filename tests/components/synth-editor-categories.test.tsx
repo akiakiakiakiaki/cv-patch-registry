@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SynthLayoutEditor } from "@/components/synth-editor/SynthLayoutEditor";
 import { I18nProvider } from "@/i18n/provider";
 import { testLayout } from "../fixtures/instrument";
+import { addCategory, closeCategory, openCategory } from "../helpers/categories";
 
 const source = {
   slug: "test-synth",
@@ -59,8 +60,8 @@ async function focusControl(user: ReturnType<typeof userEvent.setup>, name: RegE
 }
 
 async function addTwoCategories(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole("button", { name: "Add category" }));
-  await user.click(screen.getByRole("button", { name: "Add category" }));
+  await addCategory(user);
+  await addCategory(user);
 }
 
 const switchOf = (body: SavedBody, id: string) => body.controls.find((control) => control.id === id);
@@ -70,7 +71,9 @@ describe("SynthLayoutEditor categories", () => {
     const user = userEvent.setup();
     renderEditor();
     await addTwoCategories(user);
-    fireEvent.change(screen.getByLabelText("Color of Category 1"), { target: { value: "#ABCDEF" } });
+    const dialog = await openCategory(user, "Category 1");
+    fireEvent.change(within(dialog).getByLabelText("Colour"), { target: { value: "#ABCDEF" } });
+    await closeCategory(user, dialog);
     await focusControl(user, /Test knob · Knob/);
     await choose(user, "Category", "Category 1");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -86,7 +89,7 @@ describe("SynthLayoutEditor categories", () => {
     const user = userEvent.setup();
     renderEditor();
     await addTwoCategories(user);
-    await user.click(screen.getByRole("button", { name: "Add category" }));
+    await addCategory(user);
     fireEvent.click(screen.getByRole("button", { name: "Add Switch" }));
 
     await focusControl(user, /Test switch · Switch/);
@@ -142,7 +145,7 @@ describe("SynthLayoutEditor categories", () => {
     expect(dialog).toHaveTextContent("“Category 2” is used by 1 control(s).");
     await user.click(within(dialog).getByRole("button", { name: "Remove" }));
 
-    expect(screen.queryByLabelText("Color of Category 2")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit Category 2" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(saved).toHaveLength(1));
     expect(saved[0]!.controls.find((control) => control.kind === "knob")).not.toHaveProperty("category");
@@ -151,17 +154,22 @@ describe("SynthLayoutEditor categories", () => {
   it("removes an unused category without asking", async () => {
     const user = userEvent.setup();
     renderEditor();
-    await user.click(screen.getByRole("button", { name: "Add category" }));
+    await addCategory(user);
     await user.click(screen.getByRole("button", { name: "Remove Category 1" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Color of Category 1")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit Category 1" })).not.toBeInTheDocument();
   });
 
   it("blocks saving while a category has no name", async () => {
     const user = userEvent.setup();
     renderEditor();
     await user.click(screen.getByRole("button", { name: "Add category" }));
-    await user.clear(screen.getByRole("textbox", { name: "Category name" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit category" });
+    await user.clear(within(dialog).getByRole("textbox", { name: "Category name" }));
+    expect(within(dialog).getByText("Every category needs a name.")).toBeInTheDocument();
+    await closeCategory(user, dialog);
+    // The list marks the category, and saving waits for a name.
+    expect(screen.getByRole("button", { name: "Edit Unnamed" })).toBeInTheDocument();
     expect(screen.getByText("Every category needs a name.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });

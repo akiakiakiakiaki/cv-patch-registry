@@ -26,13 +26,15 @@ import {
 import { emptyHistory, recordChange, redoStep, undoStep, type History } from "@/components/synth-editor/control-history";
 import {
   addControl,
+  copyControl,
   clampToPanel,
   controlsFromLayout,
   removeControl,
   updateControl,
   type EditorControl,
 } from "@/components/synth-editor/draft-state";
-import { generateControlId } from "@/lib/domain/control-ids";
+import { generateControlId, layoutElementKindOf } from "@/lib/domain/control-ids";
+import { withOptional } from "@/lib/utils/objects";
 
 export interface SynthDraftSource {
   slug: string;
@@ -128,10 +130,16 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
   function addAt({ kind, style }: PaletteItem, point: { x: number; y: number }): FocusedLayoutElement {
     const id = generateControlId(kind);
     updateControls((previous) => addControl(previous, kind, point, bounds, id, style));
-    const target: FocusedLayoutElement = {
-      kind: kind === "knob" || kind === "switch" || kind === "led" ? kind : "port",
-      id,
-    };
+    const target: FocusedLayoutElement = { kind: layoutElementKindOf(kind), id };
+    setFocused(target);
+    return target;
+  }
+
+  /** Pastes a copied control at `point` as a new control and focuses it. */
+  function paste(source: EditorControl, point: { x: number; y: number }): FocusedLayoutElement {
+    const id = generateControlId(source.kind);
+    updateControls((previous) => copyControl(previous, source, point, bounds, id));
+    const target: FocusedLayoutElement = { kind: layoutElementKindOf(source.kind), id };
     setFocused(target);
     return target;
   }
@@ -161,11 +169,7 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
   /** Push button or slide switch; the ID, and with it every patch's state, stays the same. */
   function setSwitchStyle(id: string, style: SwitchStyle | undefined) {
     updateControls((previous) =>
-      previous.map((control) => {
-        if (control.id !== id || control.kind !== "switch") return control;
-        const { style: _previous, ...rest } = control;
-        return style ? { ...rest, style } : rest;
-      }),
+      previous.map((control) => (control.id === id && control.kind === "switch" ? withOptional(control, "style", style) : control)),
     );
   }
 
@@ -283,6 +287,7 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
     moveFocused,
     addAt,
     addCenter,
+    paste,
     setPosition,
     rename,
     setColor,

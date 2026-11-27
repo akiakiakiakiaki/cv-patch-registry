@@ -17,9 +17,10 @@ const categoryLayout: InstrumentLayout = {
 };
 const { width: buttonWidth, height } = testLayout.geometry.switch;
 
-function renderPanel(switches: PatchData["switches"] = {}, layout: InstrumentLayout = slideLayout) {
-  const onSwitchChange = vi.fn();
-  const view = render(
+const onSwitchChange = vi.fn();
+
+function panelElement(switches: PatchData["switches"] = {}, layout: InstrumentLayout = slideLayout) {
+  return (
     <I18nProvider locale="en">
       <InstrumentPanel
         data={{ knobs: {}, switches, leds: {}, cables: [] }}
@@ -35,9 +36,13 @@ function renderPanel(switches: PatchData["switches"] = {}, layout: InstrumentLay
         onLedChange={vi.fn()}
         onCableChange={vi.fn()}
       />
-    </I18nProvider>,
+    </I18nProvider>
   );
-  return { ...view, onSwitchChange };
+}
+
+function renderPanel(switches: PatchData["switches"] = {}, layout: InstrumentLayout = slideLayout) {
+  onSwitchChange.mockClear();
+  return { ...render(panelElement(switches, layout)), onSwitchChange };
 }
 
 /** The thumb is drawn right after the track. */
@@ -56,17 +61,21 @@ describe("slide switch on the panel", () => {
     expect(onSwitchChange).toHaveBeenCalledTimes(2);
   });
 
-  it("shows the thumb left when off and right when on", () => {
-    const off = renderPanel();
-    const offX = Number(thumbOf(screen.getByRole("switch", { name: "Distortion" })).getAttribute("x"));
-    off.unmount();
-    renderPanel({ Distortion: true });
+  it("shows the thumb left when off and glides it right when on, like the palette preview", () => {
+    const { rerender } = renderPanel();
+    const thumb = thumbOf(screen.getByRole("switch", { name: "Distortion" }));
+    const offX = Number(thumb.getAttribute("x"));
+    expect(offX).toBeLessThan(200);
+    expect(thumb.style.transform).toBe("translateX(0px)");
+
+    // Same element, moved by a transform: CSS animates it instead of jumping.
+    rerender(panelElement({ Distortion: true }));
     const track = screen.getByRole("switch", { name: "Distortion" });
     expect(track).toHaveAttribute("aria-checked", "true");
-    const onX = Number(thumbOf(track).getAttribute("x"));
-    expect(onX - offX).toBe(buttonWidth);
-    expect(onX).toBeGreaterThan(200);
-    expect(offX).toBeLessThan(200);
+    expect(thumbOf(track)).toBe(thumb);
+    expect(Number(thumb.getAttribute("x"))).toBe(offX);
+    expect(thumb.style.transform).toBe(`translateX(${buttonWidth}px)`);
+    expect(offX + buttonWidth).toBeGreaterThan(200);
   });
 
   it("colors frame and thumb with the switch's category", () => {
@@ -77,6 +86,33 @@ describe("slide switch on the panel", () => {
     expect(thumbOf(track)).toHaveClass("cat-0000aaaa");
     expect(track.getAttribute("class")).toMatch(/slideTrackCategory/);
     expect(thumbOf(track).getAttribute("class")).toMatch(/toggleCategory/);
+  });
+
+  it("draws the frame of a red slide switch red and keeps a blue one's frame neutral", () => {
+    const red: InstrumentLayout = { ...testLayout, switches: [{ id: "Distortion", x: 200, y: 100, style: "slide" }] };
+    const view = renderPanel({}, red);
+    expect(screen.getByRole("switch", { name: "Distortion" }).getAttribute("class")).not.toMatch(/slideTrackRed|slideTrackCategory/);
+    view.unmount();
+    const redAdapterLayout: InstrumentLayout = { ...red };
+    render(
+      <I18nProvider locale="en">
+        <InstrumentPanel
+          data={{ knobs: {}, switches: {}, leds: {}, cables: [] }}
+          instrument={{ ...testInstrument, layout: redAdapterLayout, switchAdapter: { ...createLayoutSwitchAdapter(redAdapterLayout), getState: (_switches, id) => ({ active: false, color: "red", stateKey: id }) } }}
+          layout={redAdapterLayout}
+          layoutEditMode={false}
+          focusedElement={null}
+          onFocusLayoutElement={vi.fn()}
+          onClearLayoutFocus={vi.fn()}
+          onMoveFocusedLayoutElement={vi.fn()}
+          onKnobChange={vi.fn()}
+          onSwitchChange={vi.fn()}
+          onLedChange={vi.fn()}
+          onCableChange={vi.fn()}
+        />
+      </I18nProvider>,
+    );
+    expect(screen.getByRole("switch", { name: "Distortion" }).getAttribute("class")).toMatch(/slideTrackRed/);
   });
 
   it("fills the thumb in both positions; only the position shows the state", () => {

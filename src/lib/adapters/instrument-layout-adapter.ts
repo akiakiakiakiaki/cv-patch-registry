@@ -128,25 +128,23 @@ export function encodeInstrumentLayout(layout: InstrumentLayout): InstrumentLayo
   const document: InstrumentLayout = { ...layout };
   delete document.schemaMinor;
   if (!document.categories?.length) delete document.categories;
-  const minor = usesCategoryScale(layout)
-    ? 4
-    : usesSlideSwitches(layout)
-      ? 3
-      : usesCategories(layout)
-        ? 2
-        : layout.ports.some((port) => port.kind === "uni")
-          ? 1
-          : 0;
+  const minor = requiredSchemaMinor(layout);
   return minor > 0 ? { ...document, schemaMinor: minor } : document;
 }
 
-/** Slide switches need schemaMinor 3. */
-export function usesSlideSwitches(layout: Pick<InstrumentLayout, "switches">): boolean {
-  return layout.switches.some((control) => control.style === "slide");
-}
+/**
+ * Each layout feature and the schemaMinor that introduced it, newest first. The one list both the writer
+ * (lowest minor the content needs) and the readers (reject content newer than its declared minor) use.
+ */
+const MINOR_FEATURES: ReadonlyArray<{ minor: number; uses: (layout: InstrumentLayout) => boolean }> = [
+  { minor: 4, uses: (layout) => (layout.categories ?? []).some((category) => category.scale !== undefined) },
+  { minor: 3, uses: (layout) => layout.switches.some((control) => control.style === "slide") },
+  { minor: 2, uses: usesCategories },
+  { minor: 1, uses: (layout) => layout.ports.some((port) => port.kind === "uni") },
+];
 
-/** Category scale factors need schemaMinor 4. */
-export function usesCategoryScale(layout: Pick<InstrumentLayout, "categories">): boolean {
-  return (layout.categories ?? []).some((category) => category.scale !== undefined);
+/** The lowest schemaMinor that can hold this layout's content; 0 for plain 1.0 content. */
+export function requiredSchemaMinor(layout: InstrumentLayout): number {
+  return MINOR_FEATURES.find((feature) => feature.uses(layout))?.minor ?? 0;
 }
 
