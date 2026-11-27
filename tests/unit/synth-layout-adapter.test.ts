@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { draftToLayout, parseSynthDraft, parseSynthLayout } from "@/lib/adapters/synth-layout-adapter";
+import { draftControlsFromLayout, draftToLayout, parseSynthDraft, parseSynthLayout } from "@/lib/adapters/synth-layout-adapter";
 import { encodeInstrumentLayout } from "@/lib/adapters/instrument-layout-adapter";
 import { behringerProton } from "@/lib/instruments/behringer-proton/definition";
 
@@ -111,5 +111,43 @@ describe("stored layout parsing", () => {
     const broken = JSON.parse(JSON.stringify(encodeInstrumentLayout(behringerProton.layout)));
     broken.knobs[0].x = broken.viewBox.width + 10;
     expect(parseSynthLayout(broken)).toBeNull();
+  });
+});
+
+describe("slide switches", () => {
+  const slideDraft = () =>
+    draftInput({ controls: [{ id: "switch-1a2b3c4e", kind: "switch", label: "Distortion", x: 200, y: 100, style: "slide" }] });
+
+  it("keeps the style, writes schemaMinor 3 and reads it back", () => {
+    const parsed = parseSynthDraft(slideDraft());
+    if (!parsed.ok) throw new Error("fixture invalid");
+    const result = draftToLayout(parsed.draft, panel, 1);
+    if (!result.ok) throw new Error("mapping failed");
+    expect(result.layout.switches[0]).toMatchObject({ id: "switch-1a2b3c4e", style: "slide" });
+    expect(result.layout.schemaMinor).toBe(3);
+    const stored = JSON.parse(JSON.stringify(result.layout));
+    expect(parseSynthLayout(stored)).toEqual(result.layout);
+    expect(draftControlsFromLayout(result.layout)[0]).toMatchObject({ kind: "switch", style: "slide" });
+  });
+
+  it("rejects a slide switch without schemaMinor 3", () => {
+    const parsed = parseSynthDraft(slideDraft());
+    if (!parsed.ok) throw new Error("fixture invalid");
+    const result = draftToLayout(parsed.draft, panel, 1);
+    if (!result.ok) throw new Error("mapping failed");
+    expect(parseSynthLayout(JSON.parse(JSON.stringify({ ...result.layout, schemaMinor: 2 })))).toBeNull();
+  });
+
+  it("leaves layouts without slide switches as they were", () => {
+    const parsed = parseSynthDraft(draftInput());
+    if (!parsed.ok) throw new Error("fixture invalid");
+    const result = draftToLayout(parsed.draft, panel, 1);
+    if (!result.ok) throw new Error("mapping failed");
+    expect(result.layout.switches[0]).not.toHaveProperty("style");
+    expect(result.layout).not.toHaveProperty("schemaMinor");
+  });
+
+  it("does not accept other styles", () => {
+    expect(parseSynthDraft(draftInput({ controls: [{ id: "switch-1a2b3c4e", kind: "switch", label: "S", x: 1, y: 1, style: "rotary" }] })).ok).toBe(false);
   });
 });

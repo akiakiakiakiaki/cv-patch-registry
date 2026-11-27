@@ -14,7 +14,15 @@ export interface ControlCategory {
   name: string;
   /** Lowercase `#rrggbb`. */
   color: string;
+  /** Size of the category's controls relative to the default; missing means 1 (see CategoryScale). */
+  scale?: CategoryScale;
 }
+
+/**
+ * A number scales proportionally; `x` and `y` scale width and height separately. Round controls (knobs, LEDs)
+ * stay round and use the smaller factor. Only controls the category is assigned to directly are scaled.
+ */
+export type CategoryScale = number | { x: number; y: number };
 
 /** Labels are editable and optional. Without a label the control ID is shown. */
 export interface KnobDefinition extends Point {
@@ -38,7 +46,15 @@ export interface SwitchDefinition extends Point {
   category?: string;
   selects?: readonly string[];
   dependsOn?: string;
+  /** How the switch is built; missing means a push button. Does not change its state or roles. */
+  style?: SwitchStyle;
 }
+
+/**
+ * "slide": an on/off slider twice as wide as a button, off on the left and on on the right.
+ * Only non-default styles are stored, so layouts without sliders stay unchanged.
+ */
+export type SwitchStyle = 'slide';
 
 export interface LedDefinition extends Point {
   id: string;

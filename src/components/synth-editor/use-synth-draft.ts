@@ -2,7 +2,8 @@
 
 import { useMemo, useRef, useState } from "react";
 import { draftToLayout } from "@/lib/adapters/synth-layout-adapter";
-import type { ControlCategory, FocusedLayoutElement, InstrumentLayout } from "@/lib/instrument/layout";
+import type { CategoryScale, ControlCategory, FocusedLayoutElement, InstrumentLayout, SwitchStyle } from "@/lib/instrument/layout";
+import type { PaletteItem } from "@/components/synth-editor/palette";
 import { api } from "@/lib/api/client";
 import { useI18n } from "@/i18n/provider";
 import {
@@ -11,6 +12,7 @@ import {
   generateCategoryId,
   nextCategoryColor,
   recolorCategory as recolorCategoryIn,
+  rescaleCategory as rescaleCategoryIn,
   removeCategory as removeCategoryFrom,
   renameCategory as renameCategoryIn,
   repairCategoryRoles,
@@ -30,7 +32,7 @@ import {
   updateControl,
   type EditorControl,
 } from "@/components/synth-editor/draft-state";
-import { generateControlId, type ControlKind } from "@/lib/domain/control-ids";
+import { generateControlId } from "@/lib/domain/control-ids";
 
 export interface SynthDraftSource {
   slug: string;
@@ -123,9 +125,9 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
   const undo = () => restore(undoStep(history.current, controlsRef.current));
   const redo = () => restore(redoStep(history.current, controlsRef.current));
 
-  function addAt(kind: ControlKind, point: { x: number; y: number }): FocusedLayoutElement {
+  function addAt({ kind, style }: PaletteItem, point: { x: number; y: number }): FocusedLayoutElement {
     const id = generateControlId(kind);
-    updateControls((previous) => addControl(previous, kind, point, bounds, id));
+    updateControls((previous) => addControl(previous, kind, point, bounds, id, style));
     const target: FocusedLayoutElement = {
       kind: kind === "knob" || kind === "switch" || kind === "led" ? kind : "port",
       id,
@@ -134,8 +136,8 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
     return target;
   }
 
-  function addCenter(kind: ControlKind): FocusedLayoutElement {
-    return addAt(kind, { x: panel.width / 2, y: panel.height / 2 });
+  function addCenter(item: PaletteItem): FocusedLayoutElement {
+    return addAt(item, { x: panel.width / 2, y: panel.height / 2 });
   }
 
   /** Keyboard and mouse both move the focused control in half-unit steps. */
@@ -154,6 +156,17 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
 
   function setColor(id: string, color: "red" | "blue") {
     updateControls((previous) => updateControl(previous, id, { color }, bounds));
+  }
+
+  /** Push button or slide switch; the ID, and with it every patch's state, stays the same. */
+  function setSwitchStyle(id: string, style: SwitchStyle | undefined) {
+    updateControls((previous) =>
+      previous.map((control) => {
+        if (control.id !== id || control.kind !== "switch") return control;
+        const { style: _previous, ...rest } = control;
+        return style ? { ...rest, style } : rest;
+      }),
+    );
   }
 
   function rename(id: string, label: string) {
@@ -177,6 +190,10 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
 
   function recolorCategory(id: string, color: string) {
     change(() => setCategories((previous) => recolorCategoryIn(previous, id, color)));
+  }
+
+  function rescaleCategory(id: string, scale: CategoryScale) {
+    change(() => setCategories((previous) => rescaleCategoryIn(previous, id, scale)));
   }
 
   function moveCategory(id: string, delta: -1 | 1) {
@@ -269,6 +286,7 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
     setPosition,
     rename,
     setColor,
+    setSwitchStyle,
     remove,
     replacePanel,
     undo,
@@ -276,6 +294,7 @@ export function useSynthDraft(source: SynthDraftSource, onSaved: () => void) {
     addCategory,
     renameCategory,
     recolorCategory,
+    rescaleCategory,
     moveCategory,
     removeCategory,
     setCategory,

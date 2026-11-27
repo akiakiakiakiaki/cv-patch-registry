@@ -4,8 +4,11 @@ import type { InstrumentLayout, PatchPort, Point } from "@/lib/instrument/layout
 import { normalizePixelPosition } from "@/lib/instrument/pixel-position";
 import { usesCategories } from "@/lib/domain/switch-categories";
 
-/** Highest layout minor this app can read. Minor 1 adds the `uni` port kind, minor 2 color categories and switch roles. */
-export const LAYOUT_SCHEMA_MINOR = 2;
+/**
+ * Highest layout minor this app can read. Minor 1 adds the `uni` port kind, minor 2 color categories and switch roles,
+ * minor 3 slide switches (`style: "slide"`), minor 4 category scale factors.
+ */
+export const LAYOUT_SCHEMA_MINOR = 4;
 
 const PORT_KINDS: readonly PortKind[] = ["in", "out", "uni"];
 
@@ -125,6 +128,25 @@ export function encodeInstrumentLayout(layout: InstrumentLayout): InstrumentLayo
   const document: InstrumentLayout = { ...layout };
   delete document.schemaMinor;
   if (!document.categories?.length) delete document.categories;
-  const minor = usesCategories(layout) ? 2 : layout.ports.some((port) => port.kind === "uni") ? 1 : 0;
+  const minor = usesCategoryScale(layout)
+    ? 4
+    : usesSlideSwitches(layout)
+      ? 3
+      : usesCategories(layout)
+        ? 2
+        : layout.ports.some((port) => port.kind === "uni")
+          ? 1
+          : 0;
   return minor > 0 ? { ...document, schemaMinor: minor } : document;
 }
+
+/** Slide switches need schemaMinor 3. */
+export function usesSlideSwitches(layout: Pick<InstrumentLayout, "switches">): boolean {
+  return layout.switches.some((control) => control.style === "slide");
+}
+
+/** Category scale factors need schemaMinor 4. */
+export function usesCategoryScale(layout: Pick<InstrumentLayout, "categories">): boolean {
+  return (layout.categories ?? []).some((category) => category.scale !== undefined);
+}
+

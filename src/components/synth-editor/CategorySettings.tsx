@@ -18,18 +18,20 @@ import { dependentsOf, moveItem, switchRole, type SwitchRole } from "@/component
 import type { EditorControl } from "@/components/synth-editor/draft-state";
 import { useI18n } from "@/i18n/provider";
 import type { CategoryIssue } from "@/lib/domain/switch-categories";
-import type { ControlCategory } from "@/lib/instrument/layout";
+import type { CategoryScale, ControlCategory } from "@/lib/instrument/layout";
+import { CategoryScaleFields } from "@/components/synth-editor/CategoryScaleFields";
 
 type Translate = ReturnType<typeof useI18n>["t"];
 
 const NONE = "";
 
-/** The synth's color categories: add, rename, recolor, reorder and remove. */
+/** The synth's color categories: add, rename, recolor, rescale, reorder and remove. */
 export function CategoryList({
   categories,
   onAdd,
   onRename,
   onRecolor,
+  onRescale,
   onMove,
   onRemove,
 }: {
@@ -37,6 +39,7 @@ export function CategoryList({
   onAdd: () => void;
   onRename: (id: string, name: string) => void;
   onRecolor: (id: string, color: string) => void;
+  onRescale: (id: string, scale: CategoryScale) => void;
   onMove: (id: string, delta: -1 | 1) => void;
   onRemove: (category: ControlCategory) => void;
 }) {
@@ -51,7 +54,8 @@ export function CategoryList({
       </Typography>
       <Stack component="ul" spacing={1} sx={{ listStyle: "none", p: 0, m: 0 }}>
         {categories.map((category, index) => (
-          <Box component="li" key={category.id} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Box component="li" key={category.id}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
             <Box
               component="input"
               type="color"
@@ -83,6 +87,11 @@ export function CategoryList({
             <IconButton size="small" aria-label={t("synths.categoryRemove", { name: category.name })} onClick={() => onRemove(category)}>
               <DeleteIcon fontSize="small" />
             </IconButton>
+          </Box>
+          {/* Indented under the name, below the color swatch's column. */}
+          <Box sx={{ pl: 5, pt: 1 }}>
+            <CategoryScaleFields name={category.name} scale={category.scale} onChange={(scale) => onRescale(category.id, scale)} />
+          </Box>
           </Box>
         ))}
       </Stack>

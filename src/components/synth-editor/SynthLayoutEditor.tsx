@@ -6,6 +6,7 @@ import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -14,6 +15,8 @@ import { useConfirmDialog } from "@/components/confirm-dialog/ConfirmDialog";
 import { CategoryList, categoryIssueText } from "@/components/synth-editor/CategorySettings";
 import { ControlDetails } from "@/components/synth-editor/ControlDetails";
 import { ControlGroupList } from "@/components/synth-editor/ControlGroupList";
+import { PaletteGhost } from "@/components/synth-editor/PaletteGhost";
+import { PALETTE_ITEMS, controlTypeKey, type PaletteItem } from "@/components/synth-editor/palette";
 import { ZoomControls } from "@/components/synth-editor/ZoomControls";
 import { categoryUsage } from "@/components/synth-editor/category-draft";
 import type { EditorControl } from "@/components/synth-editor/draft-state";
@@ -22,7 +25,7 @@ import { useHistoryShortcuts } from "@/components/synth-editor/use-history-short
 import { usePaletteDrag } from "@/components/synth-editor/use-palette-drag";
 import { useSynthDraft, type SynthDraftSource } from "@/components/synth-editor/use-synth-draft";
 import { api } from "@/lib/api/client";
-import { CONTROL_KINDS, type ControlKind } from "@/lib/domain/control-ids";
+import type { ControlKind } from "@/lib/domain/control-ids";
 import { EMPTY_PATCH_DATA } from "@/lib/domain/patch-library";
 import type { ControlCategory, FocusedLayoutElement, Point } from "@/lib/instrument/layout";
 import { createLayoutSwitchAdapter } from "@/lib/instruments/generic-switch-adapter";
@@ -70,11 +73,13 @@ export function SynthLayoutEditor({
   const clearFocusRequest = useCallback(() => setFocusRequestedElement(null), []);
   const { confirm, choose, dialog: confirmDialog } = useConfirmDialog();
   const [zoom, setZoom] = useState(1);
+  // Palette item whose preview tooltip is shown; none while dragging, so the preview never follows the pointer.
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const missingCategoryName = draft.categories.some((category) => !category.name.trim());
   const focusedControl = draft.focused ? draft.controls.find((control) => control.id === draft.focused?.id) : undefined;
 
   // A palette item dropped on the panel is placed where the pointer is released, and focused.
-  const palette = usePaletteDrag(panelRef, draft.panel, (kind: ControlKind, point: Point) => setFocusRequestedElement(draft.addAt(kind, point)));
+  const palette = usePaletteDrag(panelRef, draft.panel, (item: PaletteItem, point: Point) => setFocusRequestedElement(draft.addAt(item, point)));
   useHistoryShortcuts(draft.undo, draft.redo);
 
   async function removeCategory(category: ControlCategory) {
@@ -271,19 +276,31 @@ export function SynthLayoutEditor({
           <Typography variant="subtitle2" component="h3" sx={{ mb: 1 }}>{t("synths.palette")}</Typography>
           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>{t("synths.paletteHint")}</Typography>
           <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
-            {CONTROL_KINDS.map((kind) => (
-              <Button
-                key={kind}
-                variant="outlined"
-                size="small"
-                onPointerDown={() => palette.start(kind)}
-                onClick={(event) => {
-                  // detail 0 means keyboard activation; pointer clicks are placed by the drop listener.
-                  if (event.detail === 0) setFocusRequestedElement(draft.addCenter(kind));
-                }}
+            {PALETTE_ITEMS.map((item) => (
+              // Hovering shows what the control will look like on the panel.
+              <Tooltip
+                key={controlTypeKey(item)}
+                title={<PaletteGhost item={item} layout={draft.layout} />}
+                placement="left"
+                describeChild
+                disableInteractive
+                open={hoveredItem === controlTypeKey(item) && !palette.dragging}
+                onOpen={() => setHoveredItem(controlTypeKey(item))}
+                onClose={() => setHoveredItem((current) => (current === controlTypeKey(item) ? null : current))}
+                slotProps={{ tooltip: { sx: { bgcolor: "background.paper", border: 1, borderColor: "divider", p: 1, maxWidth: "none" } } }}
               >
-                {t("synths.addKind", { kind: t(`synths.kind.${kind}`) })}
-              </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onPointerDown={() => palette.start(item)}
+                  onClick={(event) => {
+                    // detail 0 means keyboard activation; pointer clicks are placed by the drop listener.
+                    if (event.detail === 0) setFocusRequestedElement(draft.addCenter(item));
+                  }}
+                >
+                  {t("synths.addKind", { kind: t(`synths.kind.${controlTypeKey(item)}`) })}
+                </Button>
+              </Tooltip>
             ))}
           </Box>
         </Box>
@@ -293,6 +310,7 @@ export function SynthLayoutEditor({
           onAdd={() => draft.addCategory(t("synths.categoryDefaultName", { number: draft.categories.length + 1 }))}
           onRename={draft.renameCategory}
           onRecolor={draft.recolorCategory}
+          onRescale={draft.rescaleCategory}
           onMove={draft.moveCategory}
           onRemove={(category) => void removeCategory(category)}
         />

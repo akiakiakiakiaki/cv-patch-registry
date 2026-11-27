@@ -64,6 +64,36 @@
   }
 }
 
+/* Slide switch: a clickable track; only the thumb carries the switch's color, always filled like an active
+   push button (its position shows off and on). Before the color rules below, which color the thumb. */
+.slideTrack {
+  fill: var(--color-switch-fill);
+  stroke: var(--color-switch-stroke);
+  stroke-width: var(--active-control-stroke-width);
+  cursor: pointer;
+  vector-effect: non-scaling-stroke;
+
+  &:hover {
+    fill: var(--color-switch-hover);
+  }
+}
+
+/* Frame in the switch's color (see InstrumentControlLayer); blue switches keep the neutral frame like push buttons. */
+.slideTrackRed {
+  stroke: var(--color-led-red-stroke);
+}
+
+.slideTrackCategory {
+  stroke: var(--category-color);
+}
+
+.slideThumb {
+  fill: var(--color-switch-fill);
+  stroke: var(--color-switch-stroke);
+  stroke-width: var(--active-control-stroke-width);
+  vector-effect: non-scaling-stroke;
+}
+
 .toggleRed {
   fill: var(--color-switch-red-fill);
   stroke: var(--color-led-red-stroke);
@@ -218,7 +248,8 @@
   stroke-width: var(--overlay-emphasis-stroke-width);
 }
 
-.toggleHit.layoutEditFocus {
+.toggleHit.layoutEditFocus,
+.slideTrack.layoutEditFocus {
   fill: var(--color-debug-highlight-fill-strong);
   stroke: var(--color-debug-highlight);
   stroke-width: var(--active-control-stroke-width);

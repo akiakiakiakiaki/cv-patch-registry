@@ -1,3 +1,4 @@
+import type { ControlPreview } from "./control-layer/PlacementPreview";
 import type { PatchCable, PatchData } from "@/lib/domain/types";
 import type { PatchCableColorId } from "@/lib/domain/patch-colors";
 import type {
@@ -7,7 +8,6 @@ import type {
   Point,
 } from "@/lib/instrument/layout";
 import type { InstrumentDefinition } from "@/lib/instruments/types";
-import type { ControlKind } from "@/lib/domain/control-ids";
 
 export interface InstrumentPanelProps {
   /** Public patches of other users: the panel is inert and every change is ignored. */
@@ -27,7 +27,7 @@ export interface InstrumentPanelProps {
   /** Lets a parent convert pointer positions into panel units (e.g. palette drops). */
   panelRef?: { current: SVGSVGElement | null };
   /** Ghost shape shown while placing a new control from the editor palette. */
-  placementPreview?: { kind: ControlKind; point: Point } | null;
+  placementPreview?: ControlPreview | null;
   onKnobChange: (id: string, value: number) => void;
   /** All switch states one click changes. */
   onSwitchChange: (updates: Readonly<Record<string, boolean>>) => void;

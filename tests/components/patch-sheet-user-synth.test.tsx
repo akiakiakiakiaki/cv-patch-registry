@@ -85,7 +85,7 @@ describe("palette drag feedback", () => {
 
     fireEvent.pointerDown(screen.getByRole("button", { name: "Add Switch" }), { clientX: 50, clientY: 60, pointerId: 3 });
     fireEvent.pointerMove(window, { clientX: 260, clientY: 170, pointerId: 3 });
-    const preview = container.querySelector('rect[aria-hidden="true"]');
+    const preview = container.querySelector('g[aria-hidden="true"] > rect');
     expect(preview).not.toBeNull();
     expect(Number(preview?.getAttribute("x"))).toBeCloseTo(500 - testLayout.geometry.switch.width / 2);
 

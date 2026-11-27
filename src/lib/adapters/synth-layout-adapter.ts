@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { LAYOUT_SCHEMA_MINOR, encodeInstrumentLayout } from "@/lib/adapters/instrument-layout-adapter";
+import { LAYOUT_SCHEMA_MINOR, encodeInstrumentLayout, usesCategoryScale, usesSlideSwitches } from "@/lib/adapters/instrument-layout-adapter";
+import { CATEGORY_SCALE } from "@/lib/instrument/geometry";
 import { CONTROL_KINDS, type ControlKind } from "@/lib/domain/control-ids";
 import type { ControlCategory, InstrumentLayout, KnobDefinition, PatchPort, SwitchDefinition } from "@/lib/instrument/layout";
 import { CATEGORY_COLOR_PATTERN, CATEGORY_ID_PATTERN, categoryIssues, usesCategories } from "@/lib/domain/switch-categories";
@@ -13,10 +14,13 @@ export const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 
 const MAX_CATEGORIES = 32;
 
+const scaleFactor = z.number().finite().min(CATEGORY_SCALE.min).max(CATEGORY_SCALE.max);
+
 const categorySchema = z.object({
   id: z.string().regex(CATEGORY_ID_PATTERN),
   name: z.string().trim().min(1).max(40),
   color: z.string().regex(CATEGORY_COLOR_PATTERN),
+  scale: z.union([scaleFactor, z.object({ x: scaleFactor, y: scaleFactor })]).optional(),
 });
 
 /** Category references and switch roles shared by the editor draft and the stored layout. */
@@ -26,6 +30,9 @@ const categoryFields = {
   dependsOn: z.string().min(1).optional(),
 };
 
+/** Switch construction (see SwitchStyle); only switches may carry it. */
+const switchStyleField = { style: z.literal("slide").optional() };
+
 const controlSchema = z.object({
   id: z.string().regex(CONTROL_ID_PATTERN),
   kind: z.enum(CONTROL_KINDS),
@@ -34,6 +41,7 @@ const controlSchema = z.object({
   y: z.number().finite(),
   color: z.enum(["red", "blue", "amber"]).optional(),
   ...categoryFields,
+  ...switchStyleField,
 });
 
 /** Input from the editor. Validated here, mapped to a layout document in one place. */
@@ -87,6 +95,7 @@ export function draftToLayout(
     ...(control.category ? { category: control.category } : {}),
     ...(control.selects ? { selects: control.selects } : {}),
     ...(control.dependsOn ? { dependsOn: control.dependsOn } : {}),
+    ...(control.style ? { style: control.style } : {}),
   });
   const controls = draft.controls;
   const categories: ControlCategory[] = draft.categories ?? [];
@@ -139,7 +148,7 @@ const layoutDocumentSchema = z.object({
   knobSweepAngle: z.number(),
   categories: z.array(categorySchema).max(MAX_CATEGORIES).optional(),
   knobs: z.array(pointSchema.extend({ category: categoryFields.category })),
-  switches: z.array(pointSchema.extend(categoryFields)),
+  switches: z.array(pointSchema.extend({ ...categoryFields, ...switchStyleField })),
   leds: z.array(pointSchema.extend({ color: z.enum(["red", "blue", "amber"]), category: categoryFields.category })),
   ports: z.array(portSchema),
 });
@@ -161,6 +170,8 @@ export function parseSynthLayout(value: unknown): InstrumentLayout | null {
   if (hasUni && (layout.schemaMinor ?? 0) < 1) return null;
   const typed = layout as unknown as InstrumentLayout;
   if (usesCategories(typed) && (layout.schemaMinor ?? 0) < 2) return null;
+  if (usesSlideSwitches(typed) && (layout.schemaMinor ?? 0) < 3) return null;
+  if (usesCategoryScale(typed) && (layout.schemaMinor ?? 0) < 4) return null;
   if (categoryIssues(typed).length > 0) return null;
   return typed;
 }
@@ -174,7 +185,7 @@ export function controlKindOf(id: string): ControlKind | null {
 export function draftControlsFromLayout(layout: InstrumentLayout): DraftControl[] {
   const fromPoints = (
     kind: ControlKind,
-    points: readonly { id: string; label?: string; x: number; y: number; category?: string; selects?: readonly string[]; dependsOn?: string }[],
+    points: readonly { id: string; label?: string; x: number; y: number; category?: string; selects?: readonly string[]; dependsOn?: string; style?: "slide" }[],
   ) =>
     points.map((point) => ({
       id: point.id,
@@ -185,6 +196,7 @@ export function draftControlsFromLayout(layout: InstrumentLayout): DraftControl[
       ...(point.category ? { category: point.category } : {}),
       ...(point.selects ? { selects: [...point.selects] } : {}),
       ...(point.dependsOn ? { dependsOn: point.dependsOn } : {}),
+      ...(point.style ? { style: point.style } : {}),
     }));
   return [
     ...fromPoints("knob", layout.knobs),

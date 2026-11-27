@@ -6,9 +6,7 @@ import type {
   FocusedLayoutElement,
   InstrumentLayout,
   PatchPort,
-  Point,
 } from "@/lib/instrument/layout";
-import type { ControlKind } from "@/lib/domain/control-ids";
 import type { InstrumentDefinition } from "@/lib/instruments/types";
 import { InstrumentHitArea } from "@/components/instrument-hit-area/InstrumentHitArea";
 import { categoryClass } from "@/components/instrument-panel/category-styles";
@@ -17,6 +15,8 @@ import type { useInstrumentPanelInteractions } from "../useInstrumentPanelIntera
 import { handleKeyboardToggle } from "../utils";
 import { useI18n } from "@/i18n/provider";
 import { cx } from "@/lib/utils/class-names";
+import { categoryScale, roundFactor, scaleRect, switchRect } from "@/lib/instrument/geometry";
+import { PlacementPreview, slideThumb, type ControlPreview } from "./PlacementPreview";
 import {
   DEFAULT_KNOB_VALUE,
   KNOB_VALUE_MAX,
@@ -29,7 +29,7 @@ interface InstrumentControlLayerProps {
   layout: InstrumentLayout;
   layoutEditMode: boolean;
   focusedElement: FocusedLayoutElement | null;
-  placementPreview?: { kind: ControlKind; point: Point } | null;
+  placementPreview?: ControlPreview | null;
   interactions: ReturnType<typeof useInstrumentPanelInteractions>;
   onFocusLayoutElement: (target: FocusedLayoutElement) => void;
   onBeginLayoutDrag: (target: FocusedLayoutElement, event: PointerEvent<SVGElement>) => void;
@@ -111,13 +111,16 @@ export function InstrumentControlLayer({
             (value * layout.knobSweepAngle) / KNOB_VALUE_MAX) *
             Math.PI) /
           180;
+        // A category may scale its knobs; they stay round.
+        const size = roundFactor(categoryScale(layout.categories, knob.category));
+        const indicatorLength = layout.geometry.knob.indicatorLength * size;
         return (
           <g key={knob.id}>
             <InstrumentHitArea
               shape={layout.geometry.knob.shape}
               x={knob.x}
               y={knob.y}
-              radius={layout.geometry.knob.hitRadius}
+              radius={layout.geometry.knob.hitRadius * size}
               className={cx(styles.knobHit, focusClass("knob", knob.id))}
               tabIndex={0}
               role={layoutEditMode ? "button" : "slider"}
@@ -150,15 +153,9 @@ export function InstrumentControlLayer({
               className={cx(styles.knobTick, categoryClass(knob.category))}
               x1={knob.x}
               y1={knob.y}
-              x2={
-                knob.x +
-                Math.cos(angle) * layout.geometry.knob.indicatorLength
-              }
-              y2={
-                knob.y +
-                Math.sin(angle) * layout.geometry.knob.indicatorLength
-              }
-              strokeWidth={layout.geometry.knob.indicatorWidth}
+              x2={knob.x + Math.cos(angle) * indicatorLength}
+              y2={knob.y + Math.sin(angle) * indicatorLength}
+              strokeWidth={layout.geometry.knob.indicatorWidth * size}
             />
           </g>
         );
@@ -172,26 +169,33 @@ export function InstrumentControlLayer({
         const toggle = () => {
           onSwitchChange(instrument.switchAdapter.toggle(data.switches, control.id));
         };
-        return (
+        // Only a switch the category is assigned to directly is scaled; selectors and dependents keep the default size.
+        const rect = scaleRect(switchRect(layout.geometry.switch, control.style), categoryScale(layout.categories, control.category));
+        const slide = control.style === "slide";
+        const on = state.active && !layoutEditMode;
+        // A category's color takes precedence over the switch's fixed color.
+        const colorClass = state.categoryId ? cx(styles.toggleCategory, categoryClass(state.categoryId)) : state.color === "red" ? styles.toggleRed : styles.toggleBlue;
+        // The slide switch's frame takes the same color as its thumb; the track itself stays neutral.
+        const trackColorClass = state.categoryId ? cx(styles.slideTrackCategory, categoryClass(state.categoryId)) : state.color === "red" ? styles.slideTrackRed : null;
+        const hitArea = (
           <InstrumentHitArea
             key={control.id}
             shape={layout.geometry.switch.shape}
             x={control.x}
             y={control.y}
-            width={layout.geometry.switch.width}
-            height={layout.geometry.switch.height}
-            cornerRadius={layout.geometry.switch.cornerRadius}
+            width={rect.width}
+            height={rect.height}
+            cornerRadius={rect.cornerRadius}
             className={cx(
-              styles.toggleHit,
-              // A category's color takes precedence over the switch's fixed color.
-              state.categoryId ? cx(styles.toggleCategory, categoryClass(state.categoryId)) : state.color === "red" ? styles.toggleRed : styles.toggleBlue,
-              state.active && !layoutEditMode && styles.active,
+              // A push button is colored as a whole; a slide switch colors its thumb and frame.
+              slide ? cx(styles.slideTrack, trackColorClass) : cx(styles.toggleHit, colorClass, on && styles.active),
               focusClass("switch", control.id),
             )}
             tabIndex={0}
-            role="button"
+            role={slide ? "switch" : "button"}
             ariaLabel={control.id}
-            ariaPressed={!layoutEditMode && state.active}
+            ariaPressed={slide ? undefined : on}
+            ariaChecked={slide ? on : undefined}
             layoutElement={{ kind: "switch", id: control.id }}
             onPointerDown={(event) => {
               if (layoutEditMode) focusElement(event, { kind: "switch", id: control.id });
@@ -208,6 +212,19 @@ export function InstrumentControlLayer({
             }}
           />
         );
+        if (!slide) return hitArea;
+        return (
+          <g key={control.id}>
+            {hitArea}
+            <rect
+              aria-hidden="true"
+              pointerEvents="none"
+              // Always filled in the switch's color; only its position tells off from on.
+              className={cx(styles.slideThumb, colorClass, styles.active)}
+              {...slideThumb(control, rect, on)}
+            />
+          </g>
+        );
       })}
 
       {layout.leds.map((led) => {
@@ -221,7 +238,7 @@ export function InstrumentControlLayer({
             shape={layout.geometry.led.shape}
             x={led.x}
             y={led.y}
-            radius={layout.geometry.led.hitRadius}
+            radius={layout.geometry.led.hitRadius * roundFactor(categoryScale(layout.categories, led.category))}
             tabIndex={0}
             role="checkbox"
             layoutElement={{ kind: "led", id: led.id }}
@@ -285,84 +302,5 @@ export function InstrumentControlLayer({
         <PlacementPreview layout={layout} {...placementPreview} />
       ) : null}
     </>
-  );
-}
-
-function PlacementPreview({
-  kind,
-  point,
-  layout,
-}: {
-  kind: ControlKind;
-  point: Point;
-  layout: InstrumentLayout;
-}) {
-  const ghostClass = styles.layoutEditFocus;
-
-  if (kind === "knob") {
-    const angle =
-      ((layout.knobStartAngle + (DEFAULT_KNOB_VALUE * layout.knobSweepAngle) / KNOB_VALUE_MAX) * Math.PI) / 180;
-    const { indicatorLength } = layout.geometry.knob;
-    return (
-      <g aria-hidden="true" opacity={0.7} pointerEvents="none">
-        <circle
-          className={cx(styles.knobHit, ghostClass)}
-          cx={point.x}
-          cy={point.y}
-          r={layout.geometry.knob.hitRadius}
-        />
-        <line
-          className={styles.knobTick}
-          x1={point.x}
-          y1={point.y}
-          x2={point.x + Math.cos(angle) * indicatorLength}
-          y2={point.y + Math.sin(angle) * indicatorLength}
-          strokeWidth={layout.geometry.knob.indicatorWidth}
-        />
-      </g>
-    );
-  }
-
-  if (kind === "switch") {
-    const { width, height, cornerRadius } = layout.geometry.switch;
-    return (
-      <rect
-        aria-hidden="true"
-        pointerEvents="none"
-        opacity={0.7}
-        className={cx(styles.toggleHit, styles.toggleBlue, ghostClass)}
-        x={point.x - width / 2}
-        y={point.y - height / 2}
-        width={width}
-        height={height}
-        rx={cornerRadius}
-      />
-    );
-  }
-
-  if (kind === "led") {
-    return (
-      <circle
-        aria-hidden="true"
-        pointerEvents="none"
-        opacity={0.7}
-        className={cx(styles.ledHit, styles.ledRed, ghostClass)}
-        cx={point.x}
-        cy={point.y}
-        r={layout.geometry.led.hitRadius}
-      />
-    );
-  }
-
-  return (
-    <circle
-      aria-hidden="true"
-      pointerEvents="none"
-      opacity={0.7}
-      className={cx(styles.portHit, ghostClass)}
-      cx={point.x}
-      cy={point.y}
-      r={layout.geometry.port.hitRadius}
-    />
   );
 }

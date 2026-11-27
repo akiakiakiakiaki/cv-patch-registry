@@ -1,5 +1,6 @@
 import { generateControlId, nextAutoLabel, type ControlKind } from "@/lib/domain/control-ids";
 import { draftControlsFromLayout, type DraftControl } from "@/lib/adapters/synth-layout-adapter";
+import type { SwitchStyle } from "@/lib/instrument/layout";
 import { normalizePixelPosition } from "@/lib/instrument/pixel-position";
 
 export type EditorControl = DraftControl;
@@ -17,13 +18,14 @@ export function clampToPanel(position: { x: number; y: number }, bounds: PanelBo
   };
 }
 
-/** Adds a control with a generated ID and the next free automatic label of its kind. */
+/** Adds a control with a generated ID and the next free automatic label of its kind; `style` only for switches. */
 export function addControl(
   controls: readonly EditorControl[],
   kind: ControlKind,
   position: { x: number; y: number },
   bounds: PanelBounds,
   id = generateControlId(kind),
+  style?: SwitchStyle,
 ): EditorControl[] {
   const point = clampToPanel(position, bounds);
   const control: EditorControl = {
@@ -32,6 +34,7 @@ export function addControl(
     label: nextAutoLabel(kind, controls.map((item) => item.label)),
     ...point,
     ...(kind === "led" ? { color: "red" as const } : {}),
+    ...(kind === "switch" && style ? { style } : {}),
   };
   return [...controls, control];
 }

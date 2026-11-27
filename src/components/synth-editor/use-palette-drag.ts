@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { eventPoint } from "@/components/instrument-panel/utils";
-import type { ControlKind } from "@/lib/domain/control-ids";
+import type { PaletteItem } from "@/components/synth-editor/palette";
 import type { Point } from "@/lib/instrument/layout";
 
 /**
@@ -13,9 +13,9 @@ import type { Point } from "@/lib/instrument/layout";
 export function usePaletteDrag(
   panelRef: RefObject<SVGSVGElement | null>,
   panel: { width: number; height: number },
-  onDrop: (kind: ControlKind, point: Point) => void,
+  onDrop: (item: PaletteItem, point: Point) => void,
 ) {
-  const [dragKind, setDragKind] = useState<ControlKind | null>(null);
+  const [dragItem, setDragItem] = useState<PaletteItem | null>(null);
   const [preview, setPreview] = useState<Point | null>(null);
   const dropRef = useRef(onDrop);
   useEffect(() => {
@@ -23,7 +23,7 @@ export function usePaletteDrag(
   });
 
   useEffect(() => {
-    if (!dragKind) return;
+    if (!dragItem) return;
     const locate = (event: PointerEvent): Point | null => {
       const svg = panelRef.current;
       if (!svg) return null;
@@ -32,13 +32,18 @@ export function usePaletteDrag(
       return inside ? point : null;
     };
     const stop = () => {
-      setDragKind(null);
+      setDragItem(null);
       setPreview(null);
     };
-    const move = (event: PointerEvent) => setPreview(locate(event));
+    // Only a real change of position renders again: browsers also send pointermove when the page changes
+    // under a resting pointer, and a new object for the same point would answer every such event with a render.
+    const move = (event: PointerEvent) => {
+      const next = locate(event);
+      setPreview((current) => (samePoint(current, next) ? current : next));
+    };
     const drop = (event: PointerEvent) => {
       const point = locate(event);
-      if (point) dropRef.current(dragKind, point);
+      if (point) dropRef.current(dragItem, point);
       stop();
     };
     window.addEventListener("pointermove", move);
@@ -49,7 +54,12 @@ export function usePaletteDrag(
       window.removeEventListener("pointerup", drop);
       window.removeEventListener("pointercancel", stop);
     };
-  }, [dragKind, panel.width, panel.height, panelRef]);
+  }, [dragItem, panel.width, panel.height, panelRef]);
 
-  return { start: setDragKind, placement: dragKind && preview ? { kind: dragKind, point: preview } : null };
+  const placement = useMemo(() => (dragItem && preview ? { ...dragItem, point: preview } : null), [dragItem, preview]);
+  return { start: setDragItem, dragging: dragItem !== null, placement };
+}
+
+function samePoint(left: Point | null, right: Point | null): boolean {
+  return left === right || (left !== null && right !== null && left.x === right.x && left.y === right.y);
 }

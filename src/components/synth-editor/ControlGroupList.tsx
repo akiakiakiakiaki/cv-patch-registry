@@ -15,6 +15,7 @@ import { ColorDot } from "@/components/synth-editor/CategorySettings";
 import { fixedColorOf, shownCategoryIds } from "@/components/synth-editor/category-draft";
 import type { EditorControl } from "@/components/synth-editor/draft-state";
 import { CONTROL_KINDS, type ControlKind } from "@/lib/domain/control-ids";
+import { controlTypeKey } from "@/components/synth-editor/palette";
 import type { ControlCategory } from "@/lib/instrument/layout";
 import { useI18n } from "@/i18n/provider";
 
@@ -79,7 +80,7 @@ export function ControlGroupList({
                           <ColorDot key={categoryId} categoryId={categoryId} color={categories.find((category) => category.id === categoryId)?.color} />
                         ))}
                         {fixedColor ? <ColorDot fixed color={fixedColor} /> : null}
-                        {control.label} · {t(`synths.kind.${control.kind}`)}
+                        {control.label} · {t(`synths.kind.${controlTypeKey(control)}`)}
                       </Button>
                       <IconButton size="small" aria-label={t("synths.removeAria", { label: control.label })} onClick={() => onRemove(control.id)}>
                         <DeleteIcon fontSize="small" />
