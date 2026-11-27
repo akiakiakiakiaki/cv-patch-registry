@@ -9,15 +9,17 @@ import { rejectCrossOriginMutation } from "@/lib/http/mutation-origin";
 
 export const runtime = "nodejs";
 
+/** The synths the requesting user may see: approved ones, plus their own (and for admins all) unapproved ones. */
 export async function GET() {
-  const views = await listSynthViews(await serverDatabase());
+  const views = await listSynthViews(await serverDatabase(), await requireUser());
   return NextResponse.json({
-    synths: views.map(({ slug, displayName, manufacturer, revision, isBuiltIn }) => ({
+    synths: views.map(({ slug, displayName, manufacturer, revision, isBuiltIn, approved }) => ({
       slug,
       displayName,
       manufacturer,
       revision,
       isBuiltIn,
+      approved,
     })),
   });
 }

@@ -32,14 +32,19 @@ export function useSynthCatalog(initialSlug: string) {
     if (!selectedSlug || items.some((item) => item.slug === selectedSlug)) return items;
     if (selectedSlug === BUILT_IN_SYNTH && catalog) return items;
     const fallbackName = selectedSlug === BUILT_IN_SYNTH ? behringerProton.displayName : selectedSlug;
-    return [...items, { slug: selectedSlug, displayName: fallbackName, isBuiltIn: selectedSlug === BUILT_IN_SYNTH }];
+    return [...items, { slug: selectedSlug, displayName: fallbackName, isBuiltIn: selectedSlug === BUILT_IN_SYNTH, approved: true }];
   }, [catalog, selectedSlug]);
   // The built-in Proton is kept next to its editable clone until removed; the list marks it as legacy.
   const instrumentOptions = useMemo(
     () =>
       selectorOptions.map((item) => ({
         id: item.slug,
-        displayName: item.slug === LEGACY_PROTON_SLUG ? t("instrument.legacyName", { name: item.displayName }) : item.displayName,
+        displayName:
+          item.slug === LEGACY_PROTON_SLUG
+            ? t("instrument.legacyName", { name: item.displayName })
+            : item.approved === false
+              ? t("instrument.pendingName", { name: item.displayName })
+              : item.displayName,
       })),
     [selectorOptions, t],
   );

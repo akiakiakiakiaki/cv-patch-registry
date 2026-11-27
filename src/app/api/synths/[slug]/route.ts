@@ -10,14 +10,15 @@ export const runtime = "nodejs";
 
 type RouteContext = { params: Promise<{ slug: string }> };
 
+/** Unapproved synths answer 404 for everyone but their owner and admins. */
 export async function GET(_request: Request, { params }: RouteContext) {
   const { slug } = await params;
-  const view = await getSynthView(await serverDatabase(), slug);
+  const view = await getSynthView(await serverDatabase(), slug, await requireUser());
   if (!view) return NextResponse.json({ error: "not-found" }, { status: 404 });
   return NextResponse.json(view);
 }
 
-/** Owner only. Flags the synth as deleted (soft delete). */
+/** Owner or admin. Flags the synth as deleted (soft delete). */
 export async function DELETE(request: Request, { params }: RouteContext) {
   const originFailure = rejectCrossOriginMutation(request);
   if (originFailure) return originFailure;

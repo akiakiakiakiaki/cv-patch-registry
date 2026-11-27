@@ -87,6 +87,40 @@ describe("Better Auth on PGlite (verification off)", () => {
   });
 });
 
+describe("deactivated accounts", () => {
+  beforeAll(async () => {
+    await loadAuth(false);
+  });
+
+  it("keep a session that only tells them why, and cannot sign in again until reactivated", async () => {
+    const { requireUser } = await import("@/lib/auth/session");
+    const { changeUser } = await import("@/lib/users/user-admin");
+    const { ACCOUNT_DISABLED } = authModule;
+    const email = uniqueEmail("disabled");
+    const signedUp = await authModule.getAuth().api.signUpEmail({ body: { name: "Disabled", email, password: PASSWORD } });
+    const response = await authModule.getAuth().api.signInEmail({ body: { email, password: PASSWORD }, asResponse: true });
+    currentRequestHeaders = new Headers({ cookie: response.headers.get("set-cookie")!.split(";")[0]! });
+    await expect(requireUser()).resolves.toMatchObject({ email });
+
+    const db = dbModule.getDatabase().db;
+    const admin = { id: "admin-actor", role: "owner" };
+    expect(await changeUser(db, admin, signedUp.user.id, { active: false })).toEqual({ ok: true, change: { active: false } });
+    // The app's APIs refuse the session ...
+    await expect(requireUser()).resolves.toBeNull();
+    // ... while reading it shows why, so the app can say so.
+    const current = await authModule.getAuth().api.getSession({ headers: currentRequestHeaders });
+    expect((current?.user as { disabledAt?: unknown } | undefined)?.disabledAt).toBeTruthy();
+    // Better Auth's own endpoints refuse it too, except signing out.
+    await expect(authModule.getAuth().api.updateUser({ body: { name: "Renamed" }, headers: currentRequestHeaders })).rejects.toMatchObject({ body: { code: ACCOUNT_DISABLED } });
+    await expect(authModule.getAuth().api.signInEmail({ body: { email, password: PASSWORD } })).rejects.toMatchObject({ body: { code: ACCOUNT_DISABLED } });
+
+    await changeUser(db, admin, signedUp.user.id, { active: true });
+    await expect(requireUser()).resolves.toMatchObject({ email });
+    const again = await authModule.getAuth().api.signInEmail({ body: { email, password: PASSWORD } });
+    expect(again.user.email).toBe(email);
+  });
+});
+
 describe("Better Auth on PGlite (verification on)", () => {
   it("sends a verification mail on sign-up and blocks sign-in until verified", async () => {
     await loadAuth(true);

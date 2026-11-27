@@ -95,14 +95,14 @@ describe("cloneLegacyProton", () => {
         ]),
       },
     });
-    expect(await getSynthView(db, PROTON_CLONE_SLUG)).toBeNull();
+    expect(await getSynthView(db, PROTON_CLONE_SLUG, null)).toBeNull();
     expect(await db.select().from(patches)).toHaveLength(2);
   });
 
   it("creates the clone for the owner with its panel and copies every user's patches", async () => {
     expect(await run(true)).toMatchObject({ ok: true, report: { synth: "create" } });
 
-    const view = await getSynthView(db, PROTON_CLONE_SLUG);
+    const view = await getSynthView(db, PROTON_CLONE_SLUG, null);
     expect(view).toMatchObject({ ownerId: admin.id, isBuiltIn: false, revision: 1, displayName: "Behringer Proton", manufacturer: "Behringer" });
     expect(view?.layout).toEqual(buildProtonCloneLayout());
     expect(view?.panelUrl).toMatch(/^\/assets\/uploads\/.+\.png$/);
@@ -154,7 +154,7 @@ describe("cloneLegacyProton", () => {
   it("refuses a panel of the wrong size and writes nothing", async () => {
     const result = await run(true, admin.id, SMALL_PNG);
     expect(result).toEqual({ ok: false, error: "panel-invalid", detail: "expected 2048x653, got 800x400" });
-    expect(await getSynthView(db, PROTON_CLONE_SLUG)).toBeNull();
+    expect(await getSynthView(db, PROTON_CLONE_SLUG, null)).toBeNull();
     expect(await db.select().from(patches)).toHaveLength(2);
   });
 });

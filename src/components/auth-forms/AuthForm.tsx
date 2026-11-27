@@ -53,7 +53,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       return;
     }
 
-    let signInError: { status?: number } | null = null;
+    let signInError: { status?: number; code?: string } | null = null;
     try {
       signInError = (await authClient.signIn.email({ email, password })).error ?? null;
     } catch {
@@ -62,7 +62,8 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     setPending(false);
     if (signInError) {
       // Only a 401 means wrong credentials. Anything else (403, server or network errors) is reported as such.
-      if (signInError.status === 401) setError(t("auth.invalidCredentials"));
+      if (signInError.code === "ACCOUNT_DISABLED") setError(t("auth.accountDisabled"));
+      else if (signInError.status === 401) setError(t("auth.invalidCredentials"));
       else if (signInError.status === 403) setError(t("auth.notVerified"));
       else setError(t("auth.serverError"));
       return;

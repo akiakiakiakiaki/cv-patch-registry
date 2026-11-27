@@ -58,11 +58,11 @@ async function uploadPanel(env: Awaited<ReturnType<typeof setup>>, actor: { id: 
 describe("built-in synths", () => {
   it("mirror the Proton layout as revision 1 and stay idempotent", async () => {
     const env = await setup();
-    const first = await getSynthView(env.db, behringerProton.layout.id);
+    const first = await getSynthView(env.db, behringerProton.layout.id, null);
     expect(first).toMatchObject({ isBuiltIn: true, revision: 1, displayName: "Behringer Proton", panelUrl: "/proton.svg" });
 
     await seedBuiltInSynths(env.db);
-    const second = await getSynthView(env.db, behringerProton.layout.id);
+    const second = await getSynthView(env.db, behringerProton.layout.id, null);
     expect(second?.revision).toBe(1);
     env.cleanup();
   });
@@ -82,7 +82,7 @@ describe("creating synths", () => {
     const result = await createSynth(env.db, env.owner, draft("my-synth", { panelAssetId: panel.id }));
     expect(result).toEqual({ ok: true, slug: "my-synth", revision: 1 });
 
-    const view = await getSynthView(env.db, "my-synth");
+    const view = await getSynthView(env.db, "my-synth", env.owner);
     expect(view).toMatchObject({ revision: 1, isBuiltIn: false, ownerId: env.owner.id, manufacturer: "Test Works" });
     expect(view?.panelUrl).toMatch(/^\/assets\/uploads\/[0-9a-f-]{36}\.png$/);
     expect(view?.layout.knobs[0]?.id).toBe("knob-1a2b3c4d");
@@ -122,7 +122,7 @@ describe("revisions and optimistic concurrency", () => {
     await createSynth(env.db, env.owner, draft("rev-synth", { panelAssetId: panel.id }));
     const result = await createSynthRevision(env.db, env.owner, "rev-synth", draft("rev-synth", { expectedRevision: 1, displayName: "Renamed" }));
     expect(result).toEqual({ ok: true, slug: "rev-synth", revision: 2 });
-    expect((await getSynthView(env.db, "rev-synth"))?.displayName).toBe("Renamed");
+    expect((await getSynthView(env.db, "rev-synth", env.owner))?.displayName).toBe("Renamed");
     env.cleanup();
   });
 
@@ -133,7 +133,7 @@ describe("revisions and optimistic concurrency", () => {
     await createSynthRevision(env.db, env.owner, "stale-synth", draft("stale-synth", { expectedRevision: 1 }));
     const stale = await createSynthRevision(env.db, env.owner, "stale-synth", draft("stale-synth", { expectedRevision: 1, displayName: "Lost" }));
     expect(stale).toEqual({ ok: false, error: "conflict" });
-    expect((await getSynthView(env.db, "stale-synth"))?.revision).toBe(2);
+    expect((await getSynthView(env.db, "stale-synth", env.owner))?.revision).toBe(2);
     env.cleanup();
   });
 
@@ -157,12 +157,13 @@ describe("revisions and optimistic concurrency", () => {
 });
 
 describe("catalog listing", () => {
-  it("lists built-in and user synths publicly", async () => {
+  it("lists built-in synths publicly and a new user synth to its owner until it is approved", async () => {
     const env = await setup();
     const panel = await uploadPanel(env, env.owner);
     await createSynth(env.db, env.owner, draft("listed", { panelAssetId: panel.id }));
-    const slugs = (await listSynthViews(env.db)).map((view) => view.slug).sort();
-    expect(slugs).toEqual([behringerProton.layout.id, "listed"].sort());
+    const slugsFor = async (viewer: Parameters<typeof listSynthViews>[1]) => (await listSynthViews(env.db, viewer)).map((view) => view.slug).sort();
+    expect(await slugsFor(env.owner)).toEqual([behringerProton.layout.id, "listed"].sort());
+    expect(await slugsFor(null)).toEqual([behringerProton.layout.id]);
     env.cleanup();
   });
 });

@@ -11,7 +11,8 @@ export default async function ExplorePage({ searchParams }: PageProps) {
   const db = await serverDatabase();
   const [patches, synths] = await Promise.all([
     listPublicPatches(db, { tagSlug: tag, synthSlug: synth }),
-    listSynthViews(db),
+    // The public page lists approved synths only, for everyone.
+    listSynthViews(db, null),
   ]);
   return (
     <ExploreView

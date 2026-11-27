@@ -78,8 +78,9 @@ async function updatePGlite(email, role) {
 }
 
 const [email, role] = process.argv.slice(2);
-if (!email || (role !== "user" && role !== "admin")) {
-  console.error("Usage: npm run db:set-role -- <email> <user|admin>");
+// "owner" is the super admin (see src/lib/auth/roles.ts); it is only assigned here, never in the app.
+if (!email || !["user", "admin", "owner"].includes(role)) {
+  console.error("Usage: npm run db:set-role -- <email> <user|admin|owner>");
   process.exitCode = 2;
 } else {
   try {

@@ -3,6 +3,7 @@ import type { Database } from "@/lib/db/client";
 import { patchTags, patches, synthRevisions, synths, tags } from "@/lib/db/schema";
 import { visibleSynthCondition } from "@/lib/repositories/synths-repository";
 import type { TagEntry } from "@/lib/domain/tags";
+import type { Actor } from "@/lib/domain/policy";
 
 export type PatchRow = typeof patches.$inferSelect;
 
@@ -11,8 +12,10 @@ export interface PatchListFilter {
   tagSlug?: string;
   visibility?: "public";
   ownerId?: string;
-  /** Also lists patches of hidden legacy synths (for migrations, never for user-facing lists). */
+  /** Also lists patches of hidden legacy synths and unapproved synths (for migrations, never for user-facing lists). */
   includeHidden?: boolean;
+  /** Whose view: patches of synths the viewer may not see are left out (see visibleSynthCondition). */
+  viewer: Actor | null;
 }
 
 /** Patch joined with its synth revision and synth, for views and listings. */
@@ -49,14 +52,17 @@ const withSynth = (db: Database) =>
     .innerJoin(synthRevisions, eq(synthRevisions.id, patches.synthRevisionId))
     .innerJoin(synths, eq(synths.id, synthRevisions.synthId));
 
-/** Patches of deleted or hidden synths are hidden everywhere, including for their owner. */
-export async function findPatchWithSynth(db: Database, patchId: string): Promise<PatchWithSynth | null> {
-  const [row] = await withSynth(db).where(and(eq(patches.id, patchId), visibleSynthCondition())).limit(1);
+/**
+ * A patch with its synth, if `viewer` may see that synth. Patches of deleted or hidden synths are hidden everywhere,
+ * including for their owner; patches of unapproved synths for everyone but the synth's owner and admins.
+ */
+export async function findPatchWithSynth(db: Database, patchId: string, viewer: Actor | null): Promise<PatchWithSynth | null> {
+  const [row] = await withSynth(db).where(and(eq(patches.id, patchId), visibleSynthCondition(viewer))).limit(1);
   return row ?? null;
 }
 
 export async function listPatchesWithSynth(db: Database, filter: PatchListFilter): Promise<PatchWithSynth[]> {
-  const conditions = [filter.includeHidden ? isNull(synths.deletedAt) : visibleSynthCondition()];
+  const conditions = [filter.includeHidden ? isNull(synths.deletedAt) : visibleSynthCondition(filter.viewer)];
   if (filter.ownerId) conditions.push(eq(patches.ownerId, filter.ownerId));
   if (filter.visibility) conditions.push(eq(patches.visibility, filter.visibility));
   if (filter.synthSlug) conditions.push(eq(synths.slug, filter.synthSlug));

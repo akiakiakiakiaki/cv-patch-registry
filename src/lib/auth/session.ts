@@ -8,8 +8,8 @@ export async function getSession() {
   return getAuth().api.getSession({ headers: await headers() });
 }
 
-/** Returns the signed-in user, or null. Route handlers answer null with 401. */
+/** Returns the signed-in user, or null (also for a deactivated account). Route handlers answer null with 401. */
 export async function requireUser() {
   const session = await getSession();
-  return session?.user && isMemberRole(session.user.role) ? session.user : null;
+  return session?.user && isMemberRole(session.user.role) && !session.user.disabledAt ? session.user : null;
 }

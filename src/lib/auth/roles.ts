@@ -1,4 +1,8 @@
-export const MEMBER_ROLES = ["user", "admin"] as const;
+/**
+ * "owner" is the super admin: every admin right, and the only role that may change roles. It cannot be deactivated
+ * or changed in the app; it is assigned with `npm run db:set-role`.
+ */
+export const MEMBER_ROLES = ["user", "admin", "owner"] as const;
 
 export type MemberRole = (typeof MEMBER_ROLES)[number];
 export type AppRole = "guest" | MemberRole;
@@ -20,10 +24,20 @@ const roleCapabilities: Record<AppRole, Record<Capability, boolean>> = {
     importExportPatches: true,
     adjustBuiltInLayout: true,
   },
+  owner: {
+    manageSynths: true,
+    importExportPatches: true,
+    adjustBuiltInLayout: true,
+  },
 };
 
+/** Admins and the owner: may use the admin area. */
+export function isAdminRole(role: unknown): boolean {
+  return role === "admin" || role === "owner";
+}
+
 export function isMemberRole(value: unknown): value is MemberRole {
-  return value === "user" || value === "admin";
+  return (MEMBER_ROLES as readonly unknown[]).includes(value);
 }
 
 export function roleForUser(user: { role?: unknown } | null | undefined): AppRole {

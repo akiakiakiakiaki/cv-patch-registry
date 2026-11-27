@@ -4,10 +4,11 @@ import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import NextLink from "next/link";
 import { authClient } from "@/lib/auth/client";
+import { isAdminRole, roleForUser } from "@/lib/auth/roles";
 import { confirmLeave } from "@/lib/navigation/leave-guard";
 import { useI18n } from "@/i18n/provider";
 
-/** Explore and account navigation links. */
+/** Explore, admin (admins only) and account navigation links. */
 export function AccountLinks() {
   const { t } = useI18n();
   const { data: session, isPending } = authClient.useSession();
@@ -18,6 +19,11 @@ export function AccountLinks() {
       <Button color="inherit" size="small" component={NextLink} href="/explore">
         {t("auth.explore")}
       </Button>
+      {isAdminRole(roleForUser(session?.user)) ? (
+        <Button color="inherit" size="small" component={NextLink} href="/admin">
+          {t("admin.nav")}
+        </Button>
+      ) : null}
       {session ? (
         <Button
           color="inherit"

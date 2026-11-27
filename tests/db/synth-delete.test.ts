@@ -10,6 +10,7 @@ import { LocalFsStorage } from "@/lib/storage/local-fs-storage";
 import { createSynth, createSynthRevision, getSynthView, listSynthViews } from "@/lib/synths/synth-service";
 import { deleteSynth } from "@/lib/synths/synth-delete";
 import { createPatch, getPatchView, listPublicPatches, updatePatch } from "@/lib/patches/patch-service";
+import { findSynthBySlug, setSynthApproval } from "@/lib/repositories/synths-repository";
 
 const PNG = (() => {
   const bytes = new Uint8Array(33);
@@ -44,7 +45,7 @@ describe("soft-deleting a user synth", () => {
   it("answers not-found for anyone but the owner", async () => {
     const env = await setup();
     expect(await deleteSynth(env.db, env.stranger, "gone-synth")).toEqual({ ok: false, error: "not-found" });
-    expect(await getSynthView(env.db, "gone-synth")).not.toBeNull();
+    expect(await getSynthView(env.db, "gone-synth", env.owner)).not.toBeNull();
     env.cleanup();
   });
 
@@ -58,8 +59,8 @@ describe("soft-deleting a user synth", () => {
   it("hides the synth from lists, views and revisions", async () => {
     const env = await setup();
     expect(await deleteSynth(env.db, env.owner, "gone-synth")).toEqual({ ok: true });
-    expect(await getSynthView(env.db, "gone-synth")).toBeNull();
-    expect((await listSynthViews(env.db)).map((view) => view.slug)).not.toContain("gone-synth");
+    expect(await getSynthView(env.db, "gone-synth", env.owner)).toBeNull();
+    expect((await listSynthViews(env.db, env.owner)).map((view) => view.slug)).not.toContain("gone-synth");
     expect(await createSynthRevision(env.db, env.owner, "gone-synth", { displayName: "x", slug: "gone-synth", expectedRevision: 1, controls: [] })).toEqual({
       ok: false,
       error: "not-found",
@@ -69,6 +70,9 @@ describe("soft-deleting a user synth", () => {
 
   it("hides and freezes its patches", async () => {
     const env = await setup();
+    // Approved, so its public patch is visible to everyone before the deletion.
+    const synth = await findSynthBySlug(env.db, "gone-synth");
+    await setSynthApproval(env.db, synth!.id, true);
     const created = await createPatch(env.db, env.owner, { synthSlug: "gone-synth", name: "Public", visibility: "public" });
     if (!created.ok) throw new Error("patch failed");
     expect(await getPatchView(env.db, null, created.id)).not.toBeNull();

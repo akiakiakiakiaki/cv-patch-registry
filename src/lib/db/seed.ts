@@ -21,7 +21,8 @@ export async function seedBuiltInSynths(db: Database): Promise<void> {
   await db.transaction(async (tx) => {
     await tx
       .insert(synths)
-      .values({ id: randomUUID(), ownerId: null, slug, displayName: layout.displayName })
+      // Built-in synths come with the app and need no approval.
+      .values({ id: randomUUID(), ownerId: null, slug, displayName: layout.displayName, approvedAt: new Date() })
       .onConflictDoNothing({ target: synths.slug });
 
     const [synth] = await tx.select().from(synths).where(eq(synths.slug, slug)).for("update");

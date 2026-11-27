@@ -30,11 +30,13 @@ const PNG_800x400 = (() => {
 
 const owner = { id: randomUUID(), role: "user" as const };
 const stranger = { id: randomUUID(), role: "user" as const };
+const admin = { id: randomUUID(), role: "admin" as const };
 
 const assetsRoute = () => import("@/app/api/assets/route");
 const synthsRoute = () => import("@/app/api/synths/route");
 const synthRoute = () => import("@/app/api/synths/[slug]/route");
 const revisionRoute = () => import("@/app/api/synths/[slug]/revisions/route");
+const adminSynthRoute = () => import("@/app/api/admin/synths/[slug]/route");
 
 function uploadRequest(bytes: Uint8Array, kind = "panel") {
   return new Request(`http://localhost/api/assets?kind=${kind}`, { method: "POST", body: bytes });
@@ -108,7 +110,7 @@ describe("panel uploads", () => {
 describe("synth lifecycle over HTTP", () => {
   const slug = `route-${Date.now()}`;
 
-  it("creates a synth, reads it back publicly and lists it", async () => {
+  it("creates a synth that only its owner sees until an admin approves it, then everyone", async () => {
     const panelAssetId = await uploadPanel();
     const created = await (await synthsRoute()).POST(
       jsonRequest("POST", {
@@ -120,16 +122,25 @@ describe("synth lifecycle over HTTP", () => {
     );
     expect(created.status).toBe(201);
 
-    session.user = null;
-    const detail = await (await synthRoute()).GET(new Request(`http://localhost/api/synths/${slug}`), {
-      params: Promise.resolve({ slug }),
-    });
-    expect(detail.status).toBe(200);
-    expect(await detail.json()).toMatchObject({ slug, revision: 1, isBuiltIn: false });
+    const detail = async () => (await synthRoute()).GET(new Request(`http://localhost/api/synths/${slug}`), { params: Promise.resolve({ slug }) });
+    const listed = async () => ((await (await (await synthsRoute()).GET()).json()) as { synths: { slug: string; approved: boolean }[] }).synths;
+    expect(await (await detail()).json()).toMatchObject({ slug, revision: 1, isBuiltIn: false, approved: false, canEdit: true });
+    expect((await listed()).find((synth) => synth.slug === slug)).toMatchObject({ approved: false });
 
-    const list = await (await synthsRoute()).GET();
-    const listed = (await list.json()) as { synths: { slug: string }[] };
-    expect(listed.synths.map((synth) => synth.slug)).toContain(slug);
+    for (const viewer of [null, stranger]) {
+      session.user = viewer;
+      expect((await detail()).status).toBe(404);
+      expect((await listed()).map((synth) => synth.slug)).not.toContain(slug);
+    }
+
+    session.user = admin;
+    const approval = await (await adminSynthRoute()).PATCH(jsonRequest("PATCH", { approved: true }), { params: Promise.resolve({ slug }) });
+    expect(await approval.json()).toEqual({ ok: true, approved: true });
+    expect(await (await detail()).json()).toMatchObject({ approved: true, canEdit: true });
+
+    session.user = null;
+    expect(await (await detail()).json()).toMatchObject({ slug, approved: true, canEdit: false });
+    expect((await listed()).map((synth) => synth.slug)).toContain(slug);
   });
 
   it("answers 404 for unknown slugs", async () => {
@@ -159,5 +170,66 @@ describe("synth lifecycle over HTTP", () => {
       { params: Promise.resolve({ slug }) },
     );
     expect(response.status).toBe(404);
+  });
+});
+
+describe("synth approval over HTTP", () => {
+  // The permission and input checks come before the synth is looked up, so any slug will do.
+  const slug = "any-synth";
+  const approve = async (body: unknown, target = slug) =>
+    (await adminSynthRoute()).PATCH(jsonRequest("PATCH", body), { params: Promise.resolve({ slug: target }) });
+
+  it("is for admins only", async () => {
+    session.user = null;
+    expect((await approve({ approved: true })).status).toBe(401);
+    session.user = owner;
+    expect((await approve({ approved: true })).status).toBe(403);
+  });
+
+  it("checks the request and the synth", async () => {
+    session.user = admin;
+    expect((await approve({ approved: "yes" })).status).toBe(422);
+    expect((await approve({ approved: true }, "does-not-exist")).status).toBe(404);
+  });
+
+  it("refuses requests from other sites", async () => {
+    session.user = admin;
+    const request = new Request("http://localhost/api/admin/synths/x", {
+      method: "PATCH",
+      headers: { "content-type": "application/json", origin: "https://evil.example" },
+      body: JSON.stringify({ approved: true }),
+    });
+    expect((await (await adminSynthRoute()).PATCH(request, { params: Promise.resolve({ slug }) })).status).toBe(403);
+  });
+});
+
+describe("synth management over HTTP", () => {
+  const slug = "any-synth";
+  const context = { params: Promise.resolve({ slug }) };
+  const request = (method: string, body?: unknown) =>
+    new Request(`http://localhost/api/admin/synths/${slug}`, {
+      method,
+      ...(body === undefined ? {} : { headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
+    });
+
+  it("accepts one change per request", async () => {
+    session.user = admin;
+    const route = await adminSynthRoute();
+    expect((await route.PATCH(request("PATCH", { approved: true, deleted: true }), context)).status).toBe(422);
+    expect((await route.PATCH(request("PATCH", { deleted: "yes" }), context)).status).toBe(422);
+    expect((await route.PATCH(request("PATCH", { deleted: true }), context)).status).toBe(404);
+  });
+
+  it("keeps deleting for good and reducing revisions for admins", async () => {
+    const route = await adminSynthRoute();
+    const revisions = await import("@/app/api/admin/synths/[slug]/revisions/route");
+    session.user = null;
+    expect((await route.DELETE(request("DELETE"), context)).status).toBe(401);
+    expect((await revisions.DELETE(request("DELETE"), context)).status).toBe(401);
+    session.user = owner;
+    expect((await route.DELETE(request("DELETE"), context)).status).toBe(403);
+    expect((await revisions.DELETE(request("DELETE"), context)).status).toBe(403);
+    session.user = admin;
+    expect((await route.DELETE(request("DELETE"), context)).status).toBe(404);
   });
 });

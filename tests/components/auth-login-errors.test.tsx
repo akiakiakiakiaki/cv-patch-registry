@@ -35,6 +35,11 @@ describe("login error messages", () => {
     expect(alert).toHaveTextContent("verify your email address");
   });
 
+  it("says the account was deactivated, not that the address is unverified", async () => {
+    const alert = await submitWith(async () => ({ error: { status: 403, code: "ACCOUNT_DISABLED" } }));
+    expect(alert).toHaveTextContent("This account has been deactivated.");
+  });
+
   it("does not blame the password for a server error", async () => {
     const alert = await submitWith(async () => ({ error: { status: 500 } }));
     expect(alert).toHaveTextContent("could not process the request");

@@ -32,6 +32,11 @@ export const synths = pgTable(
     currentRevisionId: text("current_revision_id"),
     /** Soft delete: deleted synths are hidden everywhere; a later cleanup feature removes them for good. */
     deletedAt: timestamp("deleted_at"),
+    /**
+     * Set when an admin approves the synth. Until then (null) only its owner and admins see it, together with
+     * its patches. Every new synth starts unapproved, also an admin's.
+     */
+    approvedAt: timestamp("approved_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

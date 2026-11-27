@@ -39,7 +39,7 @@ export async function attachSample(
 ): Promise<{ ok: true; sample: { url: string; title: string; license: string } } | SampleFailure> {
   if (!audioEnabled()) return { ok: false, error: "disabled" };
 
-  const patch = await findPatchWithSynth(deps.db, patchId);
+  const patch = await findPatchWithSynth(deps.db, patchId, actor);
   if (!patch || !canEditPatch(actor, patch.patch)) return { ok: false, error: "not-found" };
   const existing = await findSampleByPatch(deps.db, patchId);
   if (existing && !options.replace) return { ok: false, error: "sample-exists" };

@@ -56,8 +56,8 @@ describe("with FEATURE_LEGACY_SYNTHS=false", () => {
   });
 
   it("hides the legacy synth from the catalog and its view", async () => {
-    expect((await listSynthViews(db)).map((view) => view.slug)).not.toContain(LEGACY);
-    expect(await getSynthView(db, LEGACY)).toBeNull();
+    expect((await listSynthViews(db, null)).map((view) => view.slug)).not.toContain(LEGACY);
+    expect(await getSynthView(db, LEGACY, null)).toBeNull();
   });
 
   it("hides its patches from owners, explore and links", async () => {
@@ -76,12 +76,12 @@ describe("with FEATURE_LEGACY_SYNTHS=false", () => {
 
   it("keeps the data, and migrations can still read it", async () => {
     expect(await db.select().from(patches)).toHaveLength(1);
-    expect((await listPatchesWithSynth(db, { synthSlug: LEGACY, includeHidden: true })).map((row) => row.patch.id)).toEqual([legacyPatch]);
+    expect((await listPatchesWithSynth(db, { synthSlug: LEGACY, includeHidden: true, viewer: null })).map((row) => row.patch.id)).toEqual([legacyPatch]);
   });
 
   it("shows everything again once the flag is lifted", async () => {
     vi.stubEnv("FEATURE_LEGACY_SYNTHS", "true");
-    expect((await listSynthViews(db)).map((view) => view.slug)).toContain(LEGACY);
+    expect((await listSynthViews(db, null)).map((view) => view.slug)).toContain(LEGACY);
     expect(await getPatchView(db, owner, legacyPatch)).toMatchObject({ name: "Old" });
   });
 });

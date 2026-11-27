@@ -29,6 +29,10 @@ export interface SynthView {
   revision: number;
   isBuiltIn: boolean;
   ownerId: string | null;
+  /** False until an admin approves it; meanwhile only its owner and admins see it. */
+  approved: boolean;
+  /** Whether the viewer may edit it (its owner or an admin). */
+  canEdit: boolean;
   layout: InstrumentLayout;
   panelUrl: string;
 }
@@ -78,8 +82,8 @@ export async function createSynthRevision(
   slug: string,
   input: unknown,
 ): Promise<SynthSuccess | SynthFailure> {
-  const synth = await findActiveSynthBySlug(db, slug);
-  if (!synth || !canEditSynth(actor, synth)) return { ok: false, error: "not-found" };
+  const synth = await findActiveSynthBySlug(db, slug, actor);
+  if (!synth || !synth.ownerId || !canEditSynth(actor, synth)) return { ok: false, error: "not-found" };
 
   const parsed = parseSynthDraft(input);
   if (!parsed.ok) return { ok: false, error: "invalid", issues: parsed.issues };
@@ -100,7 +104,8 @@ export async function createSynthRevision(
   const revisionId = randomUUID();
   const advanced = await appendSynthRevision(db, {
     synthId: synth.id,
-    ownerId: actor.id,
+    // The synth stays its owner's, also when an admin saves the revision.
+    ownerId: synth.ownerId,
     expectedRevisionId: current.id,
     synth: {
       displayName: draft.displayName,
@@ -139,7 +144,7 @@ async function resolvePanel(
   return { assetId: asset.id, width: asset.width, height: asset.height };
 }
 
-async function viewOf(db: Database, synth: SynthRow): Promise<SynthView | null> {
+async function viewOf(db: Database, synth: SynthRow, viewer: Actor | null): Promise<SynthView | null> {
   const revision = synth.currentRevisionId ? await findRevision(db, synth.currentRevisionId) : null;
   if (!revision) return null;
   const layout = parseSynthLayout(revision.layout);
@@ -157,18 +162,21 @@ async function viewOf(db: Database, synth: SynthRow): Promise<SynthView | null> 
     revision: revision.number,
     isBuiltIn: synth.ownerId === null,
     ownerId: synth.ownerId,
+    approved: synth.approvedAt !== null,
+    canEdit: canEditSynth(viewer, synth),
     layout,
     panelUrl,
   };
 }
 
-export async function getSynthView(db: Database, slug: string): Promise<SynthView | null> {
-  const synth = await findActiveSynthBySlug(db, slug);
-  return synth ? viewOf(db, synth) : null;
+/** The synth as `viewer` sees it; null when it does not exist or the viewer may not see it (see canSeeSynth). */
+export async function getSynthView(db: Database, slug: string, viewer: Actor | null): Promise<SynthView | null> {
+  const synth = await findActiveSynthBySlug(db, slug, viewer);
+  return synth ? viewOf(db, synth, viewer) : null;
 }
 
-export async function listSynthViews(db: Database): Promise<SynthView[]> {
-  const rows = await listSynthRows(db);
-  const views = await Promise.all(rows.map((row) => viewOf(db, row)));
+export async function listSynthViews(db: Database, viewer: Actor | null): Promise<SynthView[]> {
+  const rows = await listSynthRows(db, viewer);
+  const views = await Promise.all(rows.map((row) => viewOf(db, row, viewer)));
   return views.filter((view): view is SynthView => view !== null);
 }

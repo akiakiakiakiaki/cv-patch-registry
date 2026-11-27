@@ -22,6 +22,9 @@ interface RequestOptions {
 
 const segment = encodeURIComponent;
 
+/** Dispatched on window when the API refuses the session (401), e.g. because an admin deactivated the account. */
+export const UNAUTHORIZED_EVENT = "patch-sheet:unauthorized";
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<ApiResult<T>> {
   const method = options.method ?? "GET";
   // Reads always ask the server: libraries and synths change while the page is open.
@@ -41,6 +44,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<A
     if (error instanceof DOMException && error.name === "AbortError") throw error;
     return { ok: false, status: 0, body: {} };
   }
+  if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
   const body: unknown = await response.json().catch(() => ({}));
   if (response.ok) return { ok: true, status: response.status, data: body as T };
   const record = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
@@ -51,6 +55,8 @@ export interface SynthCatalogItem {
   slug: string;
   displayName: string;
   isBuiltIn: boolean;
+  /** False while the synth awaits an admin's approval (only its owner and admins see it then). */
+  approved: boolean;
 }
 
 export interface SynthRevisionInput {
@@ -98,6 +104,19 @@ export const api = {
         method: "POST",
         body: file,
       }),
+  },
+  admin: {
+    setSynthApproval: (slug: string, approved: boolean) =>
+      request<{ ok: true; approved: boolean }>(`/api/admin/synths/${segment(slug)}`, { method: "PATCH", json: { approved } }),
+    /** Soft delete (restorable) or restore. */
+    setSynthDeleted: (slug: string, deleted: boolean) =>
+      request<{ ok: true; deleted: boolean }>(`/api/admin/synths/${segment(slug)}`, { method: "PATCH", json: { deleted } }),
+    /** Removes a soft-deleted synth for good. */
+    purgeSynth: (slug: string) => request<unknown>(`/api/admin/synths/${segment(slug)}`, { method: "DELETE" }),
+    /** One change per call: { active } | { emailVerified } | { role }; answers the applied change. */
+    changeUser: <Change extends { active: boolean } | { emailVerified: boolean } | { role: "user" | "admin" }>(id: string, change: Change) =>
+      request<Change>(`/api/admin/users/${segment(id)}`, { method: "PATCH", json: change }),
+    reduceRevisions: (slug: string) => request<{ ok: true; removed: number }>(`/api/admin/synths/${segment(slug)}/revisions`, { method: "DELETE" }),
   },
   tags: {
     suggest: (query: string, signal?: AbortSignal) => request<{ tags?: TagEntry[] }>(`/api/tags?q=${segment(query)}`, { signal }),

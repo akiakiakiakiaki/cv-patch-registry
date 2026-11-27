@@ -23,8 +23,8 @@ vi.mock("@/lib/auth/client", () => ({
 
 const cloneLayout = buildProtonCloneLayout();
 const views: Record<string, unknown> = {
-  td3: { slug: "td3", displayName: "TD3", manufacturer: null, revision: 1, isBuiltIn: false, ownerId: "x", layout: { ...testLayout, id: "td3" }, panelUrl: "/assets/uploads/0f1e2d3c-4b5a-4968-8778-6a5b4c3d2e1f.png" },
-  [PROTON_CLONE_SLUG]: { slug: PROTON_CLONE_SLUG, displayName: "Behringer Proton", manufacturer: "Behringer", revision: 1, isBuiltIn: false, ownerId: "x", layout: cloneLayout, panelUrl: "/assets/uploads/1a2b3c4d-4b5a-4968-8778-6a5b4c3d2e1f.png" },
+  td3: { slug: "td3", displayName: "TD3", manufacturer: null, revision: 1, isBuiltIn: false, ownerId: "x", approved: true, canEdit: false, layout: { ...testLayout, id: "td3" }, panelUrl: "/assets/uploads/0f1e2d3c-4b5a-4968-8778-6a5b4c3d2e1f.png" },
+  [PROTON_CLONE_SLUG]: { slug: PROTON_CLONE_SLUG, displayName: "Behringer Proton", manufacturer: "Behringer", revision: 1, isBuiltIn: false, ownerId: "x", approved: true, canEdit: false, layout: cloneLayout, panelUrl: "/assets/uploads/1a2b3c4d-4b5a-4968-8778-6a5b4c3d2e1f.png" },
 };
 const catalog = {
   synths: [

@@ -19,7 +19,7 @@ import { createPatch } from "@/lib/patches/patch-service";
 import { deleteAsset, findAssetById, insertAsset } from "@/lib/repositories/assets-repository";
 import { findPatchWithSynth, listPatchesWithSynth, tagSlugsFor } from "@/lib/repositories/patches-repository";
 import { findSampleByPatch, insertSample } from "@/lib/repositories/samples-repository";
-import { findSynthBySlug } from "@/lib/repositories/synths-repository";
+import { findSynthBySlug, setSynthApproval } from "@/lib/repositories/synths-repository";
 import type { StorageProvider, UploadExtension } from "@/lib/storage/storage-provider";
 import { createSynth } from "@/lib/synths/synth-service";
 
@@ -99,7 +99,7 @@ export async function cloneLegacyProton(
   }
 
   // The legacy synth may already be hidden (FEATURE_LEGACY_SYNTHS=false); its patches must still be copied.
-  const rows = await listPatchesWithSynth(db, { synthSlug: LEGACY_PROTON_SLUG, includeHidden: true });
+  const rows = await listPatchesWithSynth(db, { synthSlug: LEGACY_PROTON_SLUG, includeHidden: true, viewer: null });
   const plans: Array<ProtonClonePatch & { data: PatchData }> = [];
   for (const row of rows) {
     const layout = parseSynthLayout(row.layout);
@@ -114,7 +114,7 @@ export async function cloneLegacyProton(
       cloneId,
       name: row.patch.name,
       ownerId: row.patch.ownerId,
-      action: (await findPatchWithSynth(db, cloneId)) ? "exists" : "copy",
+      action: (await findPatchWithSynth(db, cloneId, { id: row.patch.ownerId })) ? "exists" : "copy",
       sample: (await findSampleByPatch(db, row.patch.id)) !== null,
       values: countValues(data),
       data,
@@ -128,6 +128,9 @@ export async function cloneLegacyProton(
     if (!stored.ok) return { ok: false, error: "panel-invalid", detail: stored.reason };
     const created = await createSynth(db, { id: input.ownerId }, { ...draft, panelAssetId: stored.panel.id });
     if (!created.ok) return { ok: false, error: "create-failed", detail: created.error };
+    // The clone replaces the visible built-in Proton: approved right away, so every owner's patches can move to it.
+    const clone = await findSynthBySlug(db, PROTON_CLONE_SLUG);
+    if (!clone || !(await setSynthApproval(db, clone.id, true))) return { ok: false, error: "create-failed", detail: "approval" };
   }
 
   const tags = await tagSlugsFor(db, plans.map((plan) => plan.legacyId));

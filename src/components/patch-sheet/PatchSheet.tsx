@@ -16,6 +16,7 @@ import { PAGE_GUTTER } from "@/components/app-shell/layout";
 import { useConfirmDialog } from "@/components/confirm-dialog/ConfirmDialog";
 import { PATCHES_IMPORTED_EVENT } from "@/components/guest-transfer/GuestPatchTransfer";
 import { PatchSettingsBar } from "@/components/patch-sheet/PatchSettingsBar";
+import { SynthApprovalStatus } from "@/components/patch-sheet/SynthApprovalStatus";
 import { PatchSheetFooter } from "@/components/patch-sheet/PatchSheetFooter";
 import { RevisionLossDetails } from "@/components/patch-sheet/RevisionLossDetails";
 import { downloadJson, importErrorMessage, importLibraryFile, libraryExport, type ImportConflict } from "@/components/patch-sheet/patch-file";
@@ -26,7 +27,7 @@ import { useSheetLibrary } from "@/hooks/use-sheet-library";
 import { useSynthCatalog } from "@/hooks/use-synth-catalog";
 import { api } from "@/lib/api/client";
 import { authClient } from "@/lib/auth/client";
-import { hasCapability, roleForUser } from "@/lib/auth/roles";
+import { hasCapability, isAdminRole, roleForUser } from "@/lib/auth/roles";
 import {
   EMPTY_PATCH_DATA,
   activatePatch,
@@ -71,7 +72,8 @@ export function PatchSheet() {
   const [debugEditing, setDebugEditing] = useState(false);
   const [linkedPatchId, setLinkedPatchId] = useState<string | null>(searchParams.get("patch"));
 
-  const isOwner = Boolean(view && accountUserId && view.ownerId === accountUserId);
+  // Owner or admin, decided by the server (see canEditSynth).
+  const canEditView = Boolean(view?.canEdit);
   const accountMode = role !== "guest" && Boolean(accountUserId);
   const debugActive = debugLayoutEnabled && isBuiltIn && hasCapability(role, "adjustBuiltInLayout");
   const canManageSynths = hasCapability(role, "manageSynths");
@@ -94,7 +96,7 @@ export function PatchSheet() {
 
   const { confirm, choose, dialog: confirmDialog } = useConfirmDialog();
   const editorRef = useRef<SynthLayoutEditorHandle>(null);
-  const editorOpen = sheetMode === "editingSynth" && view !== null && isOwner && !isBuiltIn;
+  const editorOpen = sheetMode === "editingSynth" && view !== null && canEditView && !isBuiltIn;
   // The mode actually shown: editing needs an editable synth, otherwise the sheet stays in patching.
   const modeLayout = sheetModeLayout(editorOpen ? "editingSynth" : "patching");
   // Wide screens show the app at window height in modes that ask for it (see .editor-full-height in globals.scss).
@@ -322,7 +324,7 @@ export function PatchSheet() {
     }
   }
 
-  const ownerCanEdit = canManageSynths && isOwner && !isBuiltIn && view !== null;
+  const ownerCanEdit = canManageSynths && canEditView && !isBuiltIn && view !== null;
 
   return (
     <>
@@ -432,6 +434,22 @@ export function PatchSheet() {
               onLedChange={changeLed}
               onCableChange={changeCables}
             />
+            {ownerCanEdit ? (
+              <Box data-testid="synth-visibility" sx={{ px: PAGE_GUTTER, pt: 1 }}>
+                <SynthApprovalStatus
+                  key={view.slug}
+                  slug={view.slug}
+                  approved={view.approved}
+                  ownedByViewer={view.ownerId === accountUserId}
+                  canApprove={isAdminRole(role)}
+                  onApprovalChange={() => {
+                    // The view carries the approval, the catalog the "awaiting approval" mark.
+                    void synths.reloadView(view.slug);
+                    void synths.reloadCatalog();
+                  }}
+                />
+              </Box>
+            ) : null}
             {ownsActivePatch ? (
               <Box sx={{ px: PAGE_GUTTER }}>
                 {/* Keyed by patch: an opened upload form does not carry over to another patch. */}

@@ -21,6 +21,8 @@ const view = {
   revision: 1,
   isBuiltIn: false,
   ownerId: null,
+  approved: true,
+  canEdit: false,
   layout: testLayout,
   panelUrl: "/assets/uploads/0f1e2d3c-4b5a-4968-8778-6a5b4c3d2e1f.png",
 };

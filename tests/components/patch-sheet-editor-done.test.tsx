@@ -24,6 +24,9 @@ const view = {
   revision: 1,
   isBuiltIn: false,
   ownerId: "user-1",
+  // As the server answers its owner.
+  approved: true,
+  canEdit: true,
   layout: testLayout,
   panelUrl: "/assets/uploads/0f1e2d3c-4b5a-4968-8778-6a5b4c3d2e1f.png",
 };
@@ -381,3 +384,40 @@ describe("PatchSheet import conflicts", () => {
     await waitFor(() => expect(screen.getByRole("textbox", { name: "Active patch name" })).toHaveValue("Imported"));
   });
 });
+
+describe("PatchSheet synth visibility", () => {
+  it("tells the owner whether their synth is approved and who can see it", async () => {
+    const base = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (input, init) =>
+      String(input).startsWith("/api/synths/custom-synth") ? new Response(JSON.stringify({ ...view, approved: false }), { status: 200 }) : base(input, init),
+    );
+    render(
+      <I18nProvider locale="en">
+        <PatchSheet />
+      </I18nProvider>,
+    );
+    await screen.findByRole("button", { name: "Edit" });
+    const below = screen.getByTestId("synth-visibility");
+    // Below the panel, not in the top bar.
+    expect(screen.getByRole("main").contains(below)).toBe(true);
+    const panel = screen.getByRole("main").querySelector("svg")!;
+    expect(panel.compareDocumentPosition(below) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(below).getByRole("status")).toHaveTextContent("Awaiting approval – visible only to you");
+    // Approving is for admins; the creator sees the status only.
+    expect(within(below).queryByRole("switch")).not.toBeInTheDocument();
+  });
+
+  it("says when the synth is visible to everyone", async () => {
+    render(
+      <I18nProvider locale="en">
+        <PatchSheet />
+      </I18nProvider>,
+    );
+    await screen.findByRole("button", { name: "Edit" });
+    const below = screen.getByTestId("synth-visibility");
+    // Below the panel, not in the top bar.
+    expect(screen.getByRole("main").contains(below)).toBe(true);
+    expect(within(below).getByRole("status")).toHaveTextContent("Approved – visible to everyone");
+  });
+});
+

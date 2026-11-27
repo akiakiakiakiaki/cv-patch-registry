@@ -122,7 +122,7 @@ export async function createPatch(
   if (!parsed.success) return { ok: false, error: "invalid", issues: issuesOf(parsed.error) };
   const body = parsed.data;
 
-  const synth = await findActiveSynthBySlug(db, body.synthSlug);
+  const synth = await findActiveSynthBySlug(db, body.synthSlug, actor);
   if (!synth || !synth.currentRevisionId) return { ok: false, error: "synth-not-found" };
   const revision = await findRevision(db, synth.currentRevisionId);
   const layout = revision ? parseSynthLayout(revision.layout) : null;
@@ -132,7 +132,7 @@ export async function createPatch(
   if (!tags.ok) return tagFailure(tags.reason);
 
   const id = body.id ?? randomUUID();
-  if (body.id && (await findPatchWithSynth(db, body.id))) return { ok: false, error: "conflict" };
+  if (body.id && (await findPatchWithSynth(db, body.id, actor))) return { ok: false, error: "conflict" };
   await insertPatch(db, {
     id,
     ownerId: actor.id,
@@ -153,7 +153,7 @@ export async function updatePatch(
   patchId: string,
   input: unknown,
 ): Promise<{ ok: true; revision: number } | PatchFailure> {
-  const existing = await findPatchWithSynth(db, patchId);
+  const existing = await findPatchWithSynth(db, patchId, actor);
   if (!existing || !canEditPatch(actor, existing.patch)) return { ok: false, error: "not-found" };
 
   const parsed = patchUpdateSchema.safeParse(input);
@@ -222,7 +222,7 @@ export async function deletePatch(db: Database, actor: Actor, patchId: string): 
 
 /** Private patches answer null for everyone but their owner, so their existence is not revealed. */
 export async function getPatchView(db: Database, actor: Actor | null, patchId: string): Promise<PatchView | null> {
-  const row = await findPatchWithSynth(db, patchId);
+  const row = await findPatchWithSynth(db, patchId, actor);
   if (!row || !canViewPatch(actor, row.patch)) return null;
   const layout = parseSynthLayout(row.layout);
   const data = layout ? decodePatchDocument(row.patch.data, layout) : null;
@@ -274,7 +274,7 @@ export interface PatchState {
 }
 
 export async function listOwnPatchStates(db: Database, actor: Actor, synthSlug: string): Promise<PatchState[]> {
-  const rows = await listPatchesWithSynth(db, { ownerId: actor.id, synthSlug });
+  const rows = await listPatchesWithSynth(db, { ownerId: actor.id, synthSlug, viewer: actor });
   const tagMap = await tagsFor(db, rows.map((row) => row.patch.id));
   // All rows belong to one synth, so its current revision is resolved once.
   const current = rows[0] ? await currentRevisionFor(db, rows[0]) : null;
@@ -300,14 +300,15 @@ export async function listOwnPatchStates(db: Database, actor: Actor, synthSlug: 
 }
 
 export async function listOwnPatches(db: Database, actor: Actor): Promise<PatchSummary[]> {
-  return summaries(db, await listPatchesWithSynth(db, { ownerId: actor.id }));
+  return summaries(db, await listPatchesWithSynth(db, { ownerId: actor.id, viewer: actor }));
 }
 
 export async function listPublicPatches(
   db: Database,
   filter: { synthSlug?: string; tagSlug?: string },
 ): Promise<PatchSummary[]> {
-  return summaries(db, await listPatchesWithSynth(db, { ...filter, visibility: "public" }));
+  // Public lists are the same for everyone: only patches of approved synths.
+  return summaries(db, await listPatchesWithSynth(db, { ...filter, visibility: "public", viewer: null }));
 }
 
 /** Copies a browser-side library into the account. Imported patches start private. */
@@ -318,7 +319,7 @@ export async function importLocalPatches(
 ): Promise<{ ok: true; created: number } | PatchFailure> {
   const parsed = localImportSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "invalid", issues: issuesOf(parsed.error) };
-  const synth = await findActiveSynthBySlug(db, parsed.data.synthSlug);
+  const synth = await findActiveSynthBySlug(db, parsed.data.synthSlug, actor);
   if (!synth || !synth.currentRevisionId) return { ok: false, error: "synth-not-found" };
   const revision = await findRevision(db, synth.currentRevisionId);
   const layout = revision ? parseSynthLayout(revision.layout) : null;
@@ -338,7 +339,7 @@ export async function importLocalPatches(
     });
     if (!inserted) {
       // Keep retries of the same browser import idempotent. Never overwrite another patch.
-      const existing = await findPatchWithSynth(db, id);
+      const existing = await findPatchWithSynth(db, id, actor);
       if (existing?.patch.ownerId === actor.id && existing.synthSlug === synth.slug) continue;
       return { ok: false, error: "conflict" };
     }

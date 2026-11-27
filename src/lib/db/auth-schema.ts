@@ -13,10 +13,12 @@ export const user = pgTable(
     emailVerified: boolean("emailVerified").notNull().default(false),
     image: text("image"),
     role: text("role").$type<MemberRole>().notNull().default("user"),
+    /** Set when an admin deactivates the account: it can no longer sign in. */
+    disabledAt: timestamp("disabledAt"),
     createdAt: timestamp("createdAt").notNull().defaultNow(),
     updatedAt: timestamp("updatedAt").notNull().defaultNow(),
   },
-  (table) => [check("user_role_check", sql`${table.role} in ('user', 'admin')`)],
+  (table) => [check("user_role_check", sql`${table.role} in ('user', 'admin', 'owner')`)],
 );
 
 export const session = pgTable(

@@ -27,6 +27,8 @@ const synthView = {
   revision: 2,
   isBuiltIn: false,
   ownerId: "user-1",
+  approved: true,
+  canEdit: true,
   layout: testLayout,
   panelUrl: "/assets/uploads/new.png",
 };
