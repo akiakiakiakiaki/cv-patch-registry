@@ -4,7 +4,8 @@ import { contentTypeForKey, isValidUploadKey, uploadPublicUrl } from "@/lib/stor
 
 export { contentTypeForKey, isValidUploadKey, uploadPublicUrl };
 
-export const UPLOAD_DIRECTORY = path.join(process.cwd(), "public", "assets", "uploads");
+// Marked for the bundler: local uploads are development data and must not be traced into server functions.
+export const UPLOAD_DIRECTORY = path.join(/* turbopackIgnore: true */ process.cwd(), "public", "assets", "uploads");
 
 export function uploadFilePath(key: string): string {
   if (!isValidUploadKey(key)) throw new Error("Invalid upload key");

@@ -20,7 +20,8 @@ export interface DatabaseHandle {
   lockPath: string | null;
 }
 
-const DEFAULT_DATA_DIRECTORY = path.join(process.cwd(), ".data", "pglite");
+// Marked for the bundler: the local PGlite database is development data and must not be traced into server functions.
+const DEFAULT_DATA_DIRECTORY = path.join(/* turbopackIgnore: true */ process.cwd(), ".data", "pglite");
 const MIGRATIONS_FOLDER = path.join(process.cwd(), "drizzle");
 
 const migrationsByClient = new WeakMap<object, Promise<void>>();

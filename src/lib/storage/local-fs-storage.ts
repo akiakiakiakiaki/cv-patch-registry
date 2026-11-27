@@ -4,7 +4,7 @@ import path from "node:path";
 import { UPLOAD_DIRECTORY, isValidUploadKey, uploadPublicUrl } from "@/lib/storage/upload-files";
 import type { StorageProvider, UploadExtension } from "@/lib/storage/storage-provider";
 
-const DEFAULT_TEMP_DIRECTORY = path.join(process.cwd(), ".data", "tmp");
+const DEFAULT_TEMP_DIRECTORY = path.join(/* turbopackIgnore: true */ process.cwd(), ".data", "tmp");
 
 /**
  * Writes into a temporary directory first and renames into the public upload directory,
@@ -20,22 +20,24 @@ export class LocalFsStorage implements StorageProvider {
     const storageKey = `${randomUUID()}.${extension}`;
     await mkdir(this.temporaryRoot, { recursive: true });
     await mkdir(this.root, { recursive: true });
-    const temporaryPath = path.join(this.temporaryRoot, storageKey);
-    const destinationPath = path.join(this.root, storageKey);
-    await writeFile(/* turbopackIgnore: true */ temporaryPath, bytes, { flag: "wx" });
-    await rename(temporaryPath, /* turbopackIgnore: true */ destinationPath);
+    // Every path is marked for the bundler: otherwise it traces the whole project (sources, tests, local data)
+    // into every server function, although this storage is never used on Vercel.
+    await writeFile(path.join(/* turbopackIgnore: true */ this.temporaryRoot, storageKey), bytes, { flag: "wx" });
+    await rename(
+      path.join(/* turbopackIgnore: true */ this.temporaryRoot, storageKey),
+      path.join(/* turbopackIgnore: true */ this.root, storageKey),
+    );
     return storageKey;
   }
 
   async read(storageKey: string): Promise<Uint8Array> {
     if (!isValidUploadKey(storageKey)) throw new Error("Invalid storage key");
-    return new Uint8Array(await readFile(/* turbopackIgnore: true */ path.join(this.root, storageKey)));
+    return new Uint8Array(await readFile(path.join(/* turbopackIgnore: true */ this.root, storageKey)));
   }
 
   async remove(storageKey: string): Promise<void> {
     if (!isValidUploadKey(storageKey)) return;
-    const filePath = path.join(this.root, storageKey);
-    await rm(/* turbopackIgnore: true */ filePath, { force: true });
+    await rm(path.join(/* turbopackIgnore: true */ this.root, storageKey), { force: true });
   }
 
   publicUrl(storageKey: string): string {
