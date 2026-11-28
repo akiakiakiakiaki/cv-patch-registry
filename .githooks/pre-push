@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+. "$(git rev-parse --show-toplevel)/.githooks/lib/use-node.sh"
+
+# Slower checks before code leaves this computer: the production build (with type checking)
+# and the browser tests against it, on their own throw-away database.
+npm run build
+npm run test:e2e

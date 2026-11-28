@@ -1,9 +1,12 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { WELCOME_PATH, WelcomeNotice } from "@/components/welcome/WelcomeNotice";
 import { I18nProvider } from "@/i18n/provider";
+
+// Like Next.js: the address as it is now, a new object whenever it changed.
+vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(window.location.search) }));
 
 function arriveAt(path: string) {
   window.history.replaceState(null, "", path);
@@ -26,6 +29,19 @@ describe("welcome notice", () => {
     expect(await axe(container.ownerDocument.body)).toHaveNoViolations();
     await user.click(within(dialog).getByRole("button", { name: "Get started" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("also greets after signing up without a confirmation mail, which navigates within the app", async () => {
+    const { rerender } = arriveAt("/register");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    window.history.pushState(null, "", WELCOME_PATH);
+    rerender(
+      <I18nProvider locale="en">
+        <WelcomeNotice />
+      </I18nProvider>,
+    );
+    expect(await screen.findByRole("dialog", { name: "Welcome aboard!" })).toBeInTheDocument();
+    expect(window.location.search).toBe("");
   });
 
   it("stays hidden on a normal visit", () => {

@@ -12,16 +12,18 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "db:generate": "drizzle-kit generate",
     "db:set-role": "node --env-file=.env.development.local scripts/set-user-role.mjs",
-    "db:set-role:prod": "node --env-file=.env.production.local scripts/set-user-role.mjs",
+    "db:set-role:prod": "node --env-file=.env.prod-scripts.local scripts/set-user-role.mjs",
     "storage:migrate-local": "node --env-file=.env.development.local scripts/migrate-local-uploads-to-supabase.mjs",
     "proton:clone": "node --env-file=.env.development.local node_modules/.bin/tsx --tsconfig tsconfig.json scripts/clone-proton.mts",
     "tags:capitalize": "node --env-file=.env.development.local node_modules/.bin/tsx --tsconfig tsconfig.json scripts/capitalize-tag-labels.mts",
     "backup:export": "node --env-file=.env.development.local node_modules/.bin/tsx --tsconfig tsconfig.json scripts/backup-export.mts",
-    "backup:export:prod": "node --env-file=.env.production.local node_modules/.bin/tsx --tsconfig tsconfig.json scripts/backup-export.mts",
+    "backup:export:prod": "node --env-file=.env.prod-scripts.local node_modules/.bin/tsx --tsconfig tsconfig.json scripts/backup-export.mts",
     "backup:restore": "node --env-file=.env.development.local node_modules/.bin/tsx --tsconfig tsconfig.json scripts/backup-restore.mts",
-    "backup:restore:prod": "node --env-file=.env.production.local node_modules/.bin/tsx --tsconfig tsconfig.json scripts/backup-restore.mts"
+    "backup:restore:prod": "node --env-file=.env.prod-scripts.local node_modules/.bin/tsx --tsconfig tsconfig.json scripts/backup-restore.mts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.10",
@@ -42,6 +44,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "1.65.1",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.3",

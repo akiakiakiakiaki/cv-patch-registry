@@ -1,16 +1,6 @@
 #!/bin/sh
 set -eu
+. "$(git rev-parse --show-toplevel)/.githooks/lib/use-node.sh"
 
-repo_root=$(git rev-parse --show-toplevel)
-cd "$repo_root"
-
-# Git GUIs (e.g. VS Code) often start with a PATH whose first node is too old; use the .nvmrc version via nvm.
-NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
-if [ -f .nvmrc ] && [ -s "$NVM_DIR/nvm.sh" ]; then
-  set +eu
-  . "$NVM_DIR/nvm.sh" --no-use
-  nvm use --silent >/dev/null
-  set -eu
-fi
-
+# Fast checks on every commit: the whole unit and component test suite.
 npm run test:run

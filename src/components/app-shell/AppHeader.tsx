@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
@@ -124,7 +124,10 @@ export function AppHeader() {
         <AccountLinks />
         <GuestPatchTransfer />
         <AccountDisabledNotice />
-        <WelcomeNotice />
+        {/* It reads the address (useSearchParams), which Next.js wants inside a Suspense boundary. */}
+        <Suspense fallback={null}>
+          <WelcomeNotice />
+        </Suspense>
       </Stack>
     </Paper>
   );

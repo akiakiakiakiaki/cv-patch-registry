@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import NextLink from "next/link";
+import { useSearchParams } from "next/navigation";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import CelebrationIcon from "@mui/icons-material/Celebration";
@@ -20,11 +21,13 @@ type Arrival = "welcome" | "link-failed" | null;
 
 /**
  * Greets a new account once on arriving at WELCOME_PATH, or says that the confirmation link did not work.
- * Takes the markers out of the address, so reloading or sharing it shows nothing again.
+ * Takes the markers out of the address, so reloading or sharing it shows nothing again. Watches the address, because
+ * signing up without a confirmation mail gets here by an in-app navigation, which keeps this component mounted.
  */
 export function WelcomeNotice() {
   const { t } = useI18n();
   const [arrival, setArrival] = useState<Arrival>(null);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -34,7 +37,7 @@ export function WelcomeNotice() {
     url.searchParams.delete(ERROR_PARAM);
     window.history.replaceState(window.history.state, "", url);
     setArrival(failed ? "link-failed" : "welcome");
-  }, []);
+  }, [searchParams]);
 
   const close = () => setArrival(null);
   if (arrival === "link-failed") {
