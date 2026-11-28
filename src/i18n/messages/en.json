@@ -217,6 +217,7 @@
   "status.conflictReload": "Changed in another tab. Please reload.",
   "status.saveError": "Saving failed.",
   "patches.sharedReadOnly": "Shared patch “{name}” (read only)",
+  "footer.developmentMode": "Development mode · dev database",
   "footer.accountSaved": "Changes are saved to your account automatically.",
   "synths.delete": "Delete synth",
   "synths.deleteConfirm": "Delete synth “{name}” permanently? Its panel and controls will be removed.",

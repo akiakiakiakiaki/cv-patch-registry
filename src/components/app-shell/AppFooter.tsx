@@ -9,7 +9,11 @@ import { ColorModeSwitch } from "@/components/color-mode-switch/ColorModeSwitch"
 import { useI18n } from "@/i18n/provider";
 import { PAGE_GUTTER } from "@/components/app-shell/layout";
 
-export function AppFooter() {
+/**
+ * @param developmentMode DEVELOPMENT=true: a notice that this instance runs in development mode on the dev database,
+ * so it is not mistaken for production.
+ */
+export function AppFooter({ developmentMode = false }: { developmentMode?: boolean }) {
   const { locale, setLocale, t } = useI18n();
 
   return (
@@ -38,7 +42,14 @@ export function AppFooter() {
           gap: { xs: 1, sm: 2 },
         }}
       >
-        <Typography variant="caption">{t("brand.title")} · {t("brand.subtitle")}</Typography>
+        <Stack direction={{ xs: "column", sm: "row" }} sx={{ alignItems: "center", columnGap: 2 }}>
+          <Typography variant="caption">{t("brand.title")} · {t("brand.subtitle")}</Typography>
+          {developmentMode ? (
+            <Typography variant="caption" sx={{ color: "primary.main", fontWeight: 600 }}>
+              {t("footer.developmentMode")}
+            </Typography>
+          ) : null}
+        </Stack>
         <Stack direction="row" sx={{ alignItems: "center", gap: 1 }}>
           <ButtonGroup size="small" aria-label={t("language.label")}>
             {(["de", "en"] as const).map((language) => (

@@ -179,6 +179,28 @@ describe("PatchManager", () => {
   });
 });
 
+describe("shared footer in development mode", () => {
+  function renderFooter(developmentMode?: boolean) {
+    return render(
+      <AppProviders>
+        <I18nProvider locale="en">
+          <AppFooter developmentMode={developmentMode} />
+        </I18nProvider>
+      </AppProviders>,
+    );
+  }
+
+  it("says so next to the title when DEVELOPMENT is on", () => {
+    renderFooter(true);
+    expect(screen.getByText("Development mode · dev database")).toBeInTheDocument();
+  });
+
+  it("says nothing about it otherwise", () => {
+    renderFooter();
+    expect(screen.queryByText(/Development mode/)).not.toBeInTheDocument();
+  });
+});
+
 describe("PatchManager synth action", () => {
   it("shows the given action right of the synth selector", () => {
     renderManager({ synthAction: <button type="button">Edit</button> });

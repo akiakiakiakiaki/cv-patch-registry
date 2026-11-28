@@ -44,7 +44,7 @@ export default async function RootLayout({
               <div className="appShell">
                 <AppHeader />
                 <div className="appContent">{children}</div>
-                <AppFooter />
+                <AppFooter developmentMode={process.env.DEVELOPMENT === "true"} />
               </div>
             </I18nProvider>
           </AppProviders>

@@ -217,6 +217,7 @@
   "status.conflictReload": "Geändert in einem anderen Tab. Bitte neu laden.",
   "status.saveError": "Speichern fehlgeschlagen.",
   "patches.sharedReadOnly": "Geteiltes Patch „{name}“ (nur lesen)",
+  "footer.developmentMode": "Development-Modus · Dev-Datenbank",
   "footer.accountSaved": "Änderungen werden automatisch im Konto gespeichert.",
   "synths.delete": "Synth löschen",
   "synths.deleteConfirm": "Synth „{name}“ endgültig löschen? Panel und Controls werden entfernt.",
