@@ -50,7 +50,7 @@ Visitors can try everything without an account; their patches stay in the browse
 ### Mail
 
 - Mails (verification, password reset, the data copy before an account is deleted, and notices to admins when a new synth awaits approval or someone asks for deletion) go out in the reader's browser language.
-- They are sent through the service set in `MAIL_PROVIDER`: `console` prints them to the server log (the default outside production), `brevo` sends them through Brevo. Every service sits behind one small adapter (`src/lib/mail/providers`), so another one needs only a new adapter and its settings.
+- They are sent through the service set in `MAIL_PROVIDER`: `console` prints them to the server log (the default outside production), `brevo` sends them through Brevo. Another service can be added as an adapter, see [Architecture](#architecture).
 
 ### Interface
 
@@ -150,6 +150,20 @@ Without further settings, data lives in an embedded Postgres (PGlite) in `.data/
 - If the Supabase database already contains asset rows created while files were stored locally, copy the matching files before deploying: configure the Supabase Storage variables in `.env.development.local`, create the public bucket, then run `npm run storage:migrate-local`. The script uploads files from `public/assets/uploads/` with their existing keys and can be rerun safely.
 - Uploaded files in local mode are served by `src/app/assets/uploads/[key]/route.ts` with `nosniff` and a sandboxing CSP.
 - Cookie-authenticated mutation routes reject a supplied cross-origin `Origin`, and JSON mutation bodies have byte limits.
+
+## Architecture
+
+The app talks to outside services through small interfaces, so a service can be replaced without touching the rest of the code. An environment variable selects the implementation.
+
+| Area | Interface | Included | Selected by | Adding another service |
+| --- | --- | --- | --- | --- |
+| Mail | `MailProvider` in `src/lib/mail/mail-types.ts` | `console`, `brevo` | `MAIL_PROVIDER` | A class in `src/lib/mail/providers/` and an entry in `PROVIDERS` in `src/lib/mail/mail-config.ts`. |
+| Files (panels, samples) | `StorageProvider` in `src/lib/storage/storage-provider.ts` | `local`, `supabase` | `STORAGE_PROVIDER` | A class (e.g. for S3 or R2) and a case in `getStorage()` in `src/lib/storage/index.ts`. |
+| Database | Drizzle ORM, one schema and one set of SQL migrations | PGlite, PostgreSQL | `PATCH_DB_PROVIDER` | Any PostgreSQL host (e.g. Neon, Amazon RDS, an own server) needs only its `DATABASE_URL`. |
+
+Sign-in is handled by Better Auth, built in, with accounts and sessions in the app's own database. The app runs on Vercel or on any Node.js server with `next start`.
+
+`src/lib/adapters` holds something else: the validation and conversion of the app's JSON formats (synth layouts and patches), not service adapters.
 
 ## Project structure
 
